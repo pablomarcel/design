@@ -1,0 +1,114 @@
+# ----------------------------
+# Python bytecode / caches
+# ----------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Compiled extensions
+*.so
+
+# ----------------------------
+# Build / packaging
+# ----------------------------
+build/
+dist/
+.eggs/
+*.egg-info/
+pip-wheel-metadata/
+wheelhouse/
+
+# ----------------------------
+# Virtual environments
+# ----------------------------
+.venv/
+venv/
+ENV/
+env/
+
+# ----------------------------
+# Testing / coverage
+# ----------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+coverage.xml
+
+# ----------------------------
+# Type checkers / analyzers
+# ----------------------------
+.mypy_cache/
+.dmypy.json
+.pytype/
+.pyre/
+.pyrightcache/
+
+# ----------------------------
+# Jupyter / notebooks (if any)
+# ----------------------------
+.ipynb_checkpoints/
+*.ipynb
+
+# ----------------------------
+# Logs & temp
+# ----------------------------
+*.log
+logs/
+tmp/
+temp/
+
+# ----------------------------
+# IDE / editor settings
+# ----------------------------
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ----------------------------
+# OS cruft (macOS / Windows)
+# ----------------------------
+.DS_Store
+._*
+Thumbs.db
+
+# ----------------------------
+# Env/config secrets
+# ----------------------------
+.env
+.env.*
+*.env
+
+# ----------------------------
+# Sphinx _build folders
+# ----------------------------
+
+**/docs/_build/
+
+# ----------------------------
+# Project-specific artifacts
+# ----------------------------
+# Rotation app outputs (keep inputs under rotation/in tracked)
+1_intro/out/
+2_materials/out/
+3_load/out/
+4_deflection/out/
+5_failureStatic/out/
+6_failureDynamic/out/
+7_shafts/out/
+8_screws/out/
+9_welding/out/
+10_springs/out/
+11_rollingBearings/out/
+12_journalBearings/out/
+13_gears/out/
+14_spurGears/out/
+15_bevelGears/out/
+16_clutches/out/
+17_flexible/out/
+18_transmission/out/
+19_fea/out/
+20_gdt/out/
+

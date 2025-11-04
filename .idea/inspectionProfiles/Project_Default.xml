@@ -1,0 +1,52 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="ace_tools" />
+          <option value="async-generator" />
+          <option value="boto" />
+          <option value="choreographer" />
+          <option value="commonmark" />
+          <option value="entrypoints" />
+          <option value="et_xmlfile" />
+          <option value="geopandas" />
+          <option value="graphviz" />
+          <option value="h11" />
+          <option value="iniconfig" />
+          <option value="kaleido" />
+          <option value="logistro" />
+          <option value="numpy-financial" />
+          <option value="openpyxl" />
+          <option value="orjson" />
+          <option value="outcome" />
+          <option value="pluggy" />
+          <option value="pyglet" />
+          <option value="Pympler" />
+          <option value="pyogrio" />
+          <option value="pyproj" />
+          <option value="pyrsistent" />
+          <option value="PySocks" />
+          <option value="pytest" />
+          <option value="pytz-deprecation-shim" />
+          <option value="rich" />
+          <option value="selenium" />
+          <option value="semver" />
+          <option value="shapely" />
+          <option value="simplejson" />
+          <option value="sniffio" />
+          <option value="sortedcontainers" />
+          <option value="toolz" />
+          <option value="trimesh" />
+          <option value="trio" />
+          <option value="trio-websocket" />
+          <option value="validators" />
+          <option value="watchdog" />
+          <option value="wsproto" />
+          <option value="z3" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
