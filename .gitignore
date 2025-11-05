@@ -91,24 +91,24 @@ Thumbs.db
 # Project-specific artifacts
 # ----------------------------
 # Rotation app outputs (keep inputs under rotation/in tracked)
-01_intro/out/
-02_materials/out/
-03_load/out/
-04_deflection/out/
-05_failureStatic/out/
-06_failureDynamic/out/
-07_shafts/out/
-08_screws/out/
-09_welding/out/
-10_springs/out/
-11_rollingBearings/out/
-12_journalBearings/out/
-13_gears/out/
-14_spurGears/out/
-15_bevelGears/out/
-16_clutches/out/
-17_flexible/out/
-18_transmission/out/
-19_fea/out/
-20_gdt/out/
+intro/out/
+materials/out/
+load/out/
+deflection/out/
+failureStatic/out/
+failureDynamic/out/
+shafts/out/
+screws/out/
+welding/out/
+springs/out/
+rollingBearings/out/
+journalBearings/out/
+gears/out/
+spurGears/out/
+bevelGears/out/
+clutches/out/
+flexible/out/
+transmission/out/
+fea/out/
+gdt/out/
 
