@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = bevelGears
+source = clutches
 
 [html]
-directory = bevelGears/out/htmlcov
+directory = clutches/out/htmlcov
 
 [report]
 show_missing = True

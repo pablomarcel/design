@@ -1,5 +1,5 @@
-pytest bevelGears/tests \
+pytest failureDynamic/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=bevelGears/.coveragerc \
+  --cov-config=failureDynamic/.coveragerc \
   --cov-report=term-missing

@@ -1,5 +1,5 @@
-pytest bevelGears/tests \
+pytest gdt/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=bevelGears/.coveragerc \
+  --cov-config=gdt/.coveragerc \
   --cov-report=term-missing

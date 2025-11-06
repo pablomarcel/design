@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = spurGears
+
+[html]
+directory = spurGears/out/htmlcov
+
+[report]
+show_missing = True

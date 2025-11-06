@@ -1,5 +1,5 @@
-pytest bevelGears/tests \
+pytest rollingBearings/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=bevelGears/.coveragerc \
+  --cov-config=rollingBearings/.coveragerc \
   --cov-report=term-missing

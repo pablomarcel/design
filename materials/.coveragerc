@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = bevelGears
+source = materials
 
 [html]
-directory = bevelGears/out/htmlcov
+directory = materials/out/htmlcov
 
 [report]
 show_missing = True

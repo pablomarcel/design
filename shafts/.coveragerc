@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = shafts
+
+[html]
+directory = shafts/out/htmlcov
+
+[report]
+show_missing = True

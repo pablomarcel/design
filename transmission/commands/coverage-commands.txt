@@ -1,0 +1,5 @@
+pytest transmission/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=transmission/.coveragerc \
+  --cov-report=term-missing

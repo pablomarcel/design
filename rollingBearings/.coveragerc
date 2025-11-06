@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = bevelGears
+source = rollingBearings
 
 [html]
-directory = bevelGears/out/htmlcov
+directory = rollingBearings/out/htmlcov
 
 [report]
 show_missing = True
