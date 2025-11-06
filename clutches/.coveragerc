@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = bevelGears
+
+[html]
+directory = bevelGears/out/htmlcov
+
+[report]
+show_missing = True
