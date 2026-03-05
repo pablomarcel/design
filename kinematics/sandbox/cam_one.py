@@ -4,97 +4,122 @@ import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 
 # ------------------------------------------------
-# Cam motion definition
+# CAM PARAMETERS
 # ------------------------------------------------
 
 motion = [
-    ('Rise', 3, 90),
-    ('Dwell', 15),
-    ('Fall', 3, 90),
-    ('Dwell', 15),
-    ('Rise', 2, 60),
-    ('Dwell', 15),
-    ('Fall', 2, 60),
-    ('Dwell', 15)
+    ('Rise',3,90),
+    ('Dwell',15),
+    ('Fall',3,90),
+    ('Dwell',15),
+    ('Rise',2,60),
+    ('Dwell',15),
+    ('Fall',2,60),
+    ('Dwell',15)
 ]
 
 roller_radius = 1
 base_radius = 4
+follower_offset = 4.5   # horizontal follower guide
 
 # ------------------------------------------------
 # Cycloidal motion law
 # ------------------------------------------------
 
-theta = sp.symbols('theta')
-beta = sp.symbols('beta')
-h = sp.symbols('h')
+theta=sp.symbols('theta')
+beta=sp.symbols('beta')
+h=sp.symbols('h')
 
-cycloidal_rise = h*(theta/beta - (1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta))
-cycloidal_fall = h*(1-(theta/beta - (1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta)))
+rise=h*(theta/beta-(1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta))
+fall=h*(1-(theta/beta-(1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta)))
 
-rise_func = sp.lambdify((theta,beta,h), cycloidal_rise,'numpy')
-fall_func = sp.lambdify((theta,beta,h), cycloidal_fall,'numpy')
+rise_func=sp.lambdify((theta,beta,h),rise,'numpy')
+fall_func=sp.lambdify((theta,beta,h),fall,'numpy')
 
 # ------------------------------------------------
-# Generate displacement curve
+# BUILD MOTION
 # ------------------------------------------------
 
-angles=[]
+angles_deg=[]
 disp=[]
-current_angle=0
+
+current=0
 
 for seg in motion:
 
     if seg[0]=='Rise':
-        height,deg=seg[1],seg[2]
+        lift,deg=seg[1],seg[2]
         local=np.linspace(0,deg,200)
-        s=rise_func(local,deg,height)
+        s=rise_func(local,deg,lift)
 
     elif seg[0]=='Fall':
-        height,deg=seg[1],seg[2]
+        lift,deg=seg[1],seg[2]
         local=np.linspace(0,deg,200)
-        s=fall_func(local,deg,height)
+        s=fall_func(local,deg,lift)
 
     elif seg[0]=='Dwell':
         deg=seg[1]
-        local=np.linspace(0,deg,100)
+        local=np.linspace(0,deg,120)
         s=np.ones_like(local)*disp[-1] if disp else np.zeros_like(local)
 
-    global_theta=current_angle+local
-
-    angles.extend(global_theta)
+    angles_deg.extend(current+local)
     disp.extend(s)
 
-    current_angle+=local[-1]
+    current+=deg
 
-angles=np.radians(np.array(angles))
+angles_deg=np.array(angles_deg)
 disp=np.array(disp)
 
-# ------------------------------------------------
-# Kinematics
-# ------------------------------------------------
-
-vel=np.gradient(disp,angles)
-acc=np.gradient(vel,angles)
-
-pitch_radius=base_radius+disp
-
-pressure_angle=np.degrees(np.arctan(vel/pitch_radius))
+angles=np.radians(angles_deg)
 
 # ------------------------------------------------
-# Cam geometry
+# FOLLOWER PATH (world frame)
 # ------------------------------------------------
 
-x_pitch=pitch_radius*np.cos(angles)
-y_pitch=pitch_radius*np.sin(angles)
+x_world = np.ones_like(angles)*follower_offset
+y_world = base_radius + roller_radius + disp
 
-cam_x=x_pitch-roller_radius*np.cos(angles)
-cam_y=y_pitch-roller_radius*np.sin(angles)
+# ------------------------------------------------
+# TRANSFORM INTO CAM FRAME
+# ------------------------------------------------
+
+x_pitch=[]
+y_pitch=[]
+
+for i,th in enumerate(angles):
+
+    R=np.array([
+        [np.cos(-th),-np.sin(-th)],
+        [np.sin(-th), np.cos(-th)]
+    ])
+
+    p=R@np.array([x_world[i],y_world[i]])
+
+    x_pitch.append(p[0])
+    y_pitch.append(p[1])
+
+x_pitch=np.array(x_pitch)
+y_pitch=np.array(y_pitch)
+
+# ------------------------------------------------
+# CAM PROFILE FROM PITCH CURVE
+# ------------------------------------------------
+
+dx=np.gradient(x_pitch)
+dy=np.gradient(y_pitch)
+
+length=np.sqrt(dx**2+dy**2)
+
+nx=-dy/length
+ny=dx/length
+
+cam_x=x_pitch-roller_radius*nx
+cam_y=y_pitch-roller_radius*ny
 
 cam_outline=np.vstack((cam_x,cam_y))
 
 # ------------------------------------------------
-# Figure layout
+# FIGURE
 # ------------------------------------------------
 
 fig=plt.figure(figsize=(12,6))
@@ -108,77 +133,35 @@ ax_mech.set_title("Cam Mechanism")
 
 cam_fill=ax_mech.fill(cam_x,cam_y,color='red',ec='black')[0]
 
-roller=plt.Circle((0,0),roller_radius,color='lightgray',ec='black')
+roller=plt.Circle((follower_offset,0),roller_radius,fc='lightgray',ec='black')
 ax_mech.add_patch(roller)
 
 follower_bar,=ax_mech.plot([],[],lw=6,color='gray')
 
 # ------------------------------------------------
-# Pressure angle plot
-# ------------------------------------------------
-
-ax_pressure=fig.add_subplot(222)
-ax_pressure.plot(np.degrees(angles),pressure_angle)
-ax_pressure.set_title("Pressure Angle")
-ax_pressure.grid(True)
-
-pressure_marker,=ax_pressure.plot([],[],'ro')
-
-# ------------------------------------------------
-# Kinematics plot
-# ------------------------------------------------
-
-ax_motion=fig.add_subplot(224)
-
-ax_motion.plot(np.degrees(angles),disp,label='disp')
-ax_motion.plot(np.degrees(angles),vel,label='vel')
-ax_motion.plot(np.degrees(angles),acc,label='acc')
-
-ax_motion.legend()
-ax_motion.grid(True)
-ax_motion.set_title("Follower Kinematics")
-
-motion_marker,=ax_motion.plot([],[],'ro')
-
-# ------------------------------------------------
-# Animation
+# ANIMATION
 # ------------------------------------------------
 
 def update(frame):
 
-    rot=angles[frame]
+    th=angles[frame]
 
     R=np.array([
-        [np.cos(rot),-np.sin(rot)],
-        [np.sin(rot), np.cos(rot)]
+        [np.cos(th),-np.sin(th)],
+        [np.sin(th), np.cos(th)]
     ])
 
     rotated=R@cam_outline
-
     cam_fill.set_xy(np.column_stack((rotated[0],rotated[1])))
 
-    idx=np.argmax(rotated[1])
+    rx=follower_offset
+    ry=base_radius+roller_radius+disp[frame]
 
-    contact_y=rotated[1][idx]
+    roller.center=(rx,ry)
 
-    roller_y=contact_y+roller_radius
+    follower_bar.set_data([rx,rx],[ry,ry+3])
 
-    roller.center=(0,roller_y)
-
-    follower_bar.set_data([0,0],[roller_y,roller_y+3])
-
-    pressure_marker.set_data(
-        [np.degrees(angles[frame])],
-        [pressure_angle[frame]]
-    )
-
-    motion_marker.set_data(
-        [np.degrees(angles[frame])],
-        [disp[frame]]
-    )
-
-    return cam_fill,roller,follower_bar,pressure_marker,motion_marker
-
+    return cam_fill,roller,follower_bar
 
 anim=FuncAnimation(fig,update,frames=len(angles),interval=30)
 
