@@ -19,22 +19,22 @@ motion = [
 ]
 
 roller_radius = 1
-base_radius = 4
+base_radius_initial = 4
 follower_offset = 4.5
 
 # ------------------------------------------------
 # Cycloidal motion law
 # ------------------------------------------------
 
-theta = sp.symbols('theta')
-beta = sp.symbols('beta')
-h = sp.symbols('h')
+theta=sp.symbols('theta')
+beta=sp.symbols('beta')
+h=sp.symbols('h')
 
-rise = h*(theta/beta - (1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta))
-fall = h*(1 - (theta/beta - (1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta)))
+rise=h*(theta/beta-(1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta))
+fall=h*(1-(theta/beta-(1/(2*sp.pi))*sp.sin(2*sp.pi*theta/beta)))
 
-rise_func = sp.lambdify((theta,beta,h),rise,'numpy')
-fall_func = sp.lambdify((theta,beta,h),fall,'numpy')
+rise_func=sp.lambdify((theta,beta,h),rise,'numpy')
+fall_func=sp.lambdify((theta,beta,h),fall,'numpy')
 
 # ------------------------------------------------
 # BUILD MOTION
@@ -73,118 +73,135 @@ disp=np.array(disp)
 angles=np.radians(angles_deg)
 
 # ------------------------------------------------
-# KINEMATICS
+# FOLLOWER KINEMATICS
 # ------------------------------------------------
 
-dtheta = angles[1]-angles[0]
+dtheta=angles[1]-angles[0]
 
-vel = np.gradient(disp,dtheta)
-acc = np.gradient(vel,dtheta)
+vel=np.gradient(disp,dtheta)
+acc=np.gradient(vel,dtheta)
+
+pitch_radius=lambda Rb: Rb + disp
+
+# ------------------------------------------------
+# CAM GEOMETRY FUNCTION
+# ------------------------------------------------
+
+def build_cam(Rb):
+
+    x_world=np.ones_like(angles)*follower_offset
+    y_world=Rb+roller_radius+disp
+
+    x_pitch=[]
+    y_pitch=[]
+
+    for i,th in enumerate(angles):
+
+        R=np.array([
+            [np.cos(-th),-np.sin(-th)],
+            [np.sin(-th), np.cos(-th)]
+        ])
+
+        p=R@np.array([x_world[i],y_world[i]])
+
+        x_pitch.append(p[0])
+        y_pitch.append(p[1])
+
+    x_pitch=np.array(x_pitch)
+    y_pitch=np.array(y_pitch)
+
+    dx=np.gradient(x_pitch)
+    dy=np.gradient(y_pitch)
+
+    length=np.sqrt(dx**2+dy**2)
+
+    nx=-dy/length
+    ny=dx/length
+
+    cam_x=x_pitch-roller_radius*nx
+    cam_y=y_pitch-roller_radius*ny
+
+    ddx=np.gradient(dx)
+    ddy=np.gradient(dy)
+
+    curvature=np.abs(dx*ddy-dy*ddx)/(dx*dx+dy*dy)**1.5
+
+    radius_curvature=1/curvature
+
+    return cam_x,cam_y,radius_curvature
+
+# ------------------------------------------------
+# BASE CIRCLE OPTIMIZATION
+# ------------------------------------------------
+
+Rb=base_radius_initial
+
+for i in range(200):
+
+    cam_x,cam_y,rc=build_cam(Rb)
+
+    if np.min(rc) > roller_radius:
+        break
+
+    Rb+=0.1
+
+base_radius=Rb
+
+# recompute final cam
+cam_x,cam_y,rc=build_cam(base_radius)
 
 # ------------------------------------------------
 # PRESSURE ANGLE
 # ------------------------------------------------
 
-pitch_radius = base_radius + disp
-pressure_angle = np.degrees(np.arctan(vel/pitch_radius))
+pitch=base_radius+disp
+pressure_angle=np.degrees(np.arctan(vel/pitch))
 
 # ------------------------------------------------
-# FOLLOWER PATH (world frame)
-# ------------------------------------------------
-
-x_world = np.ones_like(angles)*follower_offset
-y_world = base_radius + roller_radius + disp
-
-# ------------------------------------------------
-# PITCH CURVE (cam frame)
-# ------------------------------------------------
-
-x_pitch=[]
-y_pitch=[]
-
-for i,th in enumerate(angles):
-
-    R=np.array([
-        [np.cos(-th),-np.sin(-th)],
-        [np.sin(-th), np.cos(-th)]
-    ])
-
-    p=R@np.array([x_world[i],y_world[i]])
-
-    x_pitch.append(p[0])
-    y_pitch.append(p[1])
-
-x_pitch=np.array(x_pitch)
-y_pitch=np.array(y_pitch)
-
-# ------------------------------------------------
-# CAM PROFILE
-# ------------------------------------------------
-
-dx=np.gradient(x_pitch)
-dy=np.gradient(y_pitch)
-
-length=np.sqrt(dx**2+dy**2)
-
-nx=-dy/length
-ny=dx/length
-
-cam_x=x_pitch-roller_radius*nx
-cam_y=y_pitch-roller_radius*ny
-
-cam_outline=np.vstack((cam_x,cam_y))
-
-# ------------------------------------------------
-# CURVATURE
-# ------------------------------------------------
-
-ddx=np.gradient(dx)
-ddy=np.gradient(dy)
-
-curvature = np.abs(dx*ddy - dy*ddx)/(dx*dx + dy*dy)**1.5
-radius_curvature = 1/curvature
-
-min_radius = np.min(radius_curvature)
-
-undercut = min_radius < roller_radius
-
-# ------------------------------------------------
-# REPORT
+# DESIGN REPORT
 # ------------------------------------------------
 
 print("\n------ CAM DESIGN REPORT ------\n")
 
+print("Base circle radius:",base_radius)
 print("Max pressure angle:",np.max(np.abs(pressure_angle)))
-print("Minimum curvature radius:",min_radius)
+print("Minimum curvature radius:",np.min(rc))
+print("Roller radius:",roller_radius)
 
-if undercut:
-    print("WARNING: Undercutting will occur\n")
-else:
-    print("No undercutting detected\n")
+if np.min(rc)>roller_radius:
+    print("Undercutting eliminated\n")
 
 # ------------------------------------------------
 # FIGURE
 # ------------------------------------------------
 
-fig = plt.figure(figsize=(14,8))
+fig=plt.figure(figsize=(14,8))
 
-gs = fig.add_gridspec(2,2)
+gs=fig.add_gridspec(2,2)
 
-ax_mech = fig.add_subplot(gs[:,0])
-ax_pressure = fig.add_subplot(gs[0,1])
-ax_motion = fig.add_subplot(gs[1,1])
+ax_mech=fig.add_subplot(gs[:,0])
+ax_pressure=fig.add_subplot(gs[0,1])
+ax_motion=fig.add_subplot(gs[1,1])
 
 # ------------------------------------------------
 # MECHANISM PLOT
 # ------------------------------------------------
 
 ax_mech.set_aspect('equal')
-ax_mech.set_xlim(-10,10)
-ax_mech.set_ylim(-10,10)
-ax_mech.set_title("Cam Mechanism")
+ax_mech.set_xlim(-12,12)
+ax_mech.set_ylim(-12,12)
 ax_mech.grid(True)
+ax_mech.set_title("Cam Mechanism")
+
+cam_outline=np.vstack((cam_x,cam_y))
 
 cam_fill=ax_mech.fill(cam_x,cam_y,color='red',ec='black')[0]
+
+# base circle
+theta_plot=np.linspace(0,2*np.pi,400)
+ax_mech.plot(base_radius*np.cos(theta_plot),
+             base_radius*np.sin(theta_plot),
+             '--',color='black')
 
 roller=plt.Circle((follower_offset,0),roller_radius,fc='lightgray',ec='black')
 ax_mech.add_patch(roller)
@@ -198,7 +215,6 @@ follower_bar,=ax_mech.plot([],[],lw=6,color='gray')
 ax_pressure.plot(angles_deg,pressure_angle)
 ax_pressure.set_title("Pressure Angle")
 ax_pressure.set_ylabel("deg")
-ax_pressure.set_xlabel("cam angle")
 ax_pressure.grid(True)
 
 pressure_marker,=ax_pressure.plot([],[],'ro')
