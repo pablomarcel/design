@@ -1,5 +1,13 @@
 ##### RUNS Cookbook
 
 ```bash
-python -m kinematics.script
+python -m sandbox.double_pendulum
+```
+
+```bash
+python -m sandbox.planetary_gear
+```
+
+```bash
+python -m sandbox.cam_one
 ```

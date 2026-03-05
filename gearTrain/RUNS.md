@@ -1,4 +1,4 @@
-#### Four Bar - mechanism library
+#### Four Bar - mechanism
 
 ```bash
 python -m sandbox.bars
@@ -14,4 +14,10 @@ python -m sandbox.mechanism
 
 ```bash
 python -m sandbox.planetary
+```
+
+#### cam1_example - mechanism
+
+```bash
+python -m sandbox.cam1_example
 ```
