@@ -9,3 +9,9 @@ python -m sandbox.bars
 ```bash
 python -m sandbox.mechanism
 ```
+
+#### Planetary Gearset - sympy
+
+```bash
+python -m sandbox.planetary
+```

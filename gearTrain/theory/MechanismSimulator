@@ -339,3 +339,473 @@ If you'd like, I can also show you the **next mechanism that mechanical engineer
 ⚙️ **slider-crank engine (piston + crankshaft)** — it looks awesome when animated and is only about **40 lines of code**.
 
 ---
+
+Yes. **Planetary gear trains are actually easier for a solver than for humans.**
+
+The “pain” engineers feel with planetary gearsets comes from **manual analysis methods** (tabular method, Willis equation, etc.). A **mechanism solver doesn’t care** — it simply enforces constraints.
+
+The key idea is:
+
+```
+unknown angular velocities
++ gear constraints
++ carrier constraints
+→ linear system
+```
+
+A solver can handle this immediately.
+
+---
+
+# Why planetary gears feel difficult analytically
+
+Planetary trains have **two degrees of freedom** because three rotating members exist:
+
+```
+sun
+ring
+carrier
+```
+
+If you fix one, the system reduces to **1 DOF**.
+
+But if nothing is fixed:
+
+```
+3 angular velocities
+1 constraint
+→ 2 DOF
+```
+
+That’s why the classical methods exist.
+
+---
+
+# The core planetary gear equation
+
+For a simple planetary:
+
+```
+(ωs − ωc) / (ωr − ωc) = − Nr / Ns
+```
+
+where
+
+```
+ωs = sun speed
+ωr = ring speed
+ωc = carrier speed
+Ns = sun teeth
+Nr = ring teeth
+```
+
+Rearranged:
+
+```
+(Ns + Nr) ωc = Ns ωs + Nr ωr
+```
+
+This is **one linear constraint equation**.
+
+---
+
+# What a solver does instead
+
+Instead of a table, we solve:
+
+```
+unknowns = [ωs, ωr, ωc]
+constraints = gear equations
+```
+
+Example matrix:
+
+```
+Ns*ωs + Nr*ωr − (Ns+Nr)*ωc = 0
+```
+
+Then you add **boundary conditions**.
+
+Example:
+
+```
+ωr = 0   (ring fixed)
+ωs = input
+solve for ωc
+```
+
+---
+
+# Sandbox solver for planetary gears
+
+Here is a **tiny Python solver**.
+
+```python
+import sympy as sp
+
+# variables
+ws, wr, wc = sp.symbols('ws wr wc')
+
+# teeth
+Ns = 30
+Nr = 70
+
+# planetary constraint
+eq1 = Ns*ws + Nr*wr - (Ns+Nr)*wc
+
+# example case: ring fixed, sun = 100 rpm
+eq2 = wr
+eq3 = ws - 100
+
+sol = sp.solve([eq1,eq2,eq3],[ws,wr,wc])
+
+print(sol)
+```
+
+Output:
+
+```
+wc = 30 rpm
+```
+
+Exactly what the handbook gives.
+
+---
+
+# Why a mechanism simulator handles this naturally
+
+A multibody solver treats gears as **constraints**:
+
+```
+θs
+θr
+θc
+```
+
+with
+
+```
+(Ns + Nr) θc = Ns θs + Nr θr
+```
+
+Then dynamics:
+
+```
+Is θ̈s = τs
+Ir θ̈r = τr
+Ic θ̈c = τc
+```
+
+subject to constraints.
+
+This is actually **textbook multibody dynamics**.
+
+---
+
+# This is exactly how professional tools do it
+
+Tools like:
+
+* MSC Adams
+* Simscape Multibody
+* Working Model 2D
+
+represent gears as **constraint equations between rotational DOF**.
+
+They do **no tabular method at all**.
+
+---
+
+# What a full planetary solver would look like in Python
+
+You could build something like:
+
+```
+machines/
+   gears/
+       planetary.py
+       constraints.py
+       solver.py
+```
+
+Example API:
+
+```
+planetary = Planetary(
+    sun=30,
+    ring=70
+)
+
+planetary.solve(
+    sun_rpm=100,
+    ring_fixed=True
+)
+```
+
+Output:
+
+```
+carrier_rpm = 30
+ratio = 3.33
+```
+
+---
+
+# Even cooler possibility
+
+Because you are already working with **gear geometry and AGMA stresses**, you could build something that **almost nobody has**:
+
+```
+Planetary kinematics
++ gear tooth geometry
++ AGMA stresses
++ animation
+```
+
+That would be a **seriously impressive mechanical engineering tool**.
+
+---
+
+If you want, I can also show you something **very cool but rarely taught**:
+
+How planetary gear trains can be solved **as a graph problem** using linear algebra.
+
+That method handles **any gear network automatically**, even crazy transmissions with **20+ gears**.
+
+---
+
+The reason **SymPy** feels “magical” here is that it operates at a **different level of abstraction than normal numerical libraries**.
+
+Most engineering codes do this:
+
+```id="b9yd1q"
+numbers → numerical solver → result
+```
+
+SymPy instead works with **mathematical expressions themselves**.
+
+```id="36lfj6"
+symbols → equations → manipulate algebra → generate solver
+```
+
+That difference is what makes it extremely powerful for **mechanics and physics engines**.
+
+---
+
+# Why SymPy is uniquely suited for mechanism simulation
+
+### 1️⃣ Symbolic equations of motion
+
+Mechanism simulators need to derive equations like:
+
+```id="4a4hh6"
+M(q) q̈ + C(q,q̇) + G(q) = τ
+```
+
+Doing this **by hand** is painful.
+
+With SymPy:
+
+```python id="q8zovb"
+KanesMethod(...)
+LagrangesMethod(...)
+```
+
+SymPy literally **derives the equations automatically**.
+
+That’s a huge deal.
+
+---
+
+### 2️⃣ Constraint handling
+
+Mechanisms are full of constraints:
+
+```id="2n7khb"
+gear constraints
+joint constraints
+loop closure equations
+```
+
+Example:
+
+```id="s5wq9i"
+Ns*ωs + Nr*ωr − (Ns+Nr)*ωc = 0
+```
+
+SymPy solves this exactly.
+
+No manual algebra required.
+
+---
+
+### 3️⃣ Code generation
+
+SymPy can convert symbolic equations into **fast numerical functions**:
+
+```python id="wzllck"
+lambdify(...)
+```
+
+or even
+
+```id="c40grd"
+C
+Fortran
+NumPy
+LLVM
+```
+
+So the workflow becomes:
+
+```id="6yg0ko"
+derive equations symbolically
+↓
+compile numeric functions
+↓
+simulate fast
+```
+
+This is **exactly how many physics engines work**.
+
+---
+
+### 4️⃣ Automatic differentiation
+
+Mechanism solvers often require:
+
+```id="qtk9h5"
+Jacobians
+partial derivatives
+linearizations
+```
+
+SymPy can compute those analytically.
+
+That makes it extremely useful for:
+
+* robotics
+* control systems
+* multibody dynamics
+
+---
+
+# Why PyDy exists
+
+**PyDy** is essentially:
+
+```id="bo05e1"
+SymPy mechanics
++ numerical integration
++ visualization
+```
+
+It turns symbolic mechanics into a working simulation pipeline.
+
+---
+
+# Why this surprises many engineers
+
+Most engineering software is built around **numerical solvers only**:
+
+| software      | approach                   |
+| ------------- | -------------------------- |
+| MSC Adams     | numerical multibody solver |
+| Simscape      | numerical solver           |
+| Working Model | numerical solver           |
+
+But SymPy allows something different:
+
+```id="3hztbo"
+symbolic physics engine
+```
+
+That means:
+
+* equations are generated automatically
+* constraints are exact
+* models are easier to modify
+
+---
+
+# Why this fits perfectly with your projects
+
+You already built tools for:
+
+* CFD
+* circuits
+* thermodynamics
+* control systems
+
+All of those share the same pattern:
+
+```id="i5p8ty"
+define equations
+solve system
+visualize results
+```
+
+Mechanisms fit into the same architecture.
+
+Your ecosystem could easily contain:
+
+```id="7f7wuk"
+machines/
+    circuits/
+    controls/
+    gears/
+    mechanisms/
+```
+
+---
+
+# Why SymPy + Qt is a killer combination
+
+With:
+
+* **SymPy** → derive physics
+* **NumPy / SciPy** → integrate equations
+* **Qt / NodeGraphQt** → GUI
+* **Matplotlib / PyQtGraph** → animation
+
+you basically get the ingredients for:
+
+```id="eh2ra4"
+Simulink
++
+Working Model
+```
+
+inside Python.
+
+That’s why many robotics labs use this stack.
+
+---
+
+# The most impressive thing you could build
+
+If you ever combined:
+
+```id="b7dsle"
+mechanism solver
++
+gear train solver
++
+AGMA stresses
++
+visualization
+```
+
+you’d have something that almost **no open-source project currently provides**.
+
+It would basically be a **mechanical system simulator**.
+
+---
+
+If you want, I can also show you something **even more surprising about SymPy mechanics** that many people miss:
+
+You can use it to derive **entire robot dynamics (like a 6-DOF arm)** automatically.
+
+And the resulting equations are **the same ones used in robotics textbooks**.
+
+---

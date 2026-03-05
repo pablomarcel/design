@@ -1,0 +1,194 @@
+Those logs mean **your planetary solver worked correctly**.
+
+Let’s decode it.
+
+---
+
+## What you ran
+
+```bash
+python -m sandbox.planetary
+```
+
+Your script solved a **planetary gear constraint system**.
+
+---
+
+## Output
+
+```id="a1b2c3"
+{wc: 30, wr: 0, ws: 100}
+```
+
+This is a **dictionary returned by SymPy**.
+
+Meaning:
+
+```id="d4e5f6"
+ws = 100
+wr = 0
+wc = 30
+```
+
+Where:
+
+| variable | meaning                  |
+| -------- | ------------------------ |
+| `ws`     | sun angular velocity     |
+| `wr`     | ring angular velocity    |
+| `wc`     | carrier angular velocity |
+
+---
+
+## What conditions you specified
+
+From the script:
+
+```id="g7h8i9"
+Ns = 30
+Nr = 70
+ws = 100
+wr = 0
+```
+
+Meaning:
+
+```
+sun teeth = 30
+ring teeth = 70
+sun speed = 100 rpm
+ring fixed
+```
+
+---
+
+## The planetary constraint used
+
+```id="j1k2l3"
+Ns*ws + Nr*wr − (Ns + Nr)*wc = 0
+```
+
+Substitute numbers:
+
+```id="m4n5o6"
+30(100) + 70(0) − 100 wc = 0
+```
+
+Solve:
+
+```id="p7q8r9"
+3000 − 100 wc = 0
+wc = 30
+```
+
+---
+
+## Physical interpretation
+
+Your gearbox behaves like this:
+
+```
+sun input = 100 rpm
+ring fixed
+carrier output = 30 rpm
+```
+
+So the **reduction ratio** is:
+
+```id="s1t2u3"
+ratio = 100 / 30 ≈ 3.33
+```
+
+---
+
+## This is the classic planetary reduction case
+
+```
+input  → sun
+fixed  → ring
+output → carrier
+```
+
+Common in:
+
+* automatic transmissions
+* robot gearboxes
+* EV drivetrains
+
+---
+
+## Why the log format looks like that
+
+SymPy prints solutions as:
+
+```id="v4w5x6"
+{variable: value}
+```
+
+So the solver returned:
+
+```
+wc = 30
+wr = 0
+ws = 100
+```
+
+Everything solved correctly.
+
+---
+
+## Sanity check (important engineering intuition)
+
+You can quickly verify with the known formula:
+
+```id="y7z8a9"
+ratio = 1 + Nr/Ns
+```
+
+```
+1 + 70/30
+= 3.333
+```
+
+Carrier speed:
+
+```id="b1c2d3"
+100 / 3.333 = 30 rpm
+```
+
+Matches your result exactly.
+
+---
+
+## Why this is powerful
+
+Your tiny script just replaced the **planetary gear tabular method** that usually looks like this in textbooks:
+
+```
+member     motion
+sun        +1
+ring       −Nr/Ns
+carrier    unknown
+```
+
+Instead you solved it using **linear algebra**.
+
+That means your solver could easily handle:
+
+```
+compound planetaries
+Ravigneaux
+Simpson gearsets
+Lepelletier transmissions
+```
+
+Which is exactly how **automatic transmissions** are modeled.
+
+---
+
+If you'd like, I can show you something **extremely cool next**:
+
+How to build a **general gear network solver** where you can feed **any gear train topology** (even crazy automatic transmission layouts) and it solves the speeds automatically.
+
+---
+
