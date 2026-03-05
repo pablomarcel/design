@@ -1,3 +1,15 @@
+#### AGMA Gear - mechanism
+
+```bash
+python -m sandbox.agma_gear
+```
+
+#### AGMA Gear - mechanism
+
+```bash
+python -m sandbox.agma_gearbox
+```
+
 #### Four Bar - mechanism
 
 ```bash
@@ -26,4 +38,10 @@ python -m sandbox.cam1_example
 
 ```bash
 python -m sandbox.gear_fourbarlinkage
+```
+
+#### gear_fourbarlinkage - mechanism
+
+```bash
+python -m sandbox.gear_fourbarlinkage_action
 ```

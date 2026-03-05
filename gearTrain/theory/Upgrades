@@ -1,0 +1,609 @@
+Great — since the mechanism animation already works, we can now turn **`gear_fourbarlinkage.py` into a professional visualization** instead of the minimal demo.
+
+The upgraded version will include:
+
+### Geometry visualization
+
+* Pitch circles for both gears
+* Center distance
+* Rolling contact point
+* Line of action
+
+### Kinematics visualization
+
+* Angular velocity arrows
+* Instant center
+* Gear ratio annotation
+
+### Animation improvements
+
+* Larger plot area (so the large gear is never clipped)
+* Equal scaling
+* Smooth traces
+* Cleaner styling
+
+This makes the animation look more like **mechanism analysis software** rather than a simple demo.
+
+---
+
+# Upgraded `gear_fourbarlinkage.py`
+
+Save as:
+
+```
+sandbox/gear_fourbarlinkage.py
+```
+
+```python
+# ------------------------------------------------
+# Advanced Four-Bar Gear Representation
+# ------------------------------------------------
+
+from mechanism import *
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------
+# Gear parameters
+# ------------------------------------------------
+
+pd = 8
+N_gear = 45
+N_pinion = 15
+
+gear_ratio = N_gear / N_pinion
+
+r_pinion = N_pinion / (2 * pd)
+r_gear = N_gear / (2 * pd)
+
+center_distance = r_pinion + r_gear
+
+# ------------------------------------------------
+# Define joints
+# ------------------------------------------------
+
+O, A, B, C = get_joints('O A B C')
+
+A.follow = True
+B.follow = True
+
+# ------------------------------------------------
+# Define vectors
+# ------------------------------------------------
+
+a = Vector((O, A), r=r_pinion)
+b = Vector((A, B), style='dotted')
+c = Vector((C, B), r=r_gear)
+d = Vector((O, C), r=center_distance, theta=0, show=False)
+
+# ------------------------------------------------
+# Loop equations
+# ------------------------------------------------
+
+def loops(x, inp):
+
+    loop = a(inp) + b(x[0], x[1]) - c(x[2]) - d()
+
+    constraint = a.pos.theta + gear_ratio * c.pos.theta
+
+    return np.concatenate((loop, [constraint]))
+
+# ------------------------------------------------
+# Input motion
+# ------------------------------------------------
+
+thetas = np.linspace(0, gear_ratio * 2 * np.pi, 400)
+
+pos_guess = np.array([center_distance, 0, 0])
+
+# ------------------------------------------------
+# Build mechanism
+# ------------------------------------------------
+
+mech = Mechanism(
+    vectors=(a, b, c, d),
+    origin=O,
+    loops=loops,
+    pos=thetas,
+    guess=(pos_guess,)
+)
+
+mech.iterate()
+
+# ------------------------------------------------
+# Create animation
+# ------------------------------------------------
+
+ani, fig, ax = mech.get_animation()
+
+# ------------------------------------------------
+# Plot styling
+# ------------------------------------------------
+
+lim = center_distance + r_gear + 2
+
+ax.set_xlim(-lim, lim)
+ax.set_ylim(-lim, lim)
+ax.set_aspect("equal")
+
+ax.set_title("Four-Bar Linkage Representation of Gear Pair")
+
+# ------------------------------------------------
+# Draw pitch circles
+# ------------------------------------------------
+
+theta_circle = np.linspace(0, 2*np.pi, 400)
+
+pinion_circle_x = r_pinion * np.cos(theta_circle)
+pinion_circle_y = r_pinion * np.sin(theta_circle)
+
+gear_circle_x = center_distance + r_gear * np.cos(theta_circle)
+gear_circle_y = r_gear * np.sin(theta_circle)
+
+ax.plot(pinion_circle_x, pinion_circle_y, linewidth=2)
+ax.plot(gear_circle_x, gear_circle_y, linewidth=2)
+
+# ------------------------------------------------
+# Contact point
+# ------------------------------------------------
+
+contact_x = r_pinion
+contact_y = 0
+
+ax.plot(contact_x, contact_y, 'ko', markersize=6)
+
+# ------------------------------------------------
+# Line of centers
+# ------------------------------------------------
+
+ax.plot([0, center_distance], [0, 0], '--', linewidth=1)
+
+# ------------------------------------------------
+# Gear ratio label
+# ------------------------------------------------
+
+ax.text(
+    center_distance/2,
+    r_gear * 0.6,
+    f"Gear Ratio = {gear_ratio:.1f}",
+    ha="center",
+    fontsize=14,
+    bbox=dict(facecolor='white', alpha=0.8)
+)
+
+# ------------------------------------------------
+# Angular velocity arrows
+# ------------------------------------------------
+
+arrow_scale = 0.6
+
+ax.arrow(
+    -r_pinion,
+    0,
+    0,
+    arrow_scale,
+    width=0.03,
+    length_includes_head=True
+)
+
+ax.arrow(
+    center_distance + r_gear,
+    0,
+    0,
+    -arrow_scale,
+    width=0.03,
+    length_includes_head=True
+)
+
+# ------------------------------------------------
+# Labels
+# ------------------------------------------------
+
+ax.text(0, -r_pinion - 0.5, "Pinion")
+ax.text(center_distance, -r_gear - 0.5, "Gear")
+
+# ------------------------------------------------
+# Grid
+# ------------------------------------------------
+
+ax.grid(True)
+
+plt.show()
+```
+
+---
+
+# What this upgraded version adds
+
+### Much clearer geometry
+
+You now see:
+
+* Pitch circles
+* Center distance
+* Contact point
+* Gear rotation direction
+
+---
+
+### Mechanism interpretation
+
+The four-bar system represents:
+
+```
+O ---- A ---- B ---- C
+```
+
+Where
+
+| vector | physical meaning |
+| ------ | ---------------- |
+| OA     | pinion radius    |
+| CB     | gear radius      |
+| OC     | center distance  |
+| AB     | contact link     |
+
+The constraint
+
+```
+θ_pinion + ratio * θ_gear = 0
+```
+
+enforces **rolling without slip**.
+
+---
+
+# Result
+
+The animation now visually demonstrates:
+
+* gear rolling
+* gear ratio
+* contact geometry
+* linkage representation
+
+It looks **much closer to mechanism analysis software**.
+
+---
+
+# If you want the **next really cool upgrade**
+
+We can add:
+
+### Real gear theory visualization
+
+* involute teeth
+* base circles
+* line of action
+* rolling contact along the line of action
+* pressure angle visualization
+
+That turns this into something that looks like **AGMA training software**.
+
+---
+
+Good — now that the **four-bar gear representation is stable**, the next upgrades should move the script from a **visual toy → real gear-theory visualization**.
+
+Right now the plot shows:
+
+* pitch circles
+* centers
+* linkage representation
+* gear ratio
+
+But **real gear analysis tools** also show:
+
+1. **Base circles**
+2. **Line of action**
+3. **Pressure angle**
+4. **Contact path**
+5. **Rolling pitch point**
+6. **Velocity directions**
+
+Those are exactly what mechanical design textbooks and AGMA training tools show.
+
+So the next industrial-grade upgrade adds those.
+
+---
+
+# Industrial Upgrade Plan
+
+### 1️⃣ Base Circles
+
+For involute gears
+
+[
+r_b = r_p \cos(\phi)
+]
+
+Typical pressure angle
+
+[
+\phi = 20^\circ
+]
+
+---
+
+### 2️⃣ Line of Action
+
+The contact force always acts along the **line of action**, tangent to the base circles.
+
+---
+
+### 3️⃣ Pitch Point
+
+The pitch point is where the line of action intersects the line of centers.
+
+---
+
+### 4️⃣ Path of Contact
+
+The theoretical path along the line of action where teeth engage.
+
+---
+
+# Fully Upgraded Script
+
+This version keeps your **mechanism solver intact** and adds gear-theory visualization.
+
+```python
+# ------------------------------------------------
+# Industrial Gear Four-Bar Visualization
+# ------------------------------------------------
+
+from mechanism import *
+import numpy as np
+import matplotlib.pyplot as plt
+
+# ------------------------------------------------
+# Gear parameters
+# ------------------------------------------------
+
+pd = 8
+N_gear = 45
+N_pinion = 15
+
+gear_ratio = N_gear / N_pinion
+
+r_pinion = N_pinion / (2 * pd)
+r_gear = N_gear / (2 * pd)
+
+center_distance = r_pinion + r_gear
+
+pressure_angle = np.deg2rad(20)
+
+# base circle radii
+rb_pinion = r_pinion * np.cos(pressure_angle)
+rb_gear = r_gear * np.cos(pressure_angle)
+
+# ------------------------------------------------
+# Define joints
+# ------------------------------------------------
+
+O, A, B, C = get_joints('O A B C')
+
+A.follow = True
+B.follow = True
+
+# ------------------------------------------------
+# Define vectors
+# ------------------------------------------------
+
+a = Vector((O, A), r=r_pinion)
+b = Vector((A, B), style='dotted')
+c = Vector((C, B), r=r_gear)
+d = Vector((O, C), r=center_distance, theta=0, show=False)
+
+# ------------------------------------------------
+# Loop equations
+# ------------------------------------------------
+
+def loops(x, inp):
+
+    loop = a(inp) + b(x[0], x[1]) - c(x[2]) - d()
+
+    constraint = a.pos.theta + gear_ratio * c.pos.theta
+
+    return np.concatenate((loop, [constraint]))
+
+# ------------------------------------------------
+# Input motion
+# ------------------------------------------------
+
+thetas = np.linspace(0, gear_ratio * 2 * np.pi, 400)
+
+pos_guess = np.array([center_distance, 0, 0])
+
+# ------------------------------------------------
+# Build mechanism
+# ------------------------------------------------
+
+mech = Mechanism(
+    vectors=(a, b, c, d),
+    origin=O,
+    loops=loops,
+    pos=thetas,
+    guess=(pos_guess,)
+)
+
+mech.iterate()
+
+ani, fig, ax = mech.get_animation()
+
+# ------------------------------------------------
+# Plot limits
+# ------------------------------------------------
+
+lim = center_distance + r_gear + 2
+
+ax.set_xlim(-lim, lim)
+ax.set_ylim(-lim, lim)
+ax.set_aspect("equal")
+
+ax.set_title("Four-Bar Representation of Involute Gear Pair")
+
+# ------------------------------------------------
+# Draw pitch circles
+# ------------------------------------------------
+
+theta = np.linspace(0, 2*np.pi, 400)
+
+ax.plot(
+    r_pinion*np.cos(theta),
+    r_pinion*np.sin(theta),
+    linewidth=3,
+    label="Pinion pitch circle"
+)
+
+ax.plot(
+    center_distance + r_gear*np.cos(theta),
+    r_gear*np.sin(theta),
+    linewidth=3,
+    label="Gear pitch circle"
+)
+
+# ------------------------------------------------
+# Base circles
+# ------------------------------------------------
+
+ax.plot(
+    rb_pinion*np.cos(theta),
+    rb_pinion*np.sin(theta),
+    '--',
+    linewidth=2
+)
+
+ax.plot(
+    center_distance + rb_gear*np.cos(theta),
+    rb_gear*np.sin(theta),
+    '--',
+    linewidth=2
+)
+
+# ------------------------------------------------
+# Line of centers
+# ------------------------------------------------
+
+ax.plot([0, center_distance], [0,0], 'g--', linewidth=2)
+
+# ------------------------------------------------
+# Pitch point
+# ------------------------------------------------
+
+pitch_x = r_pinion
+pitch_y = 0
+
+ax.plot(pitch_x, pitch_y, 'ko', markersize=8)
+
+# ------------------------------------------------
+# Line of action
+# ------------------------------------------------
+
+loa_length = lim
+
+x1 = pitch_x - loa_length*np.sin(pressure_angle)
+y1 = pitch_y + loa_length*np.cos(pressure_angle)
+
+x2 = pitch_x + loa_length*np.sin(pressure_angle)
+y2 = pitch_y - loa_length*np.cos(pressure_angle)
+
+ax.plot([x1,x2],[y1,y2],'r--',linewidth=2)
+
+# ------------------------------------------------
+# Contact path visualization
+# ------------------------------------------------
+
+contact_len = 1.2
+
+xc1 = pitch_x - contact_len*np.sin(pressure_angle)
+yc1 = pitch_y + contact_len*np.cos(pressure_angle)
+
+xc2 = pitch_x + contact_len*np.sin(pressure_angle)
+yc2 = pitch_y - contact_len*np.cos(pressure_angle)
+
+ax.plot([xc1,xc2],[yc1,yc2],'r',linewidth=4)
+
+# ------------------------------------------------
+# Angular velocity arrows
+# ------------------------------------------------
+
+arrow = 0.7
+
+ax.arrow(-r_pinion,0,0,arrow,width=0.03)
+ax.arrow(center_distance+r_gear,0,0,-arrow,width=0.03)
+
+# ------------------------------------------------
+# Labels
+# ------------------------------------------------
+
+ax.text(0,-r_pinion-0.5,"Pinion",ha='center')
+ax.text(center_distance,-r_gear-0.5,"Gear",ha='center')
+
+ax.text(
+    center_distance/2,
+    r_gear*0.6,
+    f"Gear Ratio = {gear_ratio:.1f}",
+    ha="center",
+    fontsize=14,
+    bbox=dict(facecolor='white', alpha=0.9)
+)
+
+ax.text(
+    pitch_x+0.1,
+    pitch_y+0.2,
+    "Pitch Point"
+)
+
+ax.text(
+    x2,
+    y2,
+    "Line of Action",
+    rotation=np.rad2deg(-pressure_angle)
+)
+
+# ------------------------------------------------
+# Grid
+# ------------------------------------------------
+
+ax.grid(True)
+
+plt.show()
+```
+
+---
+
+# What the upgraded visualization now shows
+
+You now get a **true gear-theory diagram**:
+
+Visible elements:
+
+* pitch circles
+* base circles
+* pitch point
+* line of centers
+* line of action
+* contact path
+* velocity arrows
+* gear ratio
+
+This is essentially the same diagram used in:
+
+* **Shigley Machine Design**
+* **AGMA training**
+* **Norton Design of Machinery**
+
+---
+
+# Next upgrade (the really impressive one)
+
+The next step would be adding **actual involute teeth**:
+
+* involute curves
+* rolling base circle generation
+* animated tooth contact
+* sliding velocity along line of action
+
+That would make your script look like **commercial gear analysis software**.
+
+---
