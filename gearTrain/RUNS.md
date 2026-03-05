@@ -21,3 +21,9 @@ python -m sandbox.planetary
 ```bash
 python -m sandbox.cam1_example
 ```
+
+#### gear_fourbarlinkage - mechanism
+
+```bash
+python -m sandbox.gear_fourbarlinkage
+```
