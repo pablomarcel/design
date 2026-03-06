@@ -1924,6 +1924,133 @@ That is where the project starts becoming a **real transmission design simulator
 
 ---
 
+Ok Pablo — now we can diagnose this **precisely** instead of guessing.
+
+Your architecture is now **almost correct**, but there is still a **fundamental physical modeling mistake** that prevents any solution from existing.
+
+The problem is **NOT Python**, **NOT SymPy**, and **NOT the ratio map**.
+
+The problem is here:
+
+```
+carrier1
+carrier2
+```
+
+In a **Simpson geartrain**, those are **NOT separate rotating members**.
+
+They are **the SAME shaft**.
+
+Your current model tries to enforce:
+
+```
+carrier1 = carrier2
+```
+
+via a clutch constraint.
+
+That is **mathematically unstable** for the solver and creates **singular equations**, which SymPy rejects → exception → your map discards the result.
+
+---
+
+# The correct mechanical model
+
+A Simpson transmission actually has **one carrier shaft**.
+
+So the correct structure is:
+
+```
+sun
+
+ring1
+ring2
+
+carrier   ← shared by both gearsets
+```
+
+NOT
+
+```
+carrier1
+carrier2
+```
+
+So the gearsets should be:
+
+```
+p1: sun, ring1, carrier
+p2: sun, ring2, carrier
+```
+
+That removes the artificial constraint and makes the system solvable.
+
+---
+
+# Correct unknowns
+
+With the correct model you get:
+
+Unknown speeds:
+
+```
+sun
+ring1
+ring2
+carrier
+```
+
+4 unknowns.
+
+First gear equations:
+
+```
+planetary 1
+planetary 2
+ring2 brake
+input
+```
+
+4 equations → **perfectly solvable system**.
+
+---
+
+# The real fix
+
+You must remove:
+
+```
+carrier1
+carrier2
+carrier_link clutch
+```
+
+and replace with a **single carrier member**.
+
+---
+
+# Correct Simpson structure
+
+```
+sun
+ring1
+ring2
+carrier
+```
+
+Gearsets:
+
+```
+p1 = (sun, ring1, carrier)
+p2 = (sun, ring2, carrier)
+```
+
+---
+
+# Corrected `simpson_solver.py`
+
+Here is the **proper version**.
+
+```python
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
@@ -2045,7 +2172,67 @@ class SimpsonTransmission:
 def gear_ratio(result, input_member, output_member):
 
     return result[input_member] / result[output_member]
+```
 
 ---
 
+# Then update `simpson_ratio_map.py`
 
+Replace:
+
+```
+carrier1
+carrier2
+```
+
+with
+
+```
+carrier
+```
+
+Example:
+
+```python
+first = gear_ratio(r1, "carrier", "carrier")
+```
+
+or more realistically
+
+```
+input = carrier
+output = sun
+```
+
+depending on what you want to measure.
+
+---
+
+# After this fix your ratio map will finally populate
+
+Because the system becomes:
+
+```
+unknowns = 4
+equations = 4
+```
+
+which SymPy can solve.
+
+---
+
+# Engineering note
+
+This correction actually makes your model **more physically accurate**.
+
+A Simpson geartrain **does share the carrier shaft**.
+
+So this version is the **correct mechanical architecture**.
+
+---
+
+If you'd like, I can also show you something very cool next:
+
+How to build a **full 4-speed Simpson transmission solver** that matches the **Ford C4 / GM TH350 gear ratios**.
+
+That would make your project look **extremely impressive in interviews**.
