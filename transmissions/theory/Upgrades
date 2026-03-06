@@ -2236,3 +2236,59 @@ If you'd like, I can also show you something very cool next:
 How to build a **full 4-speed Simpson transmission solver** that matches the **Ford C4 / GM TH350 gear ratios**.
 
 That would make your project look **extremely impressive in interviews**.
+
+---
+
+Yes — these results are **more sensible than the previous Ravignaux version**, but they are still only **partly** convincing.
+
+What looks good:
+
+* **1st and 2nd** behave like reasonable reduction gears. For fixed `Ns_s=20, Ns_l=22`, increasing `Nr` raises both ratios, which is the expected trend for a simple planetary-style reduction.
+* **3rd** now changes with `Ns_l` and `Nr`, which is an improvement over the earlier version where it was effectively ignoring the large sun.
+* **4th = 1.000** everywhere is fine if your modeled 4th is a direct-lock state.
+
+What still looks questionable:
+
+* **Reverse is still independent of `Ns_l`** in your own audit:
+
+  * `reverse: ratio=-Nr/Ns_small depends_on=Ns_small, Nr`
+  * and the audit explicitly says the **large sun does not participate in standard reverse within this simplified topology**.
+* That means reverse is still a **topology-limited simplified state**, not a fully convincing Ravignaux reverse model.
+
+Your audit itself is basically telling the truth:
+
+* `first = (Nr + Ns_small)/Ns_small`
+* `second = (Nr + Ns_large)/Ns_large`
+* `third = (Nr + Ns_large)/Nr`
+* `fourth = 1`
+* `reverse = -Nr/Ns_small`
+
+From that, the trends in your printed table make sense:
+
+* 1st and reverse depend only on `Ns_small` and `Nr`
+* 2nd and 3rd depend only on `Ns_large` and `Nr`
+* 4th depends on nothing
+
+So the output is **internally consistent** with the current model.
+
+My engineering judgment:
+
+* **1st, 2nd, 3rd, and 4th are sensible enough for a simplified ratio explorer**
+* **reverse is still not fully satisfying physically**
+* therefore the current Ravignaux scripts are acceptable as an **exploratory kinematic tool**, but not yet a final physically rigorous synthesis model
+
+The main red flag is that the gearset is still effectively split into:
+
+* one pair of states controlled by `Ns_small`
+* another pair controlled by `Ns_large`
+
+That is cleaner than before, but still suggests the current abstraction is not capturing the full compound interaction you would want from a more realistic Ravignaux transmission model.
+
+So the bottom line is:
+
+**Yes, these results are sensible for the current simplified model.**
+**No, they are not yet strong evidence of a final, physically rigorous Ravignaux synthesis.**
+
+The next real upgrade would be only if you want to go beyond “ratio explorer” and make reverse plus compound-state interaction more realistic.
+
+---
