@@ -43,7 +43,7 @@ try:
     from .ravigneaux_solver import RavigneauxTransmission, configure_logging
 except Exception:
     try:
-        from kinematics.ravigneaux_solver import RavigneauxTransmission, configure_logging
+        from transmissions.kinematics.ravigneaux_solver import RavigneauxTransmission, configure_logging
     except Exception:
         _HERE = Path(__file__).resolve().parent
         _PARENT = _HERE.parent

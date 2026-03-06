@@ -60,8 +60,8 @@ from typing import Dict, List, Mapping, Optional, Sequence, Tuple
 import sympy as sp
 
 try:
-    from core.clutch import RotatingMember, Clutch, Brake
-    from core.planetary import PlanetaryGearSet
+    from transmissions.core.clutch import RotatingMember, Clutch, Brake
+    from transmissions.core.planetary import PlanetaryGearSet
 except Exception:
     try:
         from transmissions.core.clutch import RotatingMember, Clutch, Brake
@@ -72,8 +72,8 @@ except Exception:
         for _candidate in (str(_HERE), str(_PARENT)):
             if _candidate not in sys.path:
                 sys.path.insert(0, _candidate)
-        from clutch import RotatingMember, Clutch, Brake  # type: ignore
-        from planetary import PlanetaryGearSet  # type: ignore
+        from core.clutch import RotatingMember, Clutch, Brake  # type: ignore
+        from core.planetary import PlanetaryGearSet  # type: ignore
 
 
 LOGGER = logging.getLogger(__name__)
