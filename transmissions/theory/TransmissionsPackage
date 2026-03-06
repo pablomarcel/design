@@ -1,0 +1,384 @@
+You’re thinking in the **right direction (divide-and-conquer)**, but the architecture you proposed is **not ideal for engineering software**.
+
+The reason is simple:
+
+**A transmission is not defined by the number of speeds.**
+It is defined by:
+
+* **gearsets**
+* **clutches/brakes**
+* **connections**
+
+A **10-speed transmission** may still use only **3 planetary gearsets**.
+
+Example:
+
+* ZF Friedrichshafen **ZF 8HP** → 8 speeds → **4 gearsets**
+* Ford Motor Company **10R80** → 10 speeds → **3 gearsets**
+* Aisin Seiki **AWF8F35** → 8 speeds → **3 gearsets**
+
+So organizing the code by **speed count** will become messy very quickly.
+
+---
+
+# 1. Recommended architecture (industrial style)
+
+Instead of:
+
+```
+gearBoxTwo
+gearBoxThree
+gearBoxFour
+...
+```
+
+build **layers**.
+
+```
+design
+└── transmissions
+    ├── core
+    │   ├── gear.py
+    │   ├── planetary.py
+    │   ├── clutch.py
+    │   ├── shaft.py
+    │   └── solver.py
+    │
+    ├── kinematics
+    │   ├── willis.py
+    │   ├── gear_ratios.py
+    │   └── power_flow.py
+    │
+    ├── layouts
+    │   ├── planetary_single.py
+    │   ├── simpson.py
+    │   ├── ravignaux.py
+    │   └── lepelletier.py
+    │
+    ├── transmissions
+    │   ├── two_speed.py
+    │   ├── four_speed.py
+    │   ├── six_speed.py
+    │   ├── eight_speed.py
+    │   └── ten_speed.py
+    │
+    └── visualization
+        ├── schematic.py
+        └── animation.py
+```
+
+This architecture scales **much better**.
+
+---
+
+# 2. Why this structure is better
+
+Because **gearsets are reusable components**.
+
+Example:
+
+```
+ZF 8HP
+```
+
+contains:
+
+```
+planetary
+planetary
+planetary
+planetary
+```
+
+connected with:
+
+```
+clutches
+brakes
+shafts
+```
+
+So your simulator should treat gearsets as **building blocks**.
+
+---
+
+# 3. First package to implement
+
+The **most important module**:
+
+```
+transmissions/core/planetary.py
+```
+
+This is the **fundamental object**.
+
+Everything else builds on top of it.
+
+---
+
+# 4. Ideal PlanetaryGearSet class
+
+This should represent:
+
+```
+sun gear
+ring gear
+carrier
+planet gears
+```
+
+Conceptually:
+
+```
+      ring
+   -----------
+
+      o   o
+        sun
+         |
+      carrier
+```
+
+---
+
+### Data model
+
+```python
+class PlanetaryGearSet:
+
+    Ns
+    Nr
+    Np
+
+    sun_speed
+    ring_speed
+    carrier_speed
+
+    sun_torque
+    ring_torque
+    carrier_torque
+```
+
+---
+
+# 5. Core equation (Willis equation)
+
+This is the **heart of planetary gears**.
+
+```
+(ωs − ωc) / (ωr − ωc) = − Nr / Ns
+```
+
+This equation must live in:
+
+```
+kinematics/willis.py
+```
+
+---
+
+# 6. Planetary operating modes
+
+A single planetary gearset produces **2 useful speeds**.
+
+Example:
+
+### Mode 1
+
+Ring fixed
+
+```
+input = sun
+output = carrier
+```
+
+Reduction:
+
+```
+ratio = 1 + Nr/Ns
+```
+
+---
+
+### Mode 2
+
+Sun fixed
+
+```
+input = ring
+output = carrier
+```
+
+Different reduction.
+
+---
+
+### Mode 3
+
+Carrier fixed
+
+```
+input = sun
+output = ring
+```
+
+Reverse direction.
+
+---
+
+So even one planetary gearset gives **multiple possible ratios**.
+
+---
+
+# 7. Example folder contents
+
+```
+transmissions/core
+```
+
+### gear.py
+
+Generic gear
+
+```
+teeth
+radius
+module
+```
+
+---
+
+### planetary.py
+
+```
+PlanetaryGearSet
+```
+
+---
+
+### clutch.py
+
+```
+lock two components together
+```
+
+Example:
+
+```
+sun ↔ carrier
+ring ↔ housing
+```
+
+---
+
+### shaft.py
+
+Represents:
+
+```
+input shaft
+output shaft
+intermediate shafts
+```
+
+---
+
+# 8. Solver layer
+
+The solver computes:
+
+```
+speeds
+torques
+gear ratios
+```
+
+Example API:
+
+```python
+gearset.solve(
+    input="sun",
+    output="carrier",
+    fixed="ring"
+)
+```
+
+Output:
+
+```
+ratio = 3.2
+ω_out = ω_in / 3.2
+```
+
+---
+
+# 9. Visualization
+
+Later you can integrate:
+
+```
+mechanism
+matplotlib
+pydy
+```
+
+to animate the transmission.
+
+---
+
+# 10. First milestone
+
+Your **first real target** should be:
+
+```
+transmissions/core/planetary.py
+```
+
+Capabilities:
+
+```
+compute gear ratios
+solve Willis equation
+identify operating mode
+```
+
+---
+
+# 11. Why this project is interview gold
+
+If you show this architecture in an interview for **transmission development**, you demonstrate knowledge of:
+
+* planetary gearsets
+* transmission architecture
+* gear kinematics
+* software modeling
+
+Most engineers **cannot derive the Willis equation from memory**.
+
+If you can code it, that’s impressive.
+
+---
+
+# 12. My suggestion for step 1
+
+Before coding anything, we should define **the mathematical model** for:
+
+```
+PlanetaryGearSet
+```
+
+Specifically:
+
+```
+unknown speeds
+known speeds
+locked elements
+```
+
+Once that is defined, coding becomes trivial.
+
+---
+
+If you want, next I can show you something extremely useful:
+
+**The minimal planetary gear solver (about 25 lines of Python)** that can compute every planetary gear ratio automatically.

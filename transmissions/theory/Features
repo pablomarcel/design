@@ -1,0 +1,217 @@
+If you'd like, I can also show you something **very useful for your transmission project**:
+
+There are **only 6 valid planetary operating modes**, and once you code those explicitly, **your solver becomes bulletproof** and extremely simple.
+
+---
+
+If you'd like, the **next thing we should build** (and this will make the project much stronger) is:
+
+**a planetary mode explorer that automatically computes every valid ratio for a gearset.**
+
+That tool is incredibly useful when designing transmissions.
+
+---
+
+If you'd like, the **next thing I can show you** is something extremely useful for transmission design:
+
+**how to generate every possible planetary operating mode automatically.**
+
+This makes exploring gear ratios extremely easy.
+
+---
+
+Once `solver.py` exists, you can simulate:
+
+```
+2-speed planetary
+4-speed Simpson
+6-speed Lepelletier
+8-speed ZF-style
+10-speed Ford-style
+```
+
+This is **exactly what transmission engineers do in MATLAB / Simulink**.
+
+---
+
+If you want, the **next thing I recommend building is actually even more important than the solver**:
+
+**a transmission topology graph**, which allows your code to represent *any transmission architecture*.
+
+---
+
+# Why transmissions keep clutch and brakeseparate
+
+Real transmissions distinguish them clearly.
+
+| Component  | Connects                          | Example       |
+| ---------- | --------------------------------- | ------------- |
+| **Clutch** | rotating member ↔ rotating member | sun ↔ carrier |
+| **Brake**  | rotating member ↔ housing         | ring ↔ case   |
+
+Examples in real gearboxes:
+
+* **4L60E**
+
+  * Forward clutch
+  * Reverse clutch
+  * Low band (brake)
+
+* **ZF 8HP**
+
+  * C1 clutch
+  * C2 clutch
+  * B1 brake
+  * B2 brake
+
+Engineers always model them separately.
+
+---
+
+### 1️⃣ Gear tables become readable
+
+Transmission shift tables look like this:
+
+| Gear | C1  | C2  | B1  | B2  |
+| ---- | --- | --- | --- | --- |
+| 1    | ON  | OFF | ON  | OFF |
+| 2    | ON  | OFF | OFF | ON  |
+| 3    | OFF | ON  | OFF | ON  |
+
+If brakes are hidden inside clutches, this becomes confusing.
+
+---
+
+### 2️⃣ Torque flow later
+
+Later you will want:
+
+```
+torque flow
+efficiency
+losses
+band torque limits
+```
+
+Brakes behave differently from clutches.
+
+---
+
+### 3️⃣ Control systems
+
+Transmission control logic:
+
+```
+engage clutch
+apply brake
+release brake
+```
+
+---
+
+If you'd like, I can also show you something **extremely powerful for planetary transmissions**:
+
+How to build a **gear state table generator** that automatically enumerates **all possible gear ratios** from a given planetary set.
+
+---
+
+Your `solver.py` should **not be overly complicated yet**. At this stage it only needs to:
+
+1. Collect **speed constraints** from clutches and brakes
+2. Add **planetary kinematic equations**
+3. Solve the system of equations
+
+Later we can extend it to:
+
+* torque flow
+* efficiency
+* multi-gearboxes
+* shift tables
+
+But for now we want a **clean deterministic kinematic solver**.
+
+---
+
+# Design philosophy for `solver.py`
+
+The solver will work with three kinds of objects you already created:
+
+```
+RotatingMember
+PlanetaryGearSet
+Clutch / Brake
+```
+
+The solver will:
+
+```
+1) build equations
+2) apply constraints
+3) solve speeds
+```
+
+We will use **SymPy** because:
+
+* deterministic symbolic solving
+* robust with small systems
+* ideal for transmission equations
+
+---
+
+# Why this solver architecture is good
+
+This approach will scale to:
+
+```
+multiple planetary gearsets
+multiple clutches
+multiple brakes
+```
+
+Which means it can handle:
+
+```
+Simpson transmissions
+Ravigneaux
+Lepelletier
+ZF 8HP
+Ford 10R80
+```
+
+---
+
+If you want, the next thing I can show you is **one of the most powerful tricks in planetary transmission design**:
+
+How engineers **derive all 6 planetary operating modes in one equation** (which will make your solver much cleaner).
+
+---
+
+Excellent — **`planetary_ratio_map.py` is where the project starts becoming a real transmission design tool.**
+
+Transmission engineers often explore **tooth-count combinations** to see what ratios are possible before committing to geometry. This script will:
+
+1. Sweep **sun teeth (Ns)** and **ring teeth (Nr)**
+2. Compute all **6 planetary operating modes**
+3. Store the resulting **gear ratios**
+4. Print or return a **ratio map**
+
+This helps answer questions like:
+
+* What ratios are achievable with a simple planetary?
+* How sensitive is ratio to tooth count?
+* What combinations give ratios near a target?
+
+---
+
+Now that you can explore planetary ratios, the **next tool engineers actually use** is:
+
+```
+kinematics/simpson_ratio_map.py
+```
+
+Which analyzes **two planetary gearsets coupled together** — the architecture used in many **4-speed and 6-speed automatics**.
+
+That is where the project starts becoming a **real transmission design simulator**.
+
+---
+

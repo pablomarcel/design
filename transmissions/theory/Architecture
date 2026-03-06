@@ -1,0 +1,37 @@
+transmissions
+├── core
+│   ├── gear.py
+│   ├── planetary.py
+│   ├── clutch.py
+│   ├── shaft.py
+│   └── solver.py
+│
+├── kinematics
+│   ├── willis.py
+│   ├── gear_ratios.py
+│   ├── gear_state_table.py
+│   ├── planetary_modes.py
+│   ├── planetary_ratio_map.py
+│   ├── power_flow.py
+│   ├── transmission_builder.py
+│   ├── ravigneaux_ratio_map.py
+│   ├── ravigneaux_solver.py
+│   ├── simpson_solver.py
+│   └── simpson_ratio_map.py
+│
+├── layouts
+│   ├── planetary_single.py
+│   ├── simpson.py
+│   ├── ravignaux.py
+│   └── lepelletier.py
+│
+├── transmissions
+│   ├── two_speed.py
+│   ├── four_speed.py
+│   ├── six_speed.py
+│   ├── eight_speed.py
+│   └── ten_speed.py
+│
+└── visualization
+    ├── schematic.py
+    └── animation.py
