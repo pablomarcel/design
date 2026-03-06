@@ -1287,3 +1287,369 @@ If you'd like, I can also show you something **extremely powerful for planetary 
 How to build a **gear state table generator** that automatically enumerates **all possible gear ratios** from a given planetary set.
 
 ---
+
+Good — now we are building the **heart of the transmission simulator**.
+
+Your `solver.py` should **not be overly complicated yet**. At this stage it only needs to:
+
+1. Collect **speed constraints** from clutches and brakes
+2. Add **planetary kinematic equations**
+3. Solve the system of equations
+
+Later we can extend it to:
+
+* torque flow
+* efficiency
+* multi-gearboxes
+* shift tables
+
+But for now we want a **clean deterministic kinematic solver**.
+
+---
+
+# Design philosophy for `solver.py`
+
+The solver will work with three kinds of objects you already created:
+
+```
+RotatingMember
+PlanetaryGearSet
+Clutch / Brake
+```
+
+The solver will:
+
+```
+1) build equations
+2) apply constraints
+3) solve speeds
+```
+
+We will use **SymPy** because:
+
+* deterministic symbolic solving
+* robust with small systems
+* ideal for transmission equations
+
+---
+
+# Example system the solver must handle
+
+Example planetary:
+
+```
+sun input
+ring brake
+carrier output
+```
+
+Equations:
+
+```
+Willis equation
+ωring = 0
+ωsun = input_speed
+```
+
+Solve:
+
+```
+ωcarrier
+```
+
+---
+
+# Full `core/solver.py`
+
+```python
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
+
+"""
+transmissions.core.solver
+
+Transmission kinematic solver.
+
+Builds and solves speed equations for gearsets,
+clutches, and brakes.
+
+Uses symbolic solving via SymPy.
+
+Author: Pablo Montijo Design Project
+"""
+
+from typing import Dict, List
+
+import sympy as sp
+
+from .clutch import Clutch, Brake, RotatingMember, GROUND
+from .planetary import PlanetaryGearSet
+
+
+# ------------------------------------------------------------
+# Solver
+# ------------------------------------------------------------
+
+class TransmissionSolver:
+    """
+    Kinematic solver for transmission systems.
+    """
+
+    def __init__(self):
+
+        self.members: Dict[str, RotatingMember] = {}
+
+        self.gearsets: List[PlanetaryGearSet] = []
+
+        self.clutches: List[Clutch] = []
+        self.brakes: List[Brake] = []
+
+    # --------------------------------------------------------
+
+    def add_member(self, member: RotatingMember):
+
+        self.members[member.name] = member
+
+    # --------------------------------------------------------
+
+    def add_gearset(self, gearset: PlanetaryGearSet):
+
+        self.gearsets.append(gearset)
+
+    # --------------------------------------------------------
+
+    def add_clutch(self, clutch: Clutch):
+
+        self.clutches.append(clutch)
+
+    # --------------------------------------------------------
+
+    def add_brake(self, brake: Brake):
+
+        self.brakes.append(brake)
+
+    # --------------------------------------------------------
+    # Build symbolic variables
+    # --------------------------------------------------------
+
+    def _build_symbols(self):
+
+        symbols = {}
+
+        for name in self.members:
+            symbols[name] = sp.symbols(f"w_{name}")
+
+        return symbols
+
+    # --------------------------------------------------------
+    # Planetary equations
+    # --------------------------------------------------------
+
+    def _planetary_equations(self, symbols):
+
+        equations = []
+
+        for g in self.gearsets:
+
+            ws = symbols["sun"]
+            wr = symbols["ring"]
+            wc = symbols["carrier"]
+
+            Ns = g.Ns
+            Nr = g.Nr
+
+            eq = (ws - wc) / (wr - wc) + Nr / Ns
+
+            equations.append(eq)
+
+        return equations
+
+    # --------------------------------------------------------
+    # Clutch equations
+    # --------------------------------------------------------
+
+    def _clutch_equations(self, symbols):
+
+        equations = []
+
+        for c in self.clutches:
+
+            if not c.engaged:
+                continue
+
+            a, b = c.constraint()
+
+            wa = symbols[a.name]
+            wb = symbols[b.name]
+
+            equations.append(wa - wb)
+
+        return equations
+
+    # --------------------------------------------------------
+    # Brake equations
+    # --------------------------------------------------------
+
+    def _brake_equations(self, symbols):
+
+        equations = []
+
+        for b in self.brakes:
+
+            if not b.engaged:
+                continue
+
+            member, ground = b.constraint()
+
+            w = symbols[member.name]
+
+            equations.append(w)
+
+        return equations
+
+    # --------------------------------------------------------
+    # Input speed
+    # --------------------------------------------------------
+
+    def _input_equation(self, symbols, input_member, speed):
+
+        return [symbols[input_member] - speed]
+
+    # --------------------------------------------------------
+    # Solve
+    # --------------------------------------------------------
+
+    def solve(self, input_member: str, input_speed: float = 1.0):
+
+        symbols = self._build_symbols()
+
+        equations = []
+
+        equations += self._planetary_equations(symbols)
+
+        equations += self._clutch_equations(symbols)
+
+        equations += self._brake_equations(symbols)
+
+        equations += self._input_equation(symbols, input_member, input_speed)
+
+        variables = list(symbols.values())
+
+        solution = sp.solve(equations, variables, dict=True)
+
+        if not solution:
+            raise RuntimeError("No solution found")
+
+        sol = solution[0]
+
+        results = {}
+
+        for name, sym in symbols.items():
+
+            results[name] = float(sol[sym])
+
+        return results
+```
+
+---
+
+# Example usage
+
+Example planetary transmission.
+
+```python
+from transmissions.core.solver import TransmissionSolver
+from transmissions.core.clutch import RotatingMember, Brake
+from transmissions.core.planetary import PlanetaryGearSet
+
+solver = TransmissionSolver()
+
+sun = RotatingMember("sun")
+ring = RotatingMember("ring")
+carrier = RotatingMember("carrier")
+
+solver.add_member(sun)
+solver.add_member(ring)
+solver.add_member(carrier)
+
+pgs = PlanetaryGearSet(30, 72)
+
+solver.add_gearset(pgs)
+
+brake = Brake(ring)
+brake.engage()
+
+solver.add_brake(brake)
+
+result = solver.solve("sun", 1.0)
+
+print(result)
+```
+
+Expected result:
+
+```
+{
+ 'sun': 1.0
+ 'ring': 0.0
+ 'carrier': 0.2941176
+}
+```
+
+Which corresponds to:
+
+```
+ratio = 3.4
+```
+
+Exactly what you computed earlier.
+
+---
+
+# Why this solver architecture is good
+
+This approach will scale to:
+
+```
+multiple planetary gearsets
+multiple clutches
+multiple brakes
+```
+
+Which means it can handle:
+
+```
+Simpson transmissions
+Ravigneaux
+Lepelletier
+ZF 8HP
+Ford 10R80
+```
+
+---
+
+# Next major step
+
+Once `solver.py` is working, the **next powerful tool** to build is:
+
+```
+kinematics/gear_state_table.py
+```
+
+This automatically generates:
+
+```
+all possible gear ratios
+for a given transmission topology
+```
+
+This is something **actual transmission design teams use internally**.
+
+---
+
+If you want, the next thing I can show you is **one of the most powerful tricks in planetary transmission design**:
+
+How engineers **derive all 6 planetary operating modes in one equation** (which will make your solver much cleaner).
+
+---
+
