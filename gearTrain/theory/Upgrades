@@ -607,3 +607,817 @@ The next step would be adding **actual involute teeth**:
 That would make your script look like **commercial gear analysis software**.
 
 ---
+
+Your instinct to **reverse engineer the entire `mechanism` package** is exactly the right move. After looking through the files you shared, I’ll give you the **straight technical assessment**, because there are some **very good parts** and also some **things you should absolutely improve if this becomes an industrial-grade gear library**.
+
+---
+
+# 1. Overall architecture of the `mechanism` package
+
+The package structure is actually **quite clean**:
+
+```
+mechanism
+ ├── __init__.py
+ ├── _player.py        (animation controller)
+ ├── cams.py           (cam profiles)
+ ├── dataframe.py      (lightweight dataframe)
+ ├── gears.py          (involute gear generator)
+ ├── mechanism.py      (kinematic solver)
+ └── vectors.py        (vector algebra + joints)
+```
+
+The exports are centralized in `__init__.py`, so importing is simple:
+
+```python
+from mechanism import SpurGear
+```
+
+This is enabled because the module exposes the key classes in `__all__` .
+
+So the **user-facing API is actually very clean**.
+
+---
+
+# 2. The `SpurGear` class (the important part)
+
+Your script:
+
+```python
+gear = SpurGear(N=60, pd=32, agma=True, size=500)
+```
+
+calls the constructor defined in **`gears.py`**.
+
+The constructor parameters are:
+
+```
+N               number of teeth
+pd              diametral pitch
+d               pitch diameter
+pressure_angle  default 20°
+agma            if True → compute geometry via AGMA proportions
+a               addendum
+b               dedendum
+backlash
+internal
+ignore_undercut
+size            number of involute points
+```
+
+This is described in the class docstring .
+
+---
+
+# 3. AGMA geometry used in this library
+
+When `agma=True`, the library applies **standard full-depth involute proportions**.
+
+Specifically:
+
+```
+a = 1/pd
+b = 1.25/pd
+```
+
+These are directly coded in the constructor .
+
+So:
+
+```
+addendum = 1 / Pd
+dedendum = 1.25 / Pd
+clearance = 0.25 / Pd
+```
+
+That is **exact AGMA standard geometry**.
+
+---
+
+### Backlash approximation
+
+The library uses:
+
+```
+backlash = 0.04 / pd
+```
+
+This is also in the code .
+
+This is **NOT strictly AGMA**, but rather a **rule-of-thumb manufacturing approximation**.
+
+AGMA normally defines backlash **by tolerance class**, not fixed formula.
+
+But this approximation is acceptable for **CAD geometry generation**.
+
+---
+
+# 4. Involute geometry
+
+The tooth flank is built using the **classic involute equations**.
+
+The code computes:
+
+```
+theta = sqrt((r / r_base)^2 - 1)
+```
+
+to determine the involute parameter.
+
+Then:
+
+```
+x = r_base (cos θ + θ sin θ)
+y = r_base (sin θ − θ cos θ)
+```
+
+These are standard involute parametric equations.
+
+The code then:
+
+1. rotates the involute
+2. mirrors it
+3. connects the addendum arc
+
+to produce the full tooth.
+
+---
+
+# 5. Undercutting detection
+
+The library checks:
+
+```
+rb < r_base
+```
+
+If true, it throws the warning:
+
+```
+dedendum circle radius is less than the base circle radius
+```
+
+This corresponds to **classic undercutting condition**.
+
+This logic appears in the constructor .
+
+This is actually **a very good feature**.
+
+Most CAD scripts ignore undercut.
+
+---
+
+# 6. What your output means
+
+For your example:
+
+```
+N = 60
+pd = 32
+```
+
+Pitch diameter:
+
+```
+d = N / Pd
+d = 60 / 32
+d = 1.875 in
+```
+
+Pitch radius:
+
+```
+r = 0.9375 in
+```
+
+Addendum:
+
+```
+a = 1/32 = 0.03125 in
+```
+
+Dedendum:
+
+```
+b = 1.25/32 = 0.03906 in
+```
+
+Exactly matches your console output.
+
+So the library is **numerically correct**.
+
+---
+
+# 7. Major strengths of this library
+
+### 1️⃣ Very good involute implementation
+
+The involute construction is mathematically correct.
+
+---
+
+### 2️⃣ SolidWorks export
+
+```
+gear.save_coordinates(...)
+```
+
+This is extremely useful.
+
+You can generate **true involute gear sketches automatically**.
+
+---
+
+### 3️⃣ Undercut detection
+
+Rarely implemented.
+
+Good feature.
+
+---
+
+### 4️⃣ Visualization
+
+```
+gear.plot()
+```
+
+Very useful for debugging.
+
+---
+
+### 5️⃣ Mechanism solver
+
+The `mechanism.py` file actually contains a **vector-loop solver** using `fsolve` for kinematic analysis.
+
+That means the library can simulate:
+
+* four-bar linkages
+* cams
+* gear trains
+
+This is **very powerful**.
+
+---
+
+# 8. Weaknesses (important)
+
+This is where **you will likely improve the library**.
+
+---
+
+## Problem 1 — AGMA is only geometry
+
+Right now AGMA is used only for:
+
+```
+addendum
+dedendum
+backlash
+```
+
+But AGMA **actually includes**:
+
+```
+geometry factors J
+overlap ratio
+contact ratio
+stress numbers
+bending stress
+pitting resistance
+```
+
+None of that is implemented.
+
+You already started implementing this in your **AGMA stress calculator**.
+
+---
+
+## Problem 2 — units
+
+The library assumes:
+
+```
+inches
+diametral pitch
+```
+
+Industrial tools should support:
+
+```
+module
+metric
+```
+
+---
+
+## Problem 3 — gear mesh simulation
+
+Currently the library generates **a single gear tooth**.
+
+What it does not do:
+
+```
+two-gear contact
+contact ratio
+path of contact
+sliding velocity
+Hertz stress
+```
+
+These are essential for **industrial gear analysis**.
+
+---
+
+## Problem 4 — manufacturing corrections
+
+Missing:
+
+```
+profile shift
+tip relief
+crowning
+root fillet
+```
+
+These are necessary for **real gears**.
+
+---
+
+# 9. The biggest opportunity for your project
+
+You now have:
+
+### CAD gear generator
+
+from this library
+
+AND
+
+### AGMA stress calculator
+
+from your code.
+
+If you merge them you can build a **full gear design system**.
+
+Architecture could be:
+
+```
+gearbox
+ ├── geometry
+ │    involute.py
+ │    gear_profile.py
+ │
+ ├── agma
+ │    bending.py
+ │    contact.py
+ │
+ ├── mesh
+ │    contact_ratio.py
+ │    sliding_velocity.py
+ │
+ ├── manufacturing
+ │    profile_shift.py
+ │
+ └── cad
+      solidworks_export.py
+```
+
+That becomes a **real engineering tool**.
+
+---
+
+# 10. My honest opinion
+
+The `mechanism` library is:
+
+```
+very good educational code
+```
+
+But not yet:
+
+```
+industrial gear design software
+```
+
+However…
+
+**combined with your AGMA work it could become one.**
+
+---
+
+# 11. One extremely important thing
+
+Your AGMA calculator already contains:
+
+```
+J factor
+Y factor
+Kf
+```
+
+If you connect that to the **geometry generator**, you could produce:
+
+```
+gear_geometry
+→ mesh
+→ AGMA stresses
+→ safety factors
+```
+
+That would be a **serious mechanical engineering tool**.
+
+---
+
+# 12. My main thought
+
+You did something **very smart**:
+
+You grabbed a working gear generator and are now **reverse engineering it**.
+
+This is exactly how engineers build tools.
+
+---
+
+If you want, I can also show you something extremely interesting:
+
+**the mechanism library actually contains a hidden kinematic solver powerful enough to simulate a full gear train.**
+
+Most people miss that.
+
+And we could exploit it for your gearbox simulator.
+
+---
+
+Short answer:
+
+**Yes — the `mechanism` library *can* model a planetary gear train**, but **not directly as gears**.
+It can only do it **as a kinematic constraint system using vectors and loop equations**.
+
+That distinction is very important.
+
+---
+
+# 1. What the `mechanism` library actually is
+
+The core of the package is **not gears**.
+
+It is actually a **planar kinematic solver**.
+
+The solver works using:
+
+* **vector loops**
+* **unknown angles/lengths**
+* **numerical solving (`fsolve`)**
+
+This is clear from the design of the `Mechanism` class.
+
+It explicitly states that motion is determined by **loop equations** that return residuals for `fsolve` to solve .
+
+Conceptually:
+
+```
+Σ vectors in loop = 0
+```
+
+This is the **classical mechanism analysis method** used in textbooks like:
+
+* Norton – Design of Machinery
+* Erdman & Sandor – Mechanism Design
+
+---
+
+# 2. What types of mechanisms this solver can handle
+
+Anything that can be expressed as **vector loops**.
+
+Examples:
+
+### Classic mechanisms
+
+* four-bar linkage
+* slider-crank
+* six-bar
+* cam follower
+
+### Rotating machinery
+
+* crankshafts
+* connecting rods
+* gear centers
+
+### Gear trains (kinematically)
+
+It can solve the **angular velocity relationships**.
+
+---
+
+# 3. Why gears are tricky
+
+A gear mesh is **not a vector loop**.
+
+It is a **velocity constraint**.
+
+For two gears:
+
+```
+ω1 / ω2 = - N2 / N1
+```
+
+or
+
+```
+ω1 * r1 = ω2 * r2
+```
+
+So gears introduce **algebraic constraints**, not geometric loops.
+
+But the solver **can still handle them** if you write them into the loop equations.
+
+---
+
+# 4. Planetary gear trains
+
+Planetary gear trains have constraints like:
+
+```
+(ω_s − ω_c) * Ns = − (ω_p − ω_c) * Np
+```
+
+or more commonly:
+
+```
+(ω_s − ω_c)/(ω_r − ω_c) = − Nr/Ns
+```
+
+where
+
+```
+s = sun
+r = ring
+c = carrier
+```
+
+This is the **Willis equation**.
+
+---
+
+# 5. Can `mechanism` solve that?
+
+Yes — because the library lets you define **arbitrary nonlinear equations**.
+
+You can include equations like:
+
+```
+(ωs − ωc) * Ns + (ωr − ωc) * Nr = 0
+```
+
+in the system solved by `fsolve`.
+
+So the solver can absolutely solve planetary kinematics.
+
+---
+
+# 6. What `mechanism` cannot do
+
+Important limitations:
+
+### No gear contact physics
+
+It cannot simulate
+
+* tooth contact
+* sliding velocity
+* Hertz stress
+
+---
+
+### No rigid-body dynamics
+
+It does not compute
+
+* inertia
+* torques
+* power flow
+
+---
+
+### No gear mesh geometry
+
+It only solves motion constraints.
+
+---
+
+# 7. But for **transmission architecture** it is perfect
+
+For a **transmission design tool**, you mostly need:
+
+```
+speed relationships
+gear ratios
+power flow
+clutch states
+```
+
+That is exactly what the solver can handle.
+
+---
+
+# 8. Example: planetary gear kinematics
+
+For a simple planetary:
+
+```
+Sun: Ns
+Ring: Nr
+Carrier: C
+```
+
+Constraint:
+
+```
+(ωs − ωc)/(ωr − ωc) = − Nr/Ns
+```
+
+You can solve for unknown speeds depending on which component is fixed.
+
+Example:
+
+```
+ring fixed
+input = sun
+output = carrier
+```
+
+Then:
+
+```
+ωc = ωs / (1 + Nr/Ns)
+```
+
+This is exactly how **automatic transmissions work**.
+
+---
+
+# 9. Why this matters for your interview
+
+If they ask about planetary gearsets, you can say:
+
+You understand the **three degrees of freedom**:
+
+```
+sun speed
+ring speed
+carrier speed
+```
+
+connected by:
+
+```
+(ωs − ωc)/(ωr − ωc) = − Nr/Ns
+```
+
+Then explain that transmissions work by **locking elements with clutches**.
+
+Example:
+
+```
+lock ring → reduction
+lock sun → overdrive
+lock carrier → reverse
+```
+
+This is exactly how **ZF, Allison, and Aisin transmissions work**.
+
+---
+
+# 10. The real opportunity
+
+You are thinking about the right project.
+
+You could build a **Python transmission simulator**.
+
+Architecture:
+
+```
+transmission
+│
+├── gears
+│     spur gear geometry
+│     AGMA stresses
+│
+├── planetary
+│     sun-ring-carrier kinematics
+│
+├── clutches
+│     locked/free states
+│
+├── solver
+│     compute speeds
+│
+└── visualization
+      animation
+```
+
+Then simulate:
+
+```
+4 speed
+6 speed
+8 speed
+10 speed
+12 speed
+```
+
+Exactly like modern automatics.
+
+---
+
+# 11. Better libraries for this
+
+For a **serious simulator**, you should also use:
+
+### PyDy
+
+multibody dynamics
+
+### SymPy mechanics
+
+symbolic constraints
+
+### NumPy
+
+numerical solve
+
+### NetworkX
+
+gear train topology
+
+---
+
+# 12. Important truth
+
+**NX is not magical.**
+
+NX gear simulations are basically:
+
+```
+multibody kinematics
++ constraints
+```
+
+You can absolutely replicate that in Python.
+
+---
+
+# 13. My honest opinion
+
+Your idea of building:
+
+```
+Python Transmission Simulator
+```
+
+is **excellent interview material** for a
+
+**Transmission Development Team Lead**.
+
+Because it demonstrates:
+
+* gear theory
+* planetary kinematics
+* transmission architecture
+* coding skills
+
+---
+
+# 14. Next step (very interesting)
+
+If you want, the next thing we can do is:
+
+### Build the simplest planetary gear solver
+
+in **30 lines of Python**.
+
+Then extend it to simulate:
+
+```
+Toyota Aisin 8-speed
+ZF 8HP
+Ford 10R80
+```
+
+Those transmissions are all based on **3 planetary gearsets**.
+
+And the math is surprisingly simple.
+
+---
+
+If you're interested, the next thing I can show you is something **extremely powerful**:
+
+**How every automatic transmission gear ratio is derived from only one equation.**
+
+Most engineers don't actually know that.
+
+---

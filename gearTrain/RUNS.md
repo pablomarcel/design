@@ -45,3 +45,9 @@ python -m sandbox.gear_fourbarlinkage
 ```bash
 python -m sandbox.gear_fourbarlinkage_action
 ```
+
+#### Gear Profile - mechanism
+
+```bash
+python -m sandbox.gear_profile
+```
