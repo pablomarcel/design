@@ -1,4 +1,4 @@
-####
+#### Simpson Transmission
 
 ```bash
 python -m kinematics.simpson_ratio_map --sun-min 20 --sun-max 40 --ring-min 50 --ring-max 90
@@ -22,4 +22,14 @@ python -m kinematics.simpson_ratio_map --log-level INFO
 
 ```bash
 python -m kinematics.simpson_ratio_map --no-progress --log-level INFO
+```
+
+#### Ravigneaux Transmission
+
+```bash
+python -m kinematics.ravigneaux_ratio_map --sun-min 20 --sun-max 40 --ring-min 50 --ring-max 90 --log-level INFO
+```
+
+```bash
+python -m kinematics.ravigneaux_ratio_map --sun-min 20 --sun-max 40 --ring-min 50 --ring-max 90 --validate-with-solver --log-level INFO
 ```
