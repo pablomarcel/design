@@ -1,0 +1,62 @@
+What it includes:
+
+* a dedicated `RavigneauxFourSpeedTransmission` model
+* states:
+
+  * `1st`
+  * `2nd`
+  * `3rd`
+  * `4th`
+  * `rev` / `reverse`
+* ring gear always treated as output
+* CLI tooth-count flags:
+
+  * `--Ns-small`
+  * `--Ns-large`
+  * `--Nr`
+* preset support:
+
+  * `--preset ravigneaux_demo`
+* graceful exception handling
+* text and JSON output
+* `--ratios-only`
+* `--list-presets`
+
+Important part:
+this file uses the **Ravigneaux central-member kinematic relations**, not the earlier oversimplified shared-ring/shared-carrier equations. That is why it can reproduce the screenshot-style behavior much better, especially 2nd gear.
+
+Useful runs:
+
+```bash
+python -m transmissions.four_speed --state all
+```
+
+```bash
+python -m transmissions.four_speed --state 4th
+```
+
+```bash
+python -m transmissions.four_speed --state all --json
+```
+
+```bash
+python -m transmissions.four_speed --state all --ratios-only
+```
+
+```bash
+python -m transmissions.four_speed --list-presets
+```
+
+The default preset in this script is a demo set:
+
+* `Ns_small = 22`
+* `Ns_large = 44`
+* `Nr = 70`
+
+That should land very close to the screenshot ratios:
+
+* 1st ≈ 3.18
+* 2nd ≈ 1.84
+* 3rd = 1.00
+* 4th ≈ 0.61
+* Rev ≈ -1.59

@@ -215,3 +215,37 @@ python -m transmissions.four_speed --state all \
 python -m transmissions.four_speed \
   --list-presets
 ```
+
+#### Ford 3 Speed Transmission
+
+```bash
+python -m transmissions.three_speed --state all --Ns 33 --Nr 72
+```
+
+```bash
+python -m transmissions.three_speed --state all --Ns-front 34 --Nr-front 72 --Ns-rear 36 --Nr-rear 74
+```
+
+```bash
+python -m transmissions.three_speed --state all
+```
+
+```bash
+python -m transmissions.three_speed --state 3rd
+```
+
+```bash
+python -m transmissions.three_speed --state rev --json
+```
+
+```bash
+python -m transmissions.three_speed --state all --ratios-only
+```
+
+```bash
+python -m transmissions.three_speed --list-presets
+```
+
+```bash
+python -m transmissions.three_speed --state all --preset ford_c4_reference
+```
