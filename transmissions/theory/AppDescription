@@ -1,0 +1,522 @@
+ok, let's back up a little bit. we started the transmission app with the intention of analyzing gearsets of any nature, contingent upon providing the topological configuration of the transmission.
+
+---
+
+We ended up with this architecture:
+
+transmissions
+├── core
+│   ├── gear.py
+│   ├── planetary.py
+│   ├── clutch.py
+│   ├── shaft.py
+│   └── solver.py
+│
+├── kinematics
+│   ├── willis.py
+│   ├── gear_ratios.py
+│   ├── gear_state_table.py
+│   ├── planetary_modes.py
+│   ├── planetary_ratio_map.py
+│   ├── power_flow.py
+│   ├── transmission_builder.py
+│   ├── ravigneaux_ratio_map.py
+│   ├── ravigneaux_solver.py
+│   ├── simpson_solver.py
+│   └── simpson_ratio_map.py
+│
+├── layouts
+│   ├── planetary_single.py
+│   ├── simpson.py
+│   ├── ravignaux.py
+│   └── lepelletier.py
+│
+├── transmissions
+│   ├── two_speed.py
+│   ├── four_speed.py
+│   ├── six_speed.py
+│   ├── eight_speed.py
+│   └── ten_speed.py
+│
+└── visualization
+    ├── schematic.py
+    └── animation.py
+
+---
+
+the reason i want to back up is that our initial proposal was like this:
+
+You’re thinking in the **right direction (divide-and-conquer)**, but the architecture you proposed is **not ideal for engineering software**.
+
+The reason is simple:
+
+**A transmission is not defined by the number of speeds.**
+It is defined by:
+
+* **gearsets**
+* **clutches/brakes**
+* **connections**
+
+A **10-speed transmission** may still use only **3 planetary gearsets**.
+
+Example:
+
+* ZF Friedrichshafen **ZF 8HP** → 8 speeds → **4 gearsets**
+* Ford Motor Company **10R80** → 10 speeds → **3 gearsets**
+* Aisin Seiki **AWF8F35** → 8 speeds → **3 gearsets**
+
+So organizing the code by **speed count** will become messy very quickly.
+
+---
+
+# 1. Recommended architecture (industrial style)
+
+Instead of:
+
+```
+gearBoxTwo
+gearBoxThree
+gearBoxFour
+...
+```
+
+build **layers**.
+
+```
+design
+└── transmissions
+    ├── core
+    │   ├── gear.py
+    │   ├── planetary.py
+    │   ├── clutch.py
+    │   ├── shaft.py
+    │   └── solver.py
+    │
+    ├── kinematics
+    │   ├── willis.py
+    │   ├── gear_ratios.py
+    │   └── power_flow.py
+    │
+    ├── layouts
+    │   ├── planetary_single.py
+    │   ├── simpson.py
+    │   ├── ravignaux.py
+    │   └── lepelletier.py
+    │
+    ├── transmissions
+    │   ├── two_speed.py
+    │   ├── four_speed.py
+    │   ├── six_speed.py
+    │   ├── eight_speed.py
+    │   └── ten_speed.py
+    │
+    └── visualization
+        ├── schematic.py
+        └── animation.py
+```
+
+This architecture scales **much better**.
+
+---
+
+# 2. Why this structure is better
+
+Because **gearsets are reusable components**.
+
+Example:
+
+```
+ZF 8HP
+```
+
+contains:
+
+```
+planetary
+planetary
+planetary
+planetary
+```
+
+connected with:
+
+```
+clutches
+brakes
+shafts
+```
+
+So your simulator should treat gearsets as **building blocks**.
+
+---
+
+# 3. First package to implement
+
+The **most important module**:
+
+```
+transmissions/core/planetary.py
+```
+
+This is the **fundamental object**.
+
+Everything else builds on top of it.
+
+---
+
+# 4. Ideal PlanetaryGearSet class
+
+This should represent:
+
+```
+sun gear
+ring gear
+carrier
+planet gears
+```
+
+Conceptually:
+
+```
+      ring
+   -----------
+
+      o   o
+        sun
+         |
+      carrier
+```
+
+---
+
+### Data model
+
+```python
+class PlanetaryGearSet:
+
+    Ns
+    Nr
+    Np
+
+    sun_speed
+    ring_speed
+    carrier_speed
+
+    sun_torque
+    ring_torque
+    carrier_torque
+```
+
+---
+
+# 5. Core equation (Willis equation)
+
+This is the **heart of planetary gears**.
+
+```
+(ωs − ωc) / (ωr − ωc) = − Nr / Ns
+```
+
+This equation must live in:
+
+```
+kinematics/willis.py
+```
+
+---
+
+# 6. Planetary operating modes
+
+A single planetary gearset produces **2 useful speeds**.
+
+Example:
+
+### Mode 1
+
+Ring fixed
+
+```
+input = sun
+output = carrier
+```
+
+Reduction:
+
+```
+ratio = 1 + Nr/Ns
+```
+
+---
+
+### Mode 2
+
+Sun fixed
+
+```
+input = ring
+output = carrier
+```
+
+Different reduction.
+
+---
+
+### Mode 3
+
+Carrier fixed
+
+```
+input = sun
+output = ring
+```
+
+Reverse direction.
+
+---
+
+So even one planetary gearset gives **multiple possible ratios**.
+
+---
+
+# 7. Example folder contents
+
+```
+transmissions/core
+```
+
+### gear.py
+
+Generic gear
+
+```
+teeth
+radius
+module
+```
+
+---
+
+### planetary.py
+
+```
+PlanetaryGearSet
+```
+
+---
+
+### clutch.py
+
+```
+lock two components together
+```
+
+Example:
+
+```
+sun ↔ carrier
+ring ↔ housing
+```
+
+---
+
+### shaft.py
+
+Represents:
+
+```
+input shaft
+output shaft
+intermediate shafts
+```
+
+---
+
+# 8. Solver layer
+
+The solver computes:
+
+```
+speeds
+torques
+gear ratios
+```
+
+Example API:
+
+```python
+gearset.solve(
+    input="sun",
+    output="carrier",
+    fixed="ring"
+)
+```
+
+Output:
+
+```
+ratio = 3.2
+ω_out = ω_in / 3.2
+```
+
+---
+
+# 9. Visualization
+
+Later you can integrate:
+
+```
+mechanism
+matplotlib
+pydy
+```
+
+to animate the transmission.
+
+---
+
+# 10. First milestone
+
+Your **first real target** should be:
+
+```
+transmissions/core/planetary.py
+```
+
+Capabilities:
+
+```
+compute gear ratios
+solve Willis equation
+identify operating mode
+```
+
+---
+
+# 11. Why this project is interview gold
+
+If you show this architecture in an interview for **transmission development**, you demonstrate knowledge of:
+
+* planetary gearsets
+* transmission architecture
+* gear kinematics
+* software modeling
+
+Most engineers **cannot derive the Willis equation from memory**.
+
+If you can code it, that’s impressive.
+
+---
+
+# 12. My suggestion for step 1
+
+Before coding anything, we should define **the mathematical model** for:
+
+```
+PlanetaryGearSet
+```
+
+Specifically:
+
+```
+unknown speeds
+known speeds
+locked elements
+```
+
+Once that is defined, coding becomes trivial.
+
+---
+
+If you want, next I can show you something extremely useful:
+
+**The minimal planetary gear solver (about 25 lines of Python)** that can compute every planetary gear ratio automatically.
+
+---
+
+So i want to know what we have accomplished so far and what would we need to analyze for example the allison 6 speed automatic transmission, which has three planetary gearsets, and 5 clutches, C1, C2, C3, C4, and C5. The gearsets are interconnected in a very specific way.
+
+---
+
+so in the core package, we were able to implement these scripts:
+
+├── core
+│   ├── planetary.py
+│   ├── clutch.py
+│   └── solver.py
+
+however, gear.py and shaft.py were never implemented. i don't know why, or what was the intention for these scripts.
+
+---
+
+In the kinematics package we were able to implement these scripts:
+
+├── kinematics
+│   ├── gear_state_table.py
+│   ├── planetary_modes.py
+│   ├── planetary_ratio_map.py
+│   ├── ravigneaux_ratio_map.py
+│   ├── ravigneaux_solver.py
+│   ├── simpson_solver.py
+│   └── simpson_ratio_map.py
+
+however, gear_ratios.py, willis.py, power_flow.py, transmission_builder.py were never implemented. i don't know why or what was the purpose of these scripts.
+
+---
+
+none of the scripts in the layouts package were implemented (lepelletier.py, planetary_single.py, ravigneaux.py, simpson.py)
+
+i don't know why or what was the purpose of these scripts.
+
+---
+
+also, none of the scripts in the transmissions package was implemented (eight_speed.py, four_speed.py, six_speed.py, ten_speed.py, two_speed.py)
+
+I don't know why or what was the purpose of these scripts.
+
+I suspect six_speed.py would be the transmission i am trying to analyze. i guess in this script we would build the transmission configuration based off the scripts in core, and add tooling for transmission analysis.
+
+In four_speed.py we would analyze a 4 speed transmission like a ravigneaux transmission or the Ford 4R70W transmission.
+
+I suspect three_speed would analyze a Ford C4 transmission.
+
+I suspect eight_speed.py would analyze the ZF 8HP transmission.
+
+---
+
+Also, none of the scripts in the visualization package was implemented (animation.py, schematic.py)
+
+I do not know why, or what was the purpose of those scripts.
+
+---
+
+All in all, i think we got a good app, i share all the implemented scripts in the project files.
+
+Like i said I do want to analyze the allison 6 speed automatic in preparation for my interview for the transmission team lead role.
+
+I was studying the Allison 6 Speed Transmission and found out useful information on how we achieve each gear by activating specific clutch packs:
+
+First Gear, C1 and C5
+
+Second Gear, C1 and C4
+
+Fourth Gear (Direct Drive), C1 and C2
+
+Sixth Gear, C2 and C4 (carrier turns at high speed, sun also rotates)
+
+Third Gear, C1 and C3
+
+Fifth Gear, C2 and C3
+
+Reverse Gear, C3 and C5
+
+---
+
+In paper, it is very easy to understand the transmission, but in analysis it gets convoluted. that is why i started this transmission app, to simplify shit.
+
+---
+
+exhibits 1 to 7 show each gear state for the allison 6 speed transmission.
+
+Are we ready to build six_speed.py per the latest facts???
+
+---

@@ -33,3 +33,17 @@ python -m kinematics.ravigneaux_ratio_map --sun-min 20 --sun-max 40 --ring-min 5
 ```bash
 python -m kinematics.ravigneaux_ratio_map --sun-min 20 --sun-max 40 --ring-min 50 --ring-max 90 --log-level INFO --validate-with-solver --print-audit
 ```
+
+#### Allison 6 Speed Transmission
+
+```bash
+python -m transmissions.six_speed --state all
+```
+
+```bash
+python -m transmissions.six_speed --state 4th
+```
+
+```bash
+python -m transmissions.six_speed --state all --json
+```

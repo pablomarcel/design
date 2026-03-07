@@ -1,0 +1,135 @@
+Yes — that is **sufficient to start building a first working `six_speed.py`**.
+
+You have now provided the two things that matter most:
+
+1. the **shift schedule**
+
+* 1st: `C1 + C5`
+* 2nd: `C1 + C4`
+* 3rd: `C1 + C3`
+* 4th: `C1 + C2`
+* 5th: `C2 + C3`
+* 6th: `C2 + C4`
+* reverse: `C3 + C5`
+
+2. the **topology**
+
+* three simple planetary gearsets
+* permanent interconnections between members
+* which members each clutch can act on
+* input at the first sun
+* output at the third carrier
+
+That is enough to build a **first kinematic solver**.
+
+But before coding, there are still a few ambiguities we should lock down, because they affect whether the symbolic system is fully constrained or underdetermined.
+
+## What is already clear
+
+From your description, I would encode the fixed topology like this.
+
+### Gearset 1
+
+* `PG1.sun = input`
+* `PG1.carrier = PG2.ring`
+* `PG1.ring = node acted on by C3`
+
+### Gearset 2
+
+* `PG2.sun` can connect to input via `C1`
+* `PG2.carrier` can connect to input via `C2`
+* `PG2.sun = PG3.sun`
+* `PG2.carrier = PG3.ring`
+* `PG2.ring = node acted on by C4`
+
+### Gearset 3
+
+* `PG3.carrier = output`
+* `PG3.ring = node acted on by C5`
+
+That is a usable connectivity graph.
+
+## The key ambiguity
+
+We still need to know what **C3, C4, and C5 actually do**.
+
+Specifically:
+
+* Does **C3** connect `PG1.ring` to **ground**, or to some rotating member?
+* Does **C4** connect `PG2.ring` to **ground**, or to some rotating member?
+* Does **C5** connect `PG3.ring` to **ground**, or to some rotating member?
+
+From your wording:
+
+* “ring of first gearset can connect to clutch C3”
+* “ring of second gearset can connect to clutch C4”
+* “ring of third gearset can connect to clutch C5”
+
+that sounds like C3/C4/C5 may be **reaction brakes to housing**. If so, that is great, and the model becomes much cleaner.
+
+If that is the intended meaning, then I would assume:
+
+* `C3 = brake(PG1.ring → ground)`
+* `C4 = brake(PG2.ring → ground)`
+* `C5 = brake(PG3.ring → ground)`
+
+And for the input clutches:
+
+* `C1 = clutch(input ↔ PG2.sun)`
+* `C2 = clutch(input ↔ PG2.carrier)`
+
+If that matches the Allison layout, then we are ready.
+
+## One more thing to confirm
+
+You said:
+
+* “sun of first gearset connects to engine”
+
+and also
+
+* “sun of second gearset can connect to engine via clutch C1”
+* “carrier of second gearset can connect to engine via clutch C2”
+
+So the input node appears to be a common rotating source that is:
+
+* permanently tied to `PG1.sun`
+* selectively tied to `PG2.sun` via C1
+* selectively tied to `PG2.carrier` via C2
+
+That is perfectly reasonable, but we should model it explicitly as an `input_member`, not just as an abstract engine.
+
+## My recommendation for the first implementation
+
+We should build `six_speed.py` as:
+
+* one Allison-specific topology class
+* one function to create all nodes and gearsets
+* one shift table mapping gear names to engaged clutches
+* one solve function per state using the generic solver
+* one report table showing:
+
+  * all member speeds
+  * output/input ratio
+  * state validity
+
+## The only questions I still need answered
+
+Just these:
+
+1. **Are C3, C4, and C5 all brakes to ground/housing?**
+   If yes, say so explicitly.
+
+2. **Is the input node permanently connected only to `PG1.sun`?**
+   I think yes based on your description.
+
+3. **Is the output node exactly `PG3.carrier`, with no other permanent tie?**
+   I think yes based on your description.
+
+If your answer is:
+
+* yes, C3/C4/C5 are brakes to ground
+* yes, input is permanently PG1.sun
+* yes, output is PG3.carrier
+
+then we should start coding immediately.
