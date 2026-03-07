@@ -403,3 +403,190 @@ The clean next step is to build a tooth-count search around `six_speed.py` that 
 
 ---
 
+Yes — this is a **big win**.
+
+Those results are not just “close.” They are **very close in exactly the pattern that matters**.
+
+Your computed ratios:
+
+* 1st = **3.487**
+* 2nd = **1.864**
+* 3rd = **1.403**
+* 4th = **1.000**
+* 5th = **0.752**
+* 6th = **0.653**
+* Rev = **-4.932**
+
+The reference values you pasted for the Allison 3000 family:
+
+* 1st = **3.49**
+* 2nd = **1.86**
+* 3rd = **1.41**
+* 4th = **1.00**
+* 5th = **0.75**
+* 6th = **0.65**
+* Rev = **-5.03**
+
+That is an excellent match.
+
+The deltas are tiny:
+
+* 1st: `3.487 vs 3.49`
+* 2nd: `1.864 vs 1.86`
+* 3rd: `1.403 vs 1.41`
+* 4th: exact
+* 5th: `0.752 vs 0.75`
+* 6th: `0.653 vs 0.65`
+* Rev: `-4.932 vs -5.03`
+
+Forward gears are basically right on top of the target values. Reverse is the only one with a somewhat bigger miss, but even that is still quite close in transmission terms.
+
+That tells us several important things:
+
+First, your **topology is probably right**.
+If the member connections or clutch logic were wrong, you would not get this kind of across-the-board agreement.
+
+Second, your **state mapping is probably right**.
+The gear progression makes sense:
+
+* 1st strongest reduction
+* 2nd and 3rd stepping down correctly
+* 4th direct
+* 5th and 6th overdrives
+* reverse large negative reduction
+
+Third, the **tooth counts you selected are very likely in the right family** for the Allison 3000 series.
+
+The only caution I would add is this:
+
+* a close ratio match does **not** prove every individual tooth count is exact OEM truth
+* but it **does** strongly suggest that your chosen counts and your modeled interconnections are physically credible
+
+So yes, this is absolutely a milestone.
+
+## What I would say you have proven
+
+You have now shown that `six_speed.py` can:
+
+* encode a real 3-planetary automatic transmission topology
+* apply the clutch schedule correctly
+* solve all forward gears plus reverse
+* reproduce a believable Allison 3000 ratio set from candidate tooth counts
+
+That is no longer a toy app.
+
+## What to do next
+
+Do not touch the core logic right now.
+
+The smart next steps are:
+
+1. freeze this working version of `six_speed.py`
+2. add a preset like `--preset allison_3000`
+3. print comparison against target published ratios
+4. compute percent error per gear
+5. maybe support alternate P2 sun options like `37` vs `49`
+
+Because your note about P2 varying by generation is exactly the kind of thing this app should explore.
+
+## One especially important observation
+
+Your reverse is slightly off compared to the cited `-5.03`, while the forward gears are extremely close.
+
+That could mean one of a few things:
+
+* reverse in the real transmission includes a slightly different effective path than your simplified model assumes
+* one of the published tooth counts is variant-specific
+* the Allison family has multiple close sub-configurations
+* or one of the candidate tooth counts belongs to a neighboring variant
+
+That is not bad news. It is exactly the kind of discrepancy that helps you refine the model.
+
+## Bottom line
+
+Yes — **this is a big win**.
+
+You are no longer guessing in the dark.
+You now have a transmission solver that appears to reproduce the Allison 3000 family well enough to support real engineering discussion and interview prep.
+
+The next best move is to upgrade `six_speed.py` with:
+
+* presets
+* target-ratio comparison
+* percent error report
+* optional search around candidate tooth counts
+
+---
+
+Not a dumb question.
+
+For **pure kinematics / ratio calculation**, the **planet (satellite) tooth counts do not directly matter**.
+
+What sets the speed relationship in a simple planetary is the **sun-to-ring tooth relationship**:
+
+[
+N_s(\omega_s-\omega_c)+N_r(\omega_r-\omega_c)=0
+]
+
+So in your current `six_speed.py` style analysis, the ratios come from:
+
+* sun teeth
+* ring teeth
+* topology
+* clutch state
+
+and **not** from the planet tooth count.
+
+## But there is an important catch
+
+The planet tooth count **does matter indirectly** because it must be geometrically compatible.
+
+For a standard simple planetary, the usual geometry condition is:
+
+[
+N_r = N_s + 2N_p
+]
+
+So if you know `Ns` and `Nr`, then `Np` is basically forced:
+
+[
+N_p = \frac{N_r - N_s}{2}
+]
+
+That means:
+
+* the planets do **not** change the ideal ratio
+* but they **do** determine whether the gearset is physically buildable
+
+## Why planet teeth still matter in real design
+
+They matter for:
+
+* packaging
+* center distance compatibility
+* assembly feasibility
+* load sharing
+* strength
+* number of planets that can fit
+* contact ratio and durability
+
+So for your app:
+
+### For current kinematic ratio solving
+
+You can ignore `Np`.
+
+### For geometric validity checks
+
+You should eventually include `Np`.
+
+### For real design / stress / AGMA / durability
+
+`Np` absolutely matters.
+
+So the clean answer is:
+
+**For transmission ratio analysis, satellite tooth count does not directly affect the ratio.**
+**For making sure the gearset is physically real, it does matter.**
+
+---
