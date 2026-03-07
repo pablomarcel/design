@@ -219,33 +219,206 @@ python -m transmissions.four_speed \
 #### Ford 3 Speed Transmission
 
 ```bash
-python -m transmissions.three_speed --state all --Ns 33 --Nr 72
+python -m transmissions.three_speed \
+  --state all \
+  --Ns 33 \
+  --Nr 72
 ```
 
 ```bash
-python -m transmissions.three_speed --state all --Ns-front 34 --Nr-front 72 --Ns-rear 36 --Nr-rear 74
+python -m transmissions.three_speed \
+  --state all \
+  --Ns-front 34 \
+  --Nr-front 72 \
+  --Ns-rear 36 \
+  --Nr-rear 74
 ```
 
 ```bash
-python -m transmissions.three_speed --state all
+python -m transmissions.three_speed \
+  --state all
 ```
 
 ```bash
-python -m transmissions.three_speed --state 3rd
+python -m transmissions.three_speed \
+  --state 3rd
 ```
 
 ```bash
-python -m transmissions.three_speed --state rev --json
+python -m transmissions.three_speed \
+  --state rev \
+  --json
 ```
 
 ```bash
-python -m transmissions.three_speed --state all --ratios-only
+python -m transmissions.three_speed \
+  --state all \
+  --ratios-only
 ```
 
 ```bash
-python -m transmissions.three_speed --list-presets
+python -m transmissions.three_speed \
+  --list-presets
 ```
 
 ```bash
-python -m transmissions.three_speed --state all --preset ford_c4_reference
+python -m transmissions.three_speed \
+  --state all \
+  --preset ford_c4_reference
+```
+
+#### ZF8HP 8 Speed Transmission
+
+```bash
+python -m transmissions.eight_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state 1st
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state 6th
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state rev
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state reverse
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --json
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state 4th \
+  --json
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state 8th \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --show-topology
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --list-presets
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp51_gen3
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp50_gen2_candidate
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp45_gen1_candidate
+```
+
+# Override tooth counts manually
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 38 --Nr3 96 \
+  --Ns4 23 --Nr4 85
+```
+
+# Single-state with manual counts
+
+```bash
+python -m transmissions.eight_speed \
+  --state 1st \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 38 --Nr3 96 \
+  --Ns4 23 --Nr4 85
+```
+
+# Preset plus manual override
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp51_gen3 \
+  --Ns4 24 --Nr4 85
+```
+
+# Strict / relaxed geometry
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --strict-geometry
+```
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp51_gen3 \
+  --strict-geometry
+```
+
+# All gears, JSON, preset
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp51_gen3 \
+  --json
+```
+
+# All gears, ratios only, manual tooth counts
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --ratios-only \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 38 --Nr3 96 \
+  --Ns4 23 --Nr4 85
+```
+
+# Show topology with preset
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --preset zf_8hp51_gen3 \
+  --show-topology
 ```
