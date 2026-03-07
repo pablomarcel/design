@@ -94,12 +94,12 @@ python -m transmissions.six_speed \
 ```bash
 python -m transmissions.six_speed \
   --state all \
-  --Ns1 67 \
-  --Nr1 109 \
-  --Ns2 49 \
-  --Nr2 91 \
+  --Ns1 73 \
+  --Nr1 125 \
+  --Ns2 43 \
+  --Nr2 109 \
   --Ns3 39 \
-  --Nr3 97
+  --Nr3 101
 ```
 
 # Allison 3000
