@@ -5,46 +5,43 @@ transmissions.transmissions.three_speed
 
 Ford C4-style 3-speed automatic transmission kinematic model.
 
-This module models the classic Simpson-gearset architecture used by the
-Ford C4 as described in the project discussion.
+Why this module does NOT instantiate PlanetaryGearSet directly
+--------------------------------------------------------------
+The project-wide PlanetaryGearSet class enforces strict simple-planetary
+geometry: (Nr - Ns) must be even so the implied planet tooth count is an
+integer. That is a good default for many simple planetary studies.
+
+However, widely cited Ford C4 reference counts are often given as:
+    Ns = 33, Nr = 72
+which violates that strict integer-planet check. The user explicitly wants
+those reference values to remain usable for kinematic ratio studies.
+
+So this module solves the Ford C4 kinematics directly from the linear Willis
+relations, without calling PlanetaryGearSet.__init__().
+
+This keeps the CLI useful for reverse-engineering / interview prep while still
+allowing an optional strict geometry check via --strict-geometry.
 
 Topology
 --------
-- Two simple planetary gearsets share one common sun gear.
+Classic Simpson arrangement with a common sun gear:
 - Front set:
-    * ring gear is the primary forward-drive input from the Forward Clutch.
-    * carrier is splined to the output shaft.
+    * ring = front_ring (driven by Forward Clutch in forward ranges)
+    * carrier = output shaft
+    * sun = shared sun
 - Rear set:
-    * ring gear is also splined to the same output shaft.
-    * carrier is the reaction member, held by the sprag in Drive 1st and by
-      the Low/Reverse band in Reverse / Manual 1.
-- The shared sun gear is driven by the High/Reverse clutch and held by the
-  Intermediate band in 2nd gear.
+    * ring = output shaft
+    * carrier = rear_carrier reaction member
+    * sun = shared sun
 
-Equivalent node model used here
--------------------------------
-Members:
-    input        engine/input shaft
-    sun          common sun gear shared by both gearsets
-    front_ring   front ring gear
-    output       common output shaft = front carrier = rear ring
-    rear_carrier rear carrier reaction member
-
-Gearsets:
-    PG_front: sun=sun, ring=front_ring, carrier=output
-    PG_rear : sun=sun, ring=output,    carrier=rear_carrier
-
-CLI highlights
+States modeled
 --------------
-- manual tooth-count overrides via:
-    * --Ns              apply shared sun count to both sets
-    * --Nr              apply ring count to both sets
-    * --Nr-front        front ring tooth count only
-    * --Nr-rear         rear ring tooth count only
-- presets are provided for convenience, but manual flags override presets.
-- the historical Ford C4 published tooth counts often cited online
-  (Ns=33, Nr=72) are included as a reference-only preset because they fail the
-  strict simple-planetary integer-planet geometry check used by PlanetaryGearSet.
+- 1st      : Forward clutch + sprag
+- 2nd      : Forward clutch + intermediate band
+- 3rd      : Forward clutch + high/reverse clutch
+- Reverse  : High/reverse clutch + low/reverse band
+- Manual1  : Forward clutch + low/reverse band (+ sprag note)
+- Manual2  : Forward clutch + intermediate band
 """
 
 from __future__ import annotations
@@ -53,20 +50,9 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence
+from typing import Dict, Mapping, Optional, Sequence
 
 import sympy as sp
-
-try:
-    from ..core.clutch import Brake, Clutch, RotatingMember
-    from ..core.planetary import PlanetaryGearSet
-except Exception:  # pragma: no cover
-    try:
-        from core.clutch import Brake, Clutch, RotatingMember  # type: ignore
-        from core.planetary import PlanetaryGearSet  # type: ignore
-    except Exception:  # pragma: no cover
-        from clutch import Brake, Clutch, RotatingMember  # type: ignore
-        from planetary import PlanetaryGearSet  # type: ignore
 
 
 class ThreeSpeedCliError(ValueError):
@@ -81,16 +67,13 @@ DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
 }
 
 PRESETS: Mapping[str, Mapping[str, int]] = {
-    # Valid demo preset so the script runs out of the box.
-    "simpson_demo": {"Ns_front": 33, "Nr_front": 72, "Ns_rear": 33, "Nr_rear": 72},
-    # Reference-only published counts often quoted online for Ford C4. These
-    # are intentionally not the default because strict geometry validation fails.
     "ford_c4_reference": {"Ns_front": 33, "Nr_front": 72, "Ns_rear": 33, "Nr_rear": 72},
+    "simpson_demo": {"Ns_front": 34, "Nr_front": 72, "Ns_rear": 34, "Nr_rear": 72},
 }
 
 PRESET_NOTES: Mapping[str, str] = {
-    "simpson_demo": "Valid demo preset that satisfies integer-planet geometry.",
-    "ford_c4_reference": "Published C4 reference counts commonly quoted online; may fail strict geometry validation.",
+    "ford_c4_reference": "Published Ford C4 reference values commonly quoted online. Runs in relaxed geometry mode.",
+    "simpson_demo": "Geometry-clean demo preset with even (Nr-Ns).",
 }
 
 
@@ -110,27 +93,28 @@ class SolveResult:
     notes: str = ""
 
 
-def _validate_simple_planetary_counts(*, Ns: int, Nr: int, label: str) -> None:
+def _validate_counts_basic(*, Ns: int, Nr: int, label: str) -> None:
     if Ns <= 0 or Nr <= 0:
         raise ThreeSpeedCliError(f"Invalid {label} tooth counts: Ns and Nr must both be positive integers.")
     if Nr <= Ns:
         raise ThreeSpeedCliError(
             f"Invalid {label} tooth counts: ring gear teeth Nr ({Nr}) must be greater than sun gear teeth Ns ({Ns})."
         )
+
+
+def _validate_counts_strict(*, Ns: int, Nr: int, label: str) -> None:
+    _validate_counts_basic(Ns=Ns, Nr=Nr, label=label)
     if (Nr - Ns) % 2 != 0:
         raise ThreeSpeedCliError(
-            f"Invalid {label} tooth counts: (Nr - Ns) must be even so the implied planet tooth count is an integer. "
-            f"Got Ns={Ns}, Nr={Nr}, Nr-Ns={Nr - Ns}."
+            f"Invalid {label} tooth counts under strict geometry mode: (Nr - Ns) must be even so the implied "
+            f"planet tooth count is an integer. Got Ns={Ns}, Nr={Nr}, Nr-Ns={Nr - Ns}."
         )
 
 
-def validate_tooth_counts(counts: Mapping[str, int]) -> None:
-    _validate_simple_planetary_counts(
-        Ns=int(counts["Ns_front"]), Nr=int(counts["Nr_front"]), label="Front gearset"
-    )
-    _validate_simple_planetary_counts(
-        Ns=int(counts["Ns_rear"]), Nr=int(counts["Nr_rear"]), label="Rear gearset"
-    )
+def validate_tooth_counts(counts: Mapping[str, int], *, strict_geometry: bool) -> None:
+    validator = _validate_counts_strict if strict_geometry else _validate_counts_basic
+    validator(Ns=int(counts["Ns_front"]), Nr=int(counts["Nr_front"]), label="Front gearset")
+    validator(Ns=int(counts["Ns_rear"]), Nr=int(counts["Nr_rear"]), label="Rear gearset")
 
 
 class FordC4ThreeSpeedTransmission:
@@ -166,63 +150,14 @@ class FordC4ThreeSpeedTransmission:
     DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "rev", "manual1", "manual2")
 
     def __init__(self, *, Ns_front: int, Nr_front: int, Ns_rear: int, Nr_rear: int) -> None:
-        self.tooth_counts: Dict[str, int] = {
-            "Ns_front": int(Ns_front),
-            "Nr_front": int(Nr_front),
-            "Ns_rear": int(Ns_rear),
-            "Nr_rear": int(Nr_rear),
-        }
-        self._build_topology(**self.tooth_counts)
-
-    def _build_topology(self, *, Ns_front: int, Nr_front: int, Ns_rear: int, Nr_rear: int) -> None:
-        self.input = RotatingMember("input")
-        self.sun = RotatingMember("sun")
-        self.front_ring = RotatingMember("front_ring")
-        self.output = RotatingMember("output")
-        self.rear_carrier = RotatingMember("rear_carrier")
-
-        self.members: Dict[str, RotatingMember] = {
-            "input": self.input,
-            "sun": self.sun,
-            "front_ring": self.front_ring,
-            "output": self.output,
-            "rear_carrier": self.rear_carrier,
-        }
-
-        self.pg_front = PlanetaryGearSet(
-            Ns_front,
-            Nr_front,
-            name="PG_front",
-            sun=self.sun,
-            ring=self.front_ring,
-            carrier=self.output,
-        )
-        self.pg_rear = PlanetaryGearSet(
-            Ns_rear,
-            Nr_rear,
-            name="PG_rear",
-            sun=self.sun,
-            ring=self.output,
-            carrier=self.rear_carrier,
-        )
-
-        self.forward_clutch = Clutch(self.input, self.front_ring, name="forward_clutch")
-        self.high_reverse_clutch = Clutch(self.input, self.sun, name="high_reverse_clutch")
-        self.intermediate_band = Brake(self.sun, name="intermediate_band")
-        self.low_reverse_band = Brake(self.rear_carrier, name="low_reverse_band")
-        self.sprag = Brake(self.rear_carrier, name="sprag")
-
-        self.constraints: Dict[str, object] = {
-            "forward_clutch": self.forward_clutch,
-            "high_reverse_clutch": self.high_reverse_clutch,
-            "intermediate_band": self.intermediate_band,
-            "low_reverse_band": self.low_reverse_band,
-            "sprag": self.sprag,
-        }
+        self.Ns_front = int(Ns_front)
+        self.Nr_front = int(Nr_front)
+        self.Ns_rear = int(Ns_rear)
+        self.Nr_rear = int(Nr_rear)
+        self._engaged: set[str] = set()
 
     def release_all(self) -> None:
-        for c in self.constraints.values():
-            c.release()  # type: ignore[attr-defined]
+        self._engaged.clear()
 
     def set_state(self, state: str) -> GearState:
         key = state.strip().lower()
@@ -230,8 +165,7 @@ class FordC4ThreeSpeedTransmission:
             raise ThreeSpeedCliError(f"Unknown state: {state}")
         self.release_all()
         engaged = self.SHIFT_SCHEDULE[key]
-        for name in engaged:
-            self.constraints[name].engage()  # type: ignore[attr-defined]
+        self._engaged.update(engaged)
         display = self.DISPLAY_NAMES.get(key, state.strip())
         notes_map = {
             "1st": "Drive 1st: Forward clutch applied, rear carrier held by sprag.",
@@ -243,38 +177,36 @@ class FordC4ThreeSpeedTransmission:
         }
         return GearState(display, tuple(engaged), notes_map.get(key, ""))
 
-    def _build_equations(self) -> tuple[List[sp.Expr], Dict[str, sp.Symbol]]:
+    def _build_equations(self) -> tuple[list[sp.Expr], Dict[str, sp.Symbol]]:
         ws, wfr, wout, wrc = sp.symbols("ws wfr wout wrc", real=True)
-        symbols = {
-            "sun": ws,
-            "front_ring": wfr,
-            "output": wout,
-            "rear_carrier": wrc,
-        }
-        eqs: List[sp.Expr] = []
-        eqs.append(self.pg_front.Ns * (ws - wout) + self.pg_front.Nr * (wfr - wout))
-        eqs.append(self.pg_rear.Ns * (ws - wrc) + self.pg_rear.Nr * (wout - wrc))
+        syms = {"sun": ws, "front_ring": wfr, "output": wout, "rear_carrier": wrc}
 
-        if self.forward_clutch.engaged:
+        eqs: list[sp.Expr] = []
+        # Front set: Ns_front*(ws - wout) + Nr_front*(wfr - wout) = 0
+        eqs.append(self.Ns_front * (ws - wout) + self.Nr_front * (wfr - wout))
+        # Rear set: Ns_rear*(ws - wrc) + Nr_rear*(wout - wrc) = 0
+        eqs.append(self.Ns_rear * (ws - wrc) + self.Nr_rear * (wout - wrc))
+
+        if "forward_clutch" in self._engaged:
             eqs.append(wfr - 1.0)
-        if self.high_reverse_clutch.engaged:
+        if "high_reverse_clutch" in self._engaged:
             eqs.append(ws - 1.0)
-        if self.intermediate_band.engaged:
+        if "intermediate_band" in self._engaged:
             eqs.append(ws)
-        if self.low_reverse_band.engaged:
+        if "low_reverse_band" in self._engaged:
             eqs.append(wrc)
-        if self.sprag.engaged and not self.low_reverse_band.engaged:
+        if "sprag" in self._engaged and "low_reverse_band" not in self._engaged:
             eqs.append(wrc)
-        return eqs, symbols
+        return eqs, syms
 
     def solve_state(self, state: str) -> SolveResult:
         gs = self.set_state(state)
         eqs, syms = self._build_equations()
         unknowns = [syms["sun"], syms["front_ring"], syms["output"], syms["rear_carrier"]]
-        solution = sp.solve(eqs, unknowns, dict=True)
-        if not solution:
+        sols = sp.solve(eqs, unknowns, dict=True)
+        if not sols:
             raise ThreeSpeedCliError(f"No kinematic solution found for state {gs.name}.")
-        sol = solution[0]
+        sol = sols[0]
         speeds = {
             "input": 1.0,
             "sun": float(sp.N(sol[syms["sun"]])),
@@ -303,15 +235,12 @@ def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
             raise ThreeSpeedCliError(f"Unknown preset: {args.preset}. Valid presets: {valid}")
         counts = dict(PRESETS[args.preset])
 
-    # Shared aliases.
     if args.Ns is not None:
         counts["Ns_front"] = int(args.Ns)
         counts["Ns_rear"] = int(args.Ns)
     if args.Nr is not None:
         counts["Nr_front"] = int(args.Nr)
         counts["Nr_rear"] = int(args.Nr)
-
-    # Component-specific overrides win over shared aliases.
     if args.Ns_front is not None:
         counts["Ns_front"] = int(args.Ns_front)
     if args.Nr_front is not None:
@@ -321,7 +250,7 @@ def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
     if args.Nr_rear is not None:
         counts["Nr_rear"] = int(args.Nr_rear)
 
-    validate_tooth_counts(counts)
+    validate_tooth_counts(counts, strict_geometry=bool(args.strict_geometry))
     return counts
 
 
@@ -357,6 +286,7 @@ def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Opt
         "ok": False,
         "error": message,
         "preset": getattr(args, "preset", None),
+        "strict_geometry": bool(getattr(args, "strict_geometry", False)),
     }
     if tooth_counts is not None:
         payload["tooth_counts"] = dict(tooth_counts)
@@ -386,7 +316,8 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--Nr-front", dest="Nr_front", type=int, default=None, help="Front gearset ring tooth count")
     p.add_argument("--Ns-rear", dest="Ns_rear", type=int, default=None, help="Rear gearset sun tooth count")
     p.add_argument("--Nr-rear", dest="Nr_rear", type=int, default=None, help="Rear gearset ring tooth count")
-    p.add_argument("--preset", default="simpson_demo", help="Named preset tooth-count configuration")
+    p.add_argument("--preset", default="ford_c4_reference", help="Named preset tooth-count configuration")
+    p.add_argument("--strict-geometry", action="store_true", help="Enforce strict simple-planetary integer-planet geometry checks")
     p.add_argument("--list-presets", action="store_true", help="List available presets and exit")
     p.add_argument("--json", action="store_true", help="Emit JSON output")
     p.add_argument("--ratios-only", action="store_true", help="Emit only ratios")
@@ -407,13 +338,14 @@ def _print_presets() -> None:
             print(f"  note: {note}")
 
 
-def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool) -> None:
+def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool, strict_geometry: bool) -> None:
     print("Ford C4 3-Speed Kinematic Summary")
     print("-" * 124)
     print(
         f"Tooth counts: PG_front(Ns_front={counts['Ns_front']}, Nr_front={counts['Nr_front']}), "
         f"PG_rear(Ns_rear={counts['Ns_rear']}, Nr_rear={counts['Nr_rear']})"
     )
+    print(f"Geometry mode: {'strict' if strict_geometry else 'relaxed'}")
     print("-" * 124)
     if ratios_only:
         print(f"{'State':<10s} {'Elems':<40s} {'Ratio':>10s}")
@@ -456,6 +388,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 payload = {
                     "ok": True,
                     "preset": args.preset,
+                    "strict_geometry": bool(args.strict_geometry),
                     "tooth_counts": tooth_counts,
                     "states": {name: _payload(result) for name, result in results.items()},
                 }
@@ -463,7 +396,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     payload["ratios"] = {name: result.ratio for name, result in results.items()}
                 print(json.dumps(payload, indent=2))
             else:
-                _print_summary(counts=tooth_counts, results=results, ratios_only=bool(args.ratios_only))
+                _print_summary(
+                    counts=tooth_counts,
+                    results=results,
+                    ratios_only=bool(args.ratios_only),
+                    strict_geometry=bool(args.strict_geometry),
+                )
             return 0
 
         state = _normalize_state_name(args.state)
@@ -472,6 +410,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             payload = {
                 "ok": True,
                 "preset": args.preset,
+                "strict_geometry": bool(args.strict_geometry),
                 "tooth_counts": tooth_counts,
                 **_payload(result),
             }
@@ -486,6 +425,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     f"Tooth counts: PG_front(Ns_front={tooth_counts['Ns_front']}, Nr_front={tooth_counts['Nr_front']}), "
                     f"PG_rear(Ns_rear={tooth_counts['Ns_rear']}, Nr_rear={tooth_counts['Nr_rear']})"
                 )
+                print(f"Geometry mode: {'strict' if args.strict_geometry else 'relaxed'}")
                 print(f"Ratio (input/output): {result.ratio:.6f}")
                 print(json.dumps(result.speeds, indent=2))
         return 0
