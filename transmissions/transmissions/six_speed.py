@@ -292,12 +292,12 @@ class AllisonSixSpeedTransmission:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Allison-style 6-speed transmission kinematic solver")
-    p.add_argument("--Ns1", type=int, default=30)
-    p.add_argument("--Nr1", type=int, default=72)
-    p.add_argument("--Ns2", type=int, default=30)
-    p.add_argument("--Nr2", type=int, default=72)
-    p.add_argument("--Ns3", type=int, default=30)
-    p.add_argument("--Nr3", type=int, default=72)
+    p.add_argument("--Ns1", type=int, default=67)
+    p.add_argument("--Nr1", type=int, default=109)
+    p.add_argument("--Ns2", type=int, default=49)
+    p.add_argument("--Nr2", type=int, default=91)
+    p.add_argument("--Ns3", type=int, default=39)
+    p.add_argument("--Nr3", type=int, default=97)
     p.add_argument("--input-speed", type=float, default=1.0)
     p.add_argument("--state", type=str, default="all", help="Specific state: 1st, 2nd, 3rd, 4th, 5th, 6th, rev, or all")
     p.add_argument("--json", action="store_true", help="Emit JSON instead of text")
