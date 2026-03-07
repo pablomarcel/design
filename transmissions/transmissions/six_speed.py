@@ -57,6 +57,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import sys
 from dataclasses import dataclass
 from typing import Dict, List, Mapping, Optional
 
@@ -75,6 +76,55 @@ except Exception:  # pragma: no cover
 
 LOG = logging.getLogger(__name__)
 
+class SixSpeedCliError(ValueError):
+    """User-facing CLI/configuration error for six_speed.py."""
+
+
+def _validate_simple_planetary_counts(*, Ns: int, Nr: int, label: str) -> None:
+    if Ns <= 0 or Nr <= 0:
+        raise SixSpeedCliError(f"Invalid {label} tooth counts: Ns and Nr must both be positive integers.")
+    if Nr <= Ns:
+        raise SixSpeedCliError(
+            f"Invalid {label} tooth counts: ring gear teeth Nr ({Nr}) must be greater than sun gear teeth Ns ({Ns})."
+        )
+    if (Nr - Ns) % 2 != 0:
+        planet = Nr - Ns
+        raise SixSpeedCliError(
+            f"Invalid {label} tooth counts: (Nr - Ns) must be even so the implied planet tooth count is an integer. "
+            f"Got Ns={Ns}, Nr={Nr}, Nr-Ns={planet}."
+        )
+
+
+def validate_tooth_counts(counts: Mapping[str, int]) -> None:
+    _validate_simple_planetary_counts(Ns=int(counts["Ns1"]), Nr=int(counts["Nr1"]), label="PG1")
+    _validate_simple_planetary_counts(Ns=int(counts["Ns2"]), Nr=int(counts["Nr2"]), label="PG2")
+    _validate_simple_planetary_counts(Ns=int(counts["Ns3"]), Nr=int(counts["Nr3"]), label="PG3")
+
+
+def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Optional[Mapping[str, int]] = None) -> int:
+    payload = {
+        "ok": False,
+        "error": message,
+        "preset": getattr(args, "preset", None),
+    }
+    if tooth_counts is not None:
+        payload["tooth_counts"] = dict(tooth_counts)
+
+    if getattr(args, "json", False):
+        print(json.dumps(payload, indent=2))
+    else:
+        print("six_speed.py error", file=sys.stderr)
+        print("------------------", file=sys.stderr)
+        print(message, file=sys.stderr)
+        if tooth_counts is not None:
+            print(
+                f"Tooth counts: PG1(Ns1={tooth_counts['Ns1']}, Nr1={tooth_counts['Nr1']}), "
+                f"PG2(Ns2={tooth_counts['Ns2']}, Nr2={tooth_counts['Nr2']}), "
+                f"PG3(Ns3={tooth_counts['Ns3']}, Nr3={tooth_counts['Nr3']})",
+                file=sys.stderr,
+            )
+    return 2
+
 
 DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
     "Ns1": 67,
@@ -86,16 +136,6 @@ DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
 }
 
 PRESETS: Mapping[str, Mapping[str, int]] = {
-    # Working candidate preset for Allison 1000/2000-style exploration.
-    # This is intentionally labeled exploratory rather than OEM-confirmed.
-    "allison_4000": {
-        "Ns1": 61,
-        "Nr1": 100,
-        "Ns2": 41,
-        "Nr2": 79,
-        "Ns3": 41,
-        "Nr3": 79,
-    },
     "allison_3000": {
         "Ns1": 67,
         "Nr1": 109,
@@ -104,7 +144,9 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
         "Ns3": 39,
         "Nr3": 97,
     },
-    "allison_2000": {
+    # Working candidate preset for Allison 1000/2000-style exploration.
+    # This is intentionally labeled exploratory rather than OEM-confirmed.
+    "allison_1000_candidate": {
         "Ns1": 61,
         "Nr1": 100,
         "Ns2": 41,
@@ -112,15 +154,8 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
         "Ns3": 41,
         "Nr3": 79,
     },
-    "allison_1000": {
-        "Ns1": 61,
-        "Nr1": 111,
-        "Ns2": 57,
-        "Nr2": 111,
-        "Ns3": 49,
-        "Nr3": 103,
-    },
 }
+
 
 @dataclass(frozen=True)
 class GearState:
@@ -420,50 +455,62 @@ def main(argv: Optional[List[str]] = None) -> int:
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     )
 
-    if args.list_presets:
+    try:
+        if args.list_presets:
+            if args.json:
+                print(json.dumps(_presets_payload(), indent=2))
+            else:
+                print("Available presets")
+                print("-" * 18)
+                for name, values in PRESETS.items():
+                    print(f"{name}: {dict(values)}")
+            return 0
+
+        tooth_counts = _resolve_tooth_counts(args)
+        validate_tooth_counts(tooth_counts)
+        tx = AllisonSixSpeedTransmission(**tooth_counts)
+
+        if args.show_topology and not args.json:
+            print(tx.topology_description())
+
+        if args.state.lower() == "all":
+            result = tx.solve_all(input_speed=args.input_speed)
+            if args.json:
+                payload: Dict[str, object] = {
+                    "ok": True,
+                    "preset": args.preset,
+                    "tooth_counts": tooth_counts,
+                    "states": result,
+                }
+                print(json.dumps(payload, indent=2))
+            else:
+                print(tx.ratio_table(input_speed=args.input_speed) if args.ratios_only else tx.summary_table(input_speed=args.input_speed))
+            return 0
+
+        result = tx.solve_state(args.state, input_speed=args.input_speed)
         if args.json:
-            print(json.dumps(_presets_payload(), indent=2))
-        else:
-            print("Available presets")
-            print("-" * 18)
-            for name, values in PRESETS.items():
-                print(f"{name}: {dict(values)}")
-        return 0
-
-    tooth_counts = _resolve_tooth_counts(args)
-    tx = AllisonSixSpeedTransmission(**tooth_counts)
-
-    if args.show_topology and not args.json:
-        print(tx.topology_description())
-
-    if args.state.lower() == "all":
-        result = tx.solve_all(input_speed=args.input_speed)
-        if args.json:
-            payload: Dict[str, object] = {
+            payload = {
+                "ok": True,
                 "preset": args.preset,
                 "tooth_counts": tooth_counts,
-                "states": result,
+                **result,
             }
             print(json.dumps(payload, indent=2))
         else:
-            print(tx.ratio_table(input_speed=args.input_speed) if args.ratios_only else tx.summary_table(input_speed=args.input_speed))
+            print(tx.tooth_count_summary())
+            print(f"State: {result['state']}")
+            print(f"Engaged: {' + '.join(result['engaged'])}")
+            print(f"Ratio (input/output): {result['ratio']:.6f}")
+            print(json.dumps(result['speeds'], indent=2))
         return 0
-
-    result = tx.solve_state(args.state, input_speed=args.input_speed)
-    if args.json:
-        payload = {
-            "preset": args.preset,
-            "tooth_counts": tooth_counts,
-            **result,
-        }
-        print(json.dumps(payload, indent=2))
-    else:
-        print(tx.tooth_count_summary())
-        print(f"State: {result['state']}")
-        print(f"Engaged: {' + '.join(result['engaged'])}")
-        print(f"Ratio (input/output): {result['ratio']:.6f}")
-        print(json.dumps(result['speeds'], indent=2))
-    return 0
+    except SixSpeedCliError as exc:
+        return _emit_cli_error(args=args, message=str(exc), tooth_counts=locals().get('tooth_counts'))
+    except ValueError as exc:
+        return _emit_cli_error(args=args, message=f"Invalid input: {exc}", tooth_counts=locals().get('tooth_counts'))
+    except RuntimeError as exc:
+        return _emit_cli_error(args=args, message=f"Solver failure: {exc}", tooth_counts=locals().get('tooth_counts'))
+    except KeyboardInterrupt:
+        return _emit_cli_error(args=args, message="Interrupted by user.", tooth_counts=locals().get('tooth_counts'))
 
 
 if __name__ == "__main__":  # pragma: no cover

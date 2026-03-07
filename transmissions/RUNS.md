@@ -89,7 +89,33 @@ python -m transmissions.six_speed \
   --json
 ```
 
+# Allison 4000
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --Ns1 67 \
+  --Nr1 109 \
+  --Ns2 49 \
+  --Nr2 91 \
+  --Ns3 39 \
+  --Nr3 97
+```
+
 # Allison 3000
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --Ns1 67 \
+  --Nr1 109 \
+  --Ns2 49 \
+  --Nr2 91 \
+  --Ns3 39 \
+  --Nr3 97
+```
+
+# Allison 2000
 
 ```bash
 python -m transmissions.six_speed \
@@ -113,6 +139,19 @@ python -m transmissions.six_speed \
   --Nr2 111 \
   --Ns3 49 \
   --Nr3 103
+```
+
+# Allison Bad Combination of Teeth Numbers
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --Ns1 61 \
+  --Nr1 100 \
+  --Ns2 41 \
+  --Nr2 79 \
+  --Ns3 41 \
+  --Nr3 79
 ```
 
 ```bash
