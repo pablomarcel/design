@@ -1,0 +1,52 @@
+fucking aye. let's build six_speed.py.
+
+here is the clutch configuration for each gear:
+
+First Gear, C1 and C5
+
+Second Gear, C1 and C4
+
+Fourth Gear (Direct Drive), C1 and C2
+
+Sixth Gear, C2 and C4 (carrier turns at high speed, sun also rotates)
+
+Third Gear, C1 and C3
+
+Fifth Gear, C2 and C3
+
+Reverse Gear, C3 and C5
+
+---
+
+in addition to that we must specify how the gearsets are interconnected with each other.
+
+---
+
+if we can agree on how to describe each gear set.
+
+from left to right (engine side to output side)
+
+first gearset
+
+    sun of first gearsets connects to engine.
+    carrier of first gearset connects to ring of second gearset
+    ring of first gearset can connect to clutch C3
+
+second gearset
+
+    sun of second gearset can connect to engine via clutch C1.
+    carrier of second gearset can connect to engine via clutch C2.
+    sun of second gearset connects to sun of third gearset.
+    carrier of second gearset connects to ring of third gearset.
+    ring of second gearset can connect to clutch C4
+
+third gearset
+
+    carrier of third gearset is the output
+    ring of third gearset can connect to clutch C5
+
+---
+
+Is my description of the allison 6 speed transmission sufficient to start building six_speed.py?
+
+Do you have any additional questions before we start coding and testing?

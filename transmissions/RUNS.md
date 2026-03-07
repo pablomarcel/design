@@ -188,3 +188,30 @@ python -m transmissions.six_speed \
   --state all \
   --preset allison_1000
 ```
+
+#### Ravineaux 4 Speed Transmission
+
+```bash
+python -m transmissions.four_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.four_speed \
+  --state 4th
+```
+
+```bash
+python -m transmissions.four_speed \
+  --state all --json
+```
+
+```bash
+python -m transmissions.four_speed --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.four_speed \
+  --list-presets
+```
