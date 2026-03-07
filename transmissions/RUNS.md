@@ -88,3 +88,64 @@ python -m transmissions.six_speed \
   --state all \
   --json
 ```
+
+# Allison 3000
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --Ns1 67 \
+  --Nr1 109 \
+  --Ns2 49 \
+  --Nr2 91 \
+  --Ns3 39 \
+  --Nr3 97
+```
+
+# Allison 1000
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --Ns1 61 \
+  --Nr1 111 \
+  --Ns2 57 \
+  --Nr2 111 \
+  --Ns3 49 \
+  --Nr3 103
+```
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.six_speed \
+  --list-presets
+```
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --preset allison_4000
+```
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --preset allison_3000
+```
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --preset allison_2000
+```
+
+```bash
+python -m transmissions.six_speed \
+  --state all \
+  --preset allison_1000
+```

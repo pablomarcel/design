@@ -43,6 +43,13 @@ This file uses a *linear* Willis-equation solve:
 
 instead of the older fractional form in core/solver.py. That avoids the
 0/0 singularity that appears in direct-drive states such as 4th gear.
+
+What this upgrade adds
+----------------------
+- explicit CLI tooth-count flags for all six gear tooth counts
+- presets for known Allison-family configurations
+- reporting of the active tooth counts actually used in the run
+- optional ratio-only JSON/text output
 """
 
 from __future__ import annotations
@@ -51,7 +58,7 @@ import argparse
 import json
 import logging
 from dataclasses import dataclass
-from typing import Dict, Iterable, List, Mapping
+from typing import Dict, List, Mapping, Optional
 
 import sympy as sp
 
@@ -68,6 +75,52 @@ except Exception:  # pragma: no cover
 
 LOG = logging.getLogger(__name__)
 
+
+DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
+    "Ns1": 67,
+    "Nr1": 109,
+    "Ns2": 49,
+    "Nr2": 91,
+    "Ns3": 39,
+    "Nr3": 97,
+}
+
+PRESETS: Mapping[str, Mapping[str, int]] = {
+    # Working candidate preset for Allison 1000/2000-style exploration.
+    # This is intentionally labeled exploratory rather than OEM-confirmed.
+    "allison_4000": {
+        "Ns1": 61,
+        "Nr1": 100,
+        "Ns2": 41,
+        "Nr2": 79,
+        "Ns3": 41,
+        "Nr3": 79,
+    },
+    "allison_3000": {
+        "Ns1": 67,
+        "Nr1": 109,
+        "Ns2": 49,
+        "Nr2": 91,
+        "Ns3": 39,
+        "Nr3": 97,
+    },
+    "allison_2000": {
+        "Ns1": 61,
+        "Nr1": 100,
+        "Ns2": 41,
+        "Nr2": 79,
+        "Ns3": 41,
+        "Nr3": 79,
+    },
+    "allison_1000": {
+        "Ns1": 61,
+        "Nr1": 111,
+        "Ns2": 57,
+        "Nr2": 111,
+        "Ns3": 49,
+        "Nr3": 103,
+    },
+}
 
 @dataclass(frozen=True)
 class GearState:
@@ -92,27 +145,34 @@ class AllisonSixSpeedTransmission:
     def __init__(
         self,
         *,
-        Ns1: int = 30,
-        Nr1: int = 72,
-        Ns2: int = 30,
-        Nr2: int = 72,
-        Ns3: int = 30,
-        Nr3: int = 72,
+        Ns1: int,
+        Nr1: int,
+        Ns2: int,
+        Nr2: int,
+        Ns3: int,
+        Nr3: int,
     ) -> None:
-        self._build_topology(Ns1=Ns1, Nr1=Nr1, Ns2=Ns2, Nr2=Nr2, Ns3=Ns3, Nr3=Nr3)
+        self.tooth_counts: Dict[str, int] = {
+            "Ns1": int(Ns1),
+            "Nr1": int(Nr1),
+            "Ns2": int(Ns2),
+            "Nr2": int(Nr2),
+            "Ns3": int(Ns3),
+            "Nr3": int(Nr3),
+        }
+        self._build_topology(**self.tooth_counts)
 
     # ------------------------------------------------------------------
     # Topology
     # ------------------------------------------------------------------
 
     def _build_topology(self, *, Ns1: int, Nr1: int, Ns2: int, Nr2: int, Ns3: int, Nr3: int) -> None:
-        # Permanent nodes
         self.input = RotatingMember("input")
         self.ring1 = RotatingMember("ring1")
-        self.node12 = RotatingMember("node12")  # PG1 carrier = PG2 ring
-        self.sun23 = RotatingMember("sun23")    # PG2 sun = PG3 sun
-        self.node23 = RotatingMember("node23")  # PG2 carrier = PG3 ring
-        self.output = RotatingMember("output")  # PG3 carrier
+        self.node12 = RotatingMember("node12")
+        self.sun23 = RotatingMember("sun23")
+        self.node23 = RotatingMember("node23")
+        self.output = RotatingMember("output")
 
         self.members: Dict[str, RotatingMember] = {
             "input": self.input,
@@ -129,7 +189,6 @@ class AllisonSixSpeedTransmission:
 
         self.gearsets: List[PlanetaryGearSet] = [self.pg1, self.pg2, self.pg3]
 
-        # Shift elements
         self.C1 = Clutch(self.input, self.sun23, name="C1")
         self.C2 = Clutch(self.input, self.node23, name="C2")
         self.C3 = Brake(self.ring1, name="C3")
@@ -231,6 +290,7 @@ class AllisonSixSpeedTransmission:
             "engaged": list(info.engaged),
             "speeds": results,
             "ratio": ratio,
+            "tooth_counts": dict(self.tooth_counts),
         }
 
     def solve_all(self, input_speed: float = 1.0) -> Dict[str, Dict[str, object]]:
@@ -245,16 +305,11 @@ class AllisonSixSpeedTransmission:
     # Reporting
     # ------------------------------------------------------------------
 
-    def ratio_row(self, state: str, input_speed: float = 1.0) -> Dict[str, float]:
-        solved = self.solve_state(state, input_speed=input_speed)
-        row = {"ratio": solved["ratio"]}
-        row.update(solved["speeds"])  # type: ignore[arg-type]
-        return row
-
     def summary_table(self, input_speed: float = 1.0) -> str:
         solved = self.solve_all(input_speed=input_speed)
         lines = []
         lines.append("Allison 6-Speed Kinematic Summary")
+        lines.append(self.tooth_count_summary())
         lines.append("-" * 104)
         lines.append(
             f"{'State':<8}{'Elems':<12}{'Ratio':>10}{'Input':>10}{'Ring1':>10}{'Node12':>10}{'Sun23':>10}{'Node23':>10}{'Output':>10}"
@@ -271,6 +326,29 @@ class AllisonSixSpeedTransmission:
                 f"{s['sun23']:>10.3f}{s['node23']:>10.3f}{s['output']:>10.3f}"
             )
         return "\n".join(lines)
+
+    def ratio_table(self, input_speed: float = 1.0) -> str:
+        solved = self.solve_all(input_speed=input_speed)
+        lines = []
+        lines.append("Allison 6-Speed Ratio Summary")
+        lines.append(self.tooth_count_summary())
+        lines.append("-" * 42)
+        lines.append(f"{'State':<8}{'Elems':<12}{'Ratio':>10}")
+        lines.append("-" * 42)
+        for state in ["1st", "2nd", "3rd", "4th", "5th", "6th", "Rev"]:
+            item = solved[state]
+            elems = "+".join(item["engaged"])
+            lines.append(f"{state:<8}{elems:<12}{item['ratio']:>10.3f}")
+        return "\n".join(lines)
+
+    def tooth_count_summary(self) -> str:
+        tc = self.tooth_counts
+        return (
+            f"Tooth counts: "
+            f"PG1(Ns1={tc['Ns1']}, Nr1={tc['Nr1']}), "
+            f"PG2(Ns2={tc['Ns2']}, Nr2={tc['Nr2']}), "
+            f"PG3(Ns3={tc['Ns3']}, Nr3={tc['Nr3']})"
+        )
 
     def topology_description(self) -> str:
         return (
@@ -290,37 +368,70 @@ class AllisonSixSpeedTransmission:
         )
 
 
+def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
+    counts = dict(DEFAULT_TOOTH_COUNTS)
+
+    if args.preset is not None:
+        if args.preset not in PRESETS:
+            raise ValueError(f"Unknown preset: {args.preset}")
+        counts.update(PRESETS[args.preset])
+
+    for key in ("Ns1", "Nr1", "Ns2", "Nr2", "Ns3", "Nr3"):
+        value = getattr(args, key)
+        if value is not None:
+            counts[key] = int(value)
+
+    return counts
+
+
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Allison-style 6-speed transmission kinematic solver")
-    p.add_argument("--Ns1", type=int, default=67)
-    p.add_argument("--Nr1", type=int, default=109)
-    p.add_argument("--Ns2", type=int, default=49)
-    p.add_argument("--Nr2", type=int, default=91)
-    p.add_argument("--Ns3", type=int, default=39)
-    p.add_argument("--Nr3", type=int, default=97)
+    p.add_argument(
+        "--preset",
+        type=str,
+        default="allison_3000",
+        choices=sorted(PRESETS.keys()),
+        help="Named tooth-count preset. Manual tooth-count flags override the preset.",
+    )
+    p.add_argument("--Ns1", type=int, default=None, help="PG1 sun tooth count")
+    p.add_argument("--Nr1", type=int, default=None, help="PG1 ring tooth count")
+    p.add_argument("--Ns2", type=int, default=None, help="PG2 sun tooth count")
+    p.add_argument("--Nr2", type=int, default=None, help="PG2 ring tooth count")
+    p.add_argument("--Ns3", type=int, default=None, help="PG3 sun tooth count")
+    p.add_argument("--Nr3", type=int, default=None, help="PG3 ring tooth count")
     p.add_argument("--input-speed", type=float, default=1.0)
     p.add_argument("--state", type=str, default="all", help="Specific state: 1st, 2nd, 3rd, 4th, 5th, 6th, rev, or all")
     p.add_argument("--json", action="store_true", help="Emit JSON instead of text")
+    p.add_argument("--ratios-only", action="store_true", help="Print only the ratio summary for all states")
     p.add_argument("--show-topology", action="store_true")
+    p.add_argument("--list-presets", action="store_true", help="List available presets and exit")
     p.add_argument("--log-level", default="WARNING")
     return p
 
 
-def main(argv: list[str] | None = None) -> int:
+def _presets_payload() -> Dict[str, Dict[str, int]]:
+    return {name: dict(values) for name, values in PRESETS.items()}
+
+
+def main(argv: Optional[List[str]] = None) -> int:
     args = build_arg_parser().parse_args(argv)
     logging.basicConfig(
         level=getattr(logging, str(args.log_level).upper(), logging.WARNING),
         format="%(asctime)s - %(levelname)s - %(name)s - %(message)s",
     )
 
-    tx = AllisonSixSpeedTransmission(
-        Ns1=args.Ns1,
-        Nr1=args.Nr1,
-        Ns2=args.Ns2,
-        Nr2=args.Nr2,
-        Ns3=args.Ns3,
-        Nr3=args.Nr3,
-    )
+    if args.list_presets:
+        if args.json:
+            print(json.dumps(_presets_payload(), indent=2))
+        else:
+            print("Available presets")
+            print("-" * 18)
+            for name, values in PRESETS.items():
+                print(f"{name}: {dict(values)}")
+        return 0
+
+    tooth_counts = _resolve_tooth_counts(args)
+    tx = AllisonSixSpeedTransmission(**tooth_counts)
 
     if args.show_topology and not args.json:
         print(tx.topology_description())
@@ -328,15 +439,26 @@ def main(argv: list[str] | None = None) -> int:
     if args.state.lower() == "all":
         result = tx.solve_all(input_speed=args.input_speed)
         if args.json:
-            print(json.dumps(result, indent=2))
+            payload: Dict[str, object] = {
+                "preset": args.preset,
+                "tooth_counts": tooth_counts,
+                "states": result,
+            }
+            print(json.dumps(payload, indent=2))
         else:
-            print(tx.summary_table(input_speed=args.input_speed))
+            print(tx.ratio_table(input_speed=args.input_speed) if args.ratios_only else tx.summary_table(input_speed=args.input_speed))
         return 0
 
     result = tx.solve_state(args.state, input_speed=args.input_speed)
     if args.json:
-        print(json.dumps(result, indent=2))
+        payload = {
+            "preset": args.preset,
+            "tooth_counts": tooth_counts,
+            **result,
+        }
+        print(json.dumps(payload, indent=2))
     else:
+        print(tx.tooth_count_summary())
         print(f"State: {result['state']}")
         print(f"Engaged: {' + '.join(result['engaged'])}")
         print(f"Ratio (input/output): {result['ratio']:.6f}")
