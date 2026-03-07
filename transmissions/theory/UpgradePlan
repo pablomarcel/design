@@ -1,0 +1,312 @@
+Yes — we can improve the core classes, and that is exactly the right reaction.
+
+Your disappointment is valid.
+
+`three_speed.py` solving correctly while bypassing parts of `core` is a sign that:
+
+* the **transmission-specific modeling is ahead of the core architecture**
+* the **core is still too narrow / too strict / too simple** for real automatic-transmission work
+
+That does **not** mean the core was a bad idea.
+It means the core needs a second-generation upgrade.
+
+## What went wrong
+
+The main issue is that `core/planetary.py` and `core/solver.py` were built around a **clean simple-planetary abstraction**, but real transmission work quickly exposed three limitations:
+
+### 1. `PlanetaryGearSet` is too geometry-opinionated
+
+Right now it is doing two jobs at once:
+
+* kinematic object
+* geometric validity checker
+
+That is why `Ns=33, Nr=72` got blocked.
+For C4 kinematics, you needed the speed relations to solve, but the class refused construction because of the strict integer-planet rule.
+
+So `PlanetaryGearSet` should not force geometry validation by default.
+
+## 2. `TransmissionSolver` is too generic in the wrong way
+
+It is generic enough to assemble equations, but not rich enough to describe:
+
+* permanent member ties
+* one-way clutches / sprags
+* topology-specific state logic
+* relaxed vs strict geometry
+* underdetermined state classification
+* direct member aliases like “front carrier = output = rear ring”
+
+So the transmission scripts had to take over that logic.
+
+## 3. Core does not distinguish between:
+
+* **member**
+* **node**
+* **gear member attached to that node**
+
+That distinction matters a lot in compound automatics.
+
+For example in the C4:
+
+* front carrier
+* rear ring
+* output shaft
+
+are conceptually different things, but kinematically the same rotating node.
+
+Your current core does not model that elegantly enough.
+
+---
+
+# What should be improved in core
+
+Yes — absolutely.
+
+These are the upgrades worth making.
+
+## 1. Split kinematics from geometry in `planetary.py`
+
+This is the biggest fix.
+
+`PlanetaryGearSet` should support two modes:
+
+* **relaxed kinematic mode**
+
+  * only needs `Ns > 0`, `Nr > 0`
+  * can solve Willis equations even if `(Nr-Ns)` is odd
+
+* **strict geometry mode**
+
+  * checks:
+
+    * `Nr > Ns`
+    * `(Nr - Ns)` even
+    * optional planet count / assembly constraints
+
+So instead of hard-failing in the constructor, do something like:
+
+* `strict_geometry=False` by default
+* `validate_geometry()` as an explicit method
+* or a `geometry_mode="relaxed" | "strict"`
+
+That would have let `three_speed.py` still use `PlanetaryGearSet`.
+
+## 2. Add a true `Node` / `ShaftNode` abstraction in `shaft.py`
+
+This file should finally exist.
+
+Right now `RotatingMember` is doing too much.
+
+You need something like:
+
+* `ShaftNode("output")`
+* `ShaftNode("sun_common")`
+* `ShaftNode("rear_reaction")`
+
+Then a planetary set should attach its members to nodes:
+
+* front sun -> `sun_common`
+* rear sun -> `sun_common`
+* front carrier -> `output`
+* rear ring -> `output`
+
+That is much closer to how compound transmissions are actually modeled.
+
+So `shaft.py` was not useless — it was actually one of the missing keys.
+
+## 3. Make `gear.py` hold gear metadata, not solver logic
+
+`gear.py` should finally exist too, but lightly.
+
+Something like:
+
+* name
+* teeth
+* role (`sun`, `ring`, `planet`)
+* set name
+* maybe pitch/module later
+
+This is useful for:
+
+* reporting
+* validation
+* future visualization
+* AGMA/stress extensions later
+
+It should not be the main solver object.
+
+## 4. Upgrade `solver.py` to support permanent ties explicitly
+
+Right now your solver mostly knows:
+
+* planetary equations
+* clutch equations
+* brake equations
+* input speed
+
+It also needs:
+
+* **fixed equalities / permanent ties**
+* **node aliases**
+* **state classification**
+* optional **relaxed solve**
+* better diagnostics on underdetermined and conflicting systems
+
+For example:
+
+* `front_carrier = output`
+* `rear_ring = output`
+* `front_sun = rear_sun = sun_common`
+
+These should be first-class constructs, not ad hoc script logic.
+
+## 5. Add a one-way clutch / sprag class to `clutch.py`
+
+This is another major missing piece.
+
+The C4 immediately showed that a normal brake is not the same as a sprag.
+
+A sprag is state-dependent:
+
+* it holds in one torque / rotation sense
+* it freewheels in the other
+
+For pure kinematics, you can sometimes fake it as a brake in one state, but a real transmission core should have something like:
+
+* `OneWayClutch(member, allowed_direction=...)`
+
+Even if initially simplified, the abstraction belongs in core.
+
+## 6. Move Willis relations into `kinematics/willis.py`
+
+That file should finally exist.
+
+It should expose reusable helpers:
+
+* linear Willis equation
+* ratio forms for common cases
+* maybe symbolic helpers for solving one member from two others
+
+Then `planetary.py` and `solver.py` both use it.
+
+That would reduce duplicated transmission-specific algebra.
+
+## 7. Build `transmission_builder.py` for topology assembly
+
+This is probably the long-term win.
+
+Instead of each script hand-building:
+
+* members
+* clutches
+* brakes
+* ties
+* states
+
+you want a builder that can accept:
+
+* nodes
+* planetary sets
+* permanent equalities
+* shift elements
+* state table
+
+Then:
+
+* `three_speed.py`
+* `four_speed.py`
+* `six_speed.py`
+
+become thin topology-definition files, not custom solvers.
+
+That was the original spirit of your architecture, and it is still the right destination.
+
+---
+
+# So why did `three_speed.py` bypass core?
+
+Because the current core was not yet flexible enough to express:
+
+* relaxed geometry
+* common-node identities
+* Simpson-specific tied output path
+* sprag behavior
+
+So the script did the right thing pragmatically.
+
+That was a tactical success, not an architectural ideal.
+
+---
+
+# What I would do next
+
+I would not rewrite everything.
+
+I would do a **Core V2** upgrade in this order:
+
+### Step 1
+
+Upgrade `planetary.py`
+
+* add relaxed vs strict geometry
+* keep current API backward-compatible
+
+### Step 2
+
+Implement `shaft.py`
+
+* real rotating node abstraction
+* allow aliasing several physical members to one node
+
+### Step 3
+
+Upgrade `solver.py`
+
+* support permanent equalities / tied nodes
+* better state classification
+
+### Step 4
+
+Implement `clutch.py` support for one-way clutch / sprag
+
+### Step 5
+
+Create `kinematics/willis.py`
+
+* centralize linear planetary equations
+
+### Step 6
+
+Refactor `three_speed.py` back onto core
+
+* this becomes the proof that Core V2 is good
+
+That is the right test:
+if the upgraded core can absorb the Ford C4 cleanly, then the architecture is finally maturing.
+
+---
+
+# Bottom line
+
+Yes — **we can and should improve the core classes**.
+
+Your current results prove:
+
+* the app is valuable
+* the math is working
+* the transmission-specific files are useful
+
+But they also prove the core is still incomplete.
+
+The missing pieces are mainly:
+
+* relaxed geometry
+* shaft/node modeling
+* permanent ties
+* sprag / one-way clutch support
+* reusable Willis helpers
+
+So your disappointment is actually a very good architectural signal.
+
+The next serious upgrade should be **Core V2**, not another transmission script.

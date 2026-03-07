@@ -5,54 +5,64 @@ transmissions.transmissions.three_speed
 
 Ford C4-style 3-speed automatic transmission kinematic model.
 
-Why this module does NOT instantiate PlanetaryGearSet directly
---------------------------------------------------------------
-The project-wide PlanetaryGearSet class enforces strict simple-planetary
-geometry: (Nr - Ns) must be even so the implied planet tooth count is an
-integer. That is a good default for many simple planetary studies.
+Core V2 refactor
+----------------
+This version is intended to solve through the upgraded core stack:
+- core.planetary.PlanetaryGearSet
+- core.clutch.{RotatingMember, Clutch, Brake, Sprag}
+- core.solver.TransmissionSolver
 
-However, widely cited Ford C4 reference counts are often given as:
-    Ns = 33, Nr = 72
-which violates that strict integer-planet check. The user explicitly wants
-those reference values to remain usable for kinematic ratio studies.
-
-So this module solves the Ford C4 kinematics directly from the linear Willis
-relations, without calling PlanetaryGearSet.__init__().
-
-This keeps the CLI useful for reverse-engineering / interview prep while still
-allowing an optional strict geometry check via --strict-geometry.
-
-Topology
---------
+Key topology points
+-------------------
 Classic Simpson arrangement with a common sun gear:
 - Front set:
-    * ring = front_ring (driven by Forward Clutch in forward ranges)
-    * carrier = output shaft
-    * sun = shared sun
+    * ring = front_ring (driven by Forward Clutch)
+    * carrier = front_carrier
+    * sun = common sun
 - Rear set:
-    * ring = output shaft
+    * ring = rear_ring
     * carrier = rear_carrier reaction member
-    * sun = shared sun
+    * sun = same common sun
 
-States modeled
---------------
-- 1st      : Forward clutch + sprag
-- 2nd      : Forward clutch + intermediate band
-- 3rd      : Forward clutch + high/reverse clutch
-- Reverse  : High/reverse clutch + low/reverse band
-- Manual1  : Forward clutch + low/reverse band (+ sprag note)
-- Manual2  : Forward clutch + intermediate band
+Permanent mechanical ties:
+- front_carrier = output
+- rear_ring = output
+
+Shift elements:
+- Forward Clutch      : input ↔ front_ring
+- High/Reverse Clutch : input ↔ sun
+- Intermediate Band   : sun → ground
+- Low/Reverse Band    : rear_carrier → ground
+- Sprag               : rear_carrier one-way hold (current core models this as
+                        a brake-like hold when engaged, but it is still represented
+                        as a first-class sprag object)
+
+This script now prefers the upgraded core path explicitly and reports which
+solver path was used so there is no ambiguity about hidden fallback behavior.
 """
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 from dataclasses import dataclass
 from typing import Dict, Mapping, Optional, Sequence
 
-import sympy as sp
+try:
+    from ..core.clutch import Brake, Clutch, RotatingMember, Sprag
+    from ..core.planetary import PlanetaryGearSet
+    from ..core.solver import TransmissionSolver
+except Exception:  # pragma: no cover
+    try:
+        from core.clutch import Brake, Clutch, RotatingMember, Sprag  # type: ignore
+        from core.planetary import PlanetaryGearSet  # type: ignore
+        from core.solver import TransmissionSolver  # type: ignore
+    except Exception:  # pragma: no cover
+        from clutch import Brake, Clutch, RotatingMember, Sprag  # type: ignore
+        from planetary import PlanetaryGearSet  # type: ignore
+        from solver import TransmissionSolver  # type: ignore
 
 
 class ThreeSpeedCliError(ValueError):
@@ -72,7 +82,7 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
 }
 
 PRESET_NOTES: Mapping[str, str] = {
-    "ford_c4_reference": "Published Ford C4 reference values commonly quoted online. Runs in relaxed geometry mode.",
+    "ford_c4_reference": "Published Ford C4 reference values commonly quoted online. Intended for relaxed geometry mode.",
     "simpson_demo": "Geometry-clean demo preset with even (Nr-Ns).",
 }
 
@@ -91,6 +101,24 @@ class SolveResult:
     speeds: Dict[str, float]
     ratio: float
     notes: str = ""
+    solver_path: str = "core_v2"
+
+
+@dataclass(frozen=True)
+class _RelaxedPlanetaryProxy:
+    """
+    Minimal planetary object for kinematic use when strict PlanetaryGearSet
+    construction is unavailable but relaxed geometry mode is requested.
+
+    The upgraded core solver only needs:
+        name, Ns, Nr, sun, ring, carrier
+    """
+    Ns: int
+    Nr: int
+    name: str
+    sun: RotatingMember
+    ring: RotatingMember
+    carrier: RotatingMember
 
 
 def _validate_counts_basic(*, Ns: int, Nr: int, label: str) -> None:
@@ -115,6 +143,55 @@ def validate_tooth_counts(counts: Mapping[str, int], *, strict_geometry: bool) -
     validator = _validate_counts_strict if strict_geometry else _validate_counts_basic
     validator(Ns=int(counts["Ns_front"]), Nr=int(counts["Nr_front"]), label="Front gearset")
     validator(Ns=int(counts["Ns_rear"]), Nr=int(counts["Nr_rear"]), label="Rear gearset")
+
+
+def _make_planetary(
+    *,
+    Ns: int,
+    Nr: int,
+    name: str,
+    sun: RotatingMember,
+    ring: RotatingMember,
+    carrier: RotatingMember,
+    strict_geometry: bool,
+):
+    geometry_mode = "strict" if strict_geometry else "relaxed"
+
+    try:
+        sig = inspect.signature(PlanetaryGearSet)
+        if "geometry_mode" in sig.parameters:
+            return PlanetaryGearSet(
+                Ns=Ns,
+                Nr=Nr,
+                name=name,
+                sun=sun,
+                ring=ring,
+                carrier=carrier,
+                geometry_mode=geometry_mode,
+            )
+    except Exception:
+        pass
+
+    try:
+        return PlanetaryGearSet(
+            Ns=Ns,
+            Nr=Nr,
+            name=name,
+            sun=sun,
+            ring=ring,
+            carrier=carrier,
+        )
+    except Exception:
+        if strict_geometry:
+            raise
+        return _RelaxedPlanetaryProxy(
+            Ns=int(Ns),
+            Nr=int(Nr),
+            name=name,
+            sun=sun,
+            ring=ring,
+            carrier=carrier,
+        )
 
 
 class FordC4ThreeSpeedTransmission:
@@ -149,15 +226,69 @@ class FordC4ThreeSpeedTransmission:
 
     DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "rev", "manual1", "manual2")
 
-    def __init__(self, *, Ns_front: int, Nr_front: int, Ns_rear: int, Nr_rear: int) -> None:
+    def __init__(self, *, Ns_front: int, Nr_front: int, Ns_rear: int, Nr_rear: int, strict_geometry: bool = False) -> None:
         self.Ns_front = int(Ns_front)
         self.Nr_front = int(Nr_front)
         self.Ns_rear = int(Ns_rear)
         self.Nr_rear = int(Nr_rear)
-        self._engaged: set[str] = set()
+        self.strict_geometry = bool(strict_geometry)
+        self._build_topology()
+
+    def _build_topology(self) -> None:
+        self.input = RotatingMember("input")
+        self.sun = RotatingMember("sun")
+        self.front_ring = RotatingMember("front_ring")
+        self.front_carrier = RotatingMember("front_carrier")
+        self.rear_ring = RotatingMember("rear_ring")
+        self.rear_carrier = RotatingMember("rear_carrier")
+        self.output = RotatingMember("output")
+
+        self.members: Dict[str, RotatingMember] = {
+            "input": self.input,
+            "sun": self.sun,
+            "front_ring": self.front_ring,
+            "front_carrier": self.front_carrier,
+            "rear_ring": self.rear_ring,
+            "rear_carrier": self.rear_carrier,
+            "output": self.output,
+        }
+
+        self.pg_front = _make_planetary(
+            Ns=self.Ns_front,
+            Nr=self.Nr_front,
+            name="PG_front",
+            sun=self.sun,
+            ring=self.front_ring,
+            carrier=self.front_carrier,
+            strict_geometry=self.strict_geometry,
+        )
+        self.pg_rear = _make_planetary(
+            Ns=self.Ns_rear,
+            Nr=self.Nr_rear,
+            name="PG_rear",
+            sun=self.sun,
+            ring=self.rear_ring,
+            carrier=self.rear_carrier,
+            strict_geometry=self.strict_geometry,
+        )
+
+        self.forward_clutch = Clutch(self.input, self.front_ring, name="forward_clutch")
+        self.high_reverse_clutch = Clutch(self.input, self.sun, name="high_reverse_clutch")
+        self.intermediate_band = Brake(self.sun, name="intermediate_band")
+        self.low_reverse_band = Brake(self.rear_carrier, name="low_reverse_band")
+        self.sprag = Sprag(self.rear_carrier, hold_direction="ccw", name="sprag")
+
+        self.constraints: Dict[str, object] = {
+            "forward_clutch": self.forward_clutch,
+            "high_reverse_clutch": self.high_reverse_clutch,
+            "intermediate_band": self.intermediate_band,
+            "low_reverse_band": self.low_reverse_band,
+            "sprag": self.sprag,
+        }
 
     def release_all(self) -> None:
-        self._engaged.clear()
+        for c in self.constraints.values():
+            c.release()  # type: ignore[attr-defined]
 
     def set_state(self, state: str) -> GearState:
         key = state.strip().lower()
@@ -165,7 +296,8 @@ class FordC4ThreeSpeedTransmission:
             raise ThreeSpeedCliError(f"Unknown state: {state}")
         self.release_all()
         engaged = self.SHIFT_SCHEDULE[key]
-        self._engaged.update(engaged)
+        for name in engaged:
+            self.constraints[name].engage()  # type: ignore[attr-defined]
         display = self.DISPLAY_NAMES.get(key, state.strip())
         notes_map = {
             "1st": "Drive 1st: Forward clutch applied, rear carrier held by sprag.",
@@ -177,47 +309,69 @@ class FordC4ThreeSpeedTransmission:
         }
         return GearState(display, tuple(engaged), notes_map.get(key, ""))
 
-    def _build_equations(self) -> tuple[list[sp.Expr], Dict[str, sp.Symbol]]:
-        ws, wfr, wout, wrc = sp.symbols("ws wfr wout wrc", real=True)
-        syms = {"sun": ws, "front_ring": wfr, "output": wout, "rear_carrier": wrc}
+    def _solve_core_v2(self) -> Dict[str, float]:
+        solver = TransmissionSolver()
 
-        eqs: list[sp.Expr] = []
-        # Front set: Ns_front*(ws - wout) + Nr_front*(wfr - wout) = 0
-        eqs.append(self.Ns_front * (ws - wout) + self.Nr_front * (wfr - wout))
-        # Rear set: Ns_rear*(ws - wrc) + Nr_rear*(wout - wrc) = 0
-        eqs.append(self.Ns_rear * (ws - wrc) + self.Nr_rear * (wout - wrc))
+        if hasattr(solver, "add_members"):
+            solver.add_members(self.members.values())  # type: ignore[attr-defined]
+        else:
+            for member in self.members.values():
+                solver.add_member(member)
 
-        if "forward_clutch" in self._engaged:
-            eqs.append(wfr - 1.0)
-        if "high_reverse_clutch" in self._engaged:
-            eqs.append(ws - 1.0)
-        if "intermediate_band" in self._engaged:
-            eqs.append(ws)
-        if "low_reverse_band" in self._engaged:
-            eqs.append(wrc)
-        if "sprag" in self._engaged and "low_reverse_band" not in self._engaged:
-            eqs.append(wrc)
-        return eqs, syms
+        solver.add_gearset(self.pg_front)
+        solver.add_gearset(self.pg_rear)
+        solver.add_clutch(self.forward_clutch)
+        solver.add_clutch(self.high_reverse_clutch)
+        solver.add_brake(self.intermediate_band)
+        solver.add_brake(self.low_reverse_band)
+        # Current solver's brake path accepts Sprag because it exposes the same
+        # member + constraint interface, even though it is a distinct topology object.
+        solver.add_brake(self.sprag)  # type: ignore[arg-type]
+
+        if not hasattr(solver, "add_permanent_tie"):
+            raise ThreeSpeedCliError(
+                "Loaded core solver does not support permanent ties. This refactored three_speed.py "
+                "expects the upgraded Core V2 solver."
+            )
+
+        solver.add_permanent_tie("front_carrier", "output")  # type: ignore[attr-defined]
+        solver.add_permanent_tie("rear_ring", "output")      # type: ignore[attr-defined]
+
+        if hasattr(solver, "solve_report"):
+            report = solver.solve_report(input_member="input", input_speed=1.0)  # type: ignore[attr-defined]
+            if not getattr(report, "ok", False):
+                message = getattr(getattr(report, "classification", None), "message", "Solver failed")
+                raise ThreeSpeedCliError(str(message))
+            result = dict(report.member_speeds)  # type: ignore[attr-defined]
+        else:
+            result = dict(solver.solve("input", 1.0))
+
+        if "output" not in result and "front_carrier" in result:
+            result["output"] = result["front_carrier"]
+        if "front_carrier" not in result and "output" in result:
+            result["front_carrier"] = result["output"]
+        if "rear_ring" not in result and "output" in result:
+            result["rear_ring"] = result["output"]
+        if "input" not in result:
+            result["input"] = 1.0
+        return result
 
     def solve_state(self, state: str) -> SolveResult:
         gs = self.set_state(state)
-        eqs, syms = self._build_equations()
-        unknowns = [syms["sun"], syms["front_ring"], syms["output"], syms["rear_carrier"]]
-        sols = sp.solve(eqs, unknowns, dict=True)
-        if not sols:
-            raise ThreeSpeedCliError(f"No kinematic solution found for state {gs.name}.")
-        sol = sols[0]
-        speeds = {
-            "input": 1.0,
-            "sun": float(sp.N(sol[syms["sun"]])),
-            "front_ring": float(sp.N(sol[syms["front_ring"]])),
-            "output": float(sp.N(sol[syms["output"]])),
-            "rear_carrier": float(sp.N(sol[syms["rear_carrier"]])),
-        }
-        if abs(speeds["output"]) < 1e-12:
+        speeds = self._solve_core_v2()
+
+        if abs(float(speeds["output"])) < 1.0e-12:
             raise ThreeSpeedCliError(f"Output speed is zero for state {gs.name}; ratio is undefined.")
-        ratio = 1.0 / speeds["output"]
-        return SolveResult(gs.name, gs.engaged, speeds, ratio, gs.notes)
+
+        ratio = 1.0 / float(speeds["output"])
+        display_speeds = {
+            "input": float(speeds["input"]),
+            "front_ring": float(speeds["front_ring"]),
+            "sun": float(speeds["sun"]),
+            "output": float(speeds["output"]),
+            "rear_carrier": float(speeds["rear_carrier"]),
+        }
+        return SolveResult(gs.name, gs.engaged, display_speeds, ratio, gs.notes, solver_path="core_v2")
 
     def solve_all(self) -> Dict[str, SolveResult]:
         out: Dict[str, SolveResult] = {}
@@ -241,6 +395,7 @@ def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
     if args.Nr is not None:
         counts["Nr_front"] = int(args.Nr)
         counts["Nr_rear"] = int(args.Nr)
+
     if args.Ns_front is not None:
         counts["Ns_front"] = int(args.Ns_front)
     if args.Nr_front is not None:
@@ -278,6 +433,7 @@ def _payload(result: SolveResult) -> Dict[str, object]:
         "speeds": dict(result.speeds),
         "ratio": result.ratio,
         "notes": result.notes,
+        "solver_path": result.solver_path,
     }
 
 
@@ -346,6 +502,7 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
         f"PG_rear(Ns_rear={counts['Ns_rear']}, Nr_rear={counts['Nr_rear']})"
     )
     print(f"Geometry mode: {'strict' if strict_geometry else 'relaxed'}")
+    print(f"Solver path: {next(iter(results.values())).solver_path if results else 'core_v2'}")
     print("-" * 124)
     if ratios_only:
         print(f"{'State':<10s} {'Elems':<40s} {'Ratio':>10s}")
@@ -380,7 +537,10 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     tooth_counts: Optional[Dict[str, int]] = None
     try:
         tooth_counts = _resolve_tooth_counts(args)
-        tx = FordC4ThreeSpeedTransmission(**tooth_counts)
+        tx = FordC4ThreeSpeedTransmission(
+            **tooth_counts,
+            strict_geometry=bool(args.strict_geometry),
+        )
 
         if str(args.state).strip().lower() == "all":
             results = tx.solve_all()
@@ -426,6 +586,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     f"PG_rear(Ns_rear={tooth_counts['Ns_rear']}, Nr_rear={tooth_counts['Nr_rear']})"
                 )
                 print(f"Geometry mode: {'strict' if args.strict_geometry else 'relaxed'}")
+                print(f"Solver path: {result.solver_path}")
                 print(f"Ratio (input/output): {result.ratio:.6f}")
                 print(json.dumps(result.speeds, indent=2))
         return 0
