@@ -1,0 +1,323 @@
+Yes — these results are **kinematically very sensible**.
+
+Not just “looks okay.”
+They are internally consistent with the topology you defined, and the numbers line up cleanly with the simple planetary equations.
+
+## Big-picture assessment
+
+Your computed progression is:
+
+* 1st = **3.400**
+* 2nd = **1.993**
+* 3rd = **1.543**
+* 4th = **1.000**
+* 5th = **0.667**
+* 6th = **0.586**
+* Rev = **-4.817**
+
+That is a believable 6-speed pattern:
+
+* three forward reductions before direct
+* direct 4th
+* two overdrives
+* one reverse
+
+So from a transmission-layout standpoint, this is absolutely in the right ballpark.
+
+## Why the results are mathematically coherent
+
+You used equal simple planetary sets with:
+
+* `Ns = 30`
+* `Nr = 72`
+
+For one simple planetary, that gives the classic reduction factor:
+
+[
+1 + \frac{N_r}{N_s} = 1 + \frac{72}{30} = 3.4
+]
+
+That `3.4` shows up all over your logs in exactly the places it should.
+
+---
+
+## 1st gear: `C1 + C5`
+
+You got:
+
+* `sun23 = 1.000`
+* `node23 = 0.000`
+* `output = 0.294`
+* ratio = `3.4`
+
+That is exactly what should happen in a simple planetary with:
+
+* sun driven at 1
+* ring fixed at 0
+* carrier as output
+
+because:
+
+[
+\omega_c = \frac{N_s}{N_s+N_r}\omega_s
+= \frac{30}{102}(1)
+= 0.2941176
+]
+
+That matches your output exactly.
+
+So 1st gear is not just plausible — it is dead-on consistent.
+
+The negative `ring1 = -1.007` is also not a red flag. That member is free in this state, so a free member spinning backward is completely possible in a compound train.
+
+---
+
+## 2nd gear: `C1 + C4`
+
+You got:
+
+* `node12 = 0`
+* `sun23 = 1`
+* `node23 = 0.294`
+* `output = 0.502`
+* ratio = `1.993`
+
+This also checks out cleanly.
+
+First, PG2 with sun = 1 and ring = 0 gives carrier:
+
+[
+\omega_{node23} = 0.2941176
+]
+
+Then PG3 sees:
+
+* sun = 1
+* ring = 0.2941176
+
+So carrier/output becomes:
+
+[
+\omega_{out}
+============
+
+# \frac{N_s\omega_s + N_r\omega_r}{N_s+N_r}
+
+# \frac{30(1)+72(0.2941176)}{102}
+
+0.50173
+]
+
+That is exactly your log.
+
+So 2nd is very solid.
+
+---
+
+## 3rd gear: `C1 + C3`
+
+You got:
+
+* `ring1 = 0`
+* `node12 = 0.294`
+* `node23 = 0.502`
+* `output = 0.648`
+* ratio = `1.543`
+
+This is also coherent.
+
+Sequence:
+
+1. PG1 with sun = 1 and ring = 0
+   gives carrier:
+
+[
+\omega_{node12} = 0.2941176
+]
+
+2. PG2 with sun = 1 and ring = 0.2941176
+   gives carrier:
+
+[
+\omega_{node23} = 0.50173
+]
+
+3. PG3 with sun = 1 and ring = 0.50173
+   gives carrier:
+
+[
+\omega_{out} = 0.64828
+]
+
+Again, that is exactly your result.
+
+So 3rd is also behaving correctly.
+
+---
+
+## 4th gear: `C1 + C2`
+
+You got all members at `1.0`.
+
+That is exactly what I wanted to see.
+
+This confirms the topology and the linear planetary formulation are working correctly for direct drive.
+
+If both engaged clutches tie the relevant rotating nodes to input, then all connected members collapse to the same speed, and you get:
+
+* output = input
+* ratio = 1.0
+
+This is one of the strongest signs that the model is consistent.
+
+---
+
+## 5th gear: `C2 + C3`
+
+You got:
+
+* `node23 = 1.0`
+* `sun23 = 2.694`
+* `output = 1.498`
+* ratio = `0.667`
+
+This is a believable overdrive state.
+
+Here the important thing is that `sun23` becomes faster than input. That is not weird — it is exactly what can happen in a planetary when the carrier is driven and the ring/sun relationship forces another member to over-speed.
+
+Then PG3 turns that into output > input, which is what overdrive means.
+
+So 5th looks good.
+
+---
+
+## 6th gear: `C2 + C4`
+
+You got:
+
+* `node12 = 0`
+* `node23 = 1`
+* `sun23 = 3.4`
+* `output = 1.706`
+* ratio = `0.586`
+
+This one is especially nice because it matches the exhibit logic very well.
+
+With PG2:
+
+* carrier = 1
+* ring = 0
+
+the sun must over-speed, and for your tooth counts it becomes:
+
+[
+\omega_{sun23} = 3.4
+]
+
+That exactly matches your log.
+
+Then PG3 sees:
+
+* sun = 3.4
+* ring = 1
+
+and the carrier/output becomes:
+
+[
+\omega_{out}
+============
+
+# \frac{30(3.4)+72(1)}{102}
+
+1.70588
+]
+
+again exactly matching your result.
+
+So 6th is extremely convincing.
+
+---
+
+## Reverse: `C3 + C5`
+
+You got:
+
+* `ring1 = 0`
+* `node23 = 0`
+* `sun23 = -0.706`
+* `output = -0.208`
+* ratio = `-4.817`
+
+This is also sensible.
+
+What matters most:
+
+* output is negative
+* magnitude is large enough to represent a proper reverse reduction
+
+The chain of signs is coherent:
+
+* PG1 creates a positive reduced intermediate speed
+* PG2 transforms that into a negative sun speed
+* PG3, with ring fixed, turns that into negative output
+
+So reverse is not a hack here. It is emerging naturally from the equations.
+
+That is a very good sign.
+
+---
+
+## What is most encouraging
+
+The strongest evidence that the model is good is this:
+
+Every state can be explained by **sequential planetary logic** using the exact topology you described.
+
+Nothing looks arbitrary.
+Nothing looks numerically unstable.
+Nothing smells like a fake fallback or forced value.
+
+That is a huge improvement over the earlier Ravignaux/Simpson exploratory scripts.
+
+---
+
+## What these results do **not** mean yet
+
+They do **not** mean you have the exact Allison ratios.
+
+Why not?
+
+Because the current results depend on the assumed tooth counts:
+
+* `Ns1 = Ns2 = Ns3 = 30`
+* `Nr1 = Nr2 = Nr3 = 72`
+
+Those are just placeholder values.
+
+So the right conclusion is:
+
+* the **topology and clutch schedule appear to be implemented correctly**
+* the **solver is producing physically sensible kinematic states**
+* the **actual OEM ratios will only be correct when you feed in the real Allison tooth counts**
+
+---
+
+## Final assessment
+
+These logs are **very good**.
+
+I would classify them as:
+
+* **topologically sensible**
+* **mathematically consistent**
+* **physically plausible**
+* **good enough to use as the foundation for Allison analysis**
+
+The next step is not debugging the solver.
+
+The next step is:
+
+* get the real tooth counts, or
+* tune tooth counts until the computed gear ratios match known Allison ratios.
+
+That is where the app becomes interview gold.
