@@ -347,7 +347,7 @@ python -m transmissions.eight_speed \
   --preset zf_8hp45_gen1_candidate
 ```
 
-# Override tooth counts manually
+# Override tooth counts manually - 3rd Generation
 
 ```bash
 python -m transmissions.eight_speed \
@@ -356,6 +356,17 @@ python -m transmissions.eight_speed \
   --Ns2 48 --Nr2 96 \
   --Ns3 38 --Nr3 96 \
   --Ns4 23 --Nr4 85
+```
+
+# Override tooth counts manually - 2nd Generation
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 60 --Nr3 96 \
+  --Ns4 28 --Nr4 104
 ```
 
 # Single-state with manual counts
@@ -421,4 +432,24 @@ python -m transmissions.eight_speed \
   --state all \
   --preset zf_8hp51_gen3 \
   --show-topology
+```
+
+#### W5A-580 5 Speed Transmission
+
+```bash
+python -m transmissions.five_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.five_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.five_speed \
+  --Ns-f 46 --Nr-f 72 \
+  --Ns-r 68 --Nr-r 122 \
+  --Ns-m 37 --Nr-m 91
 ```
