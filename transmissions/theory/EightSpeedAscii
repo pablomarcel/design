@@ -1,0 +1,216 @@
+Here is the **ASCII connection diagram** for the **ZF 8HP45 / 8HP family** as modeled in the corrected `eight_speed.py`.
+
+## 1) Permanent mechanical connection map
+
+```text
+                 ZF 8HP45 / 8HP — permanent member connections
+
+
+                 ┌───────────────────────────────┐
+Input ──────────►│ P2 carrier                    │
+                 └───────────────────────────────┘
+
+
+                 ┌───────────────────────────────┐
+sun12  ◄────────►│ P1 sun = P2 sun              │
+                 └───────────────────────────────┘
+                       ▲
+                       │
+                    A brake
+                  (grounds sun12)
+
+
+                 ┌───────────────────────────────┐
+p1r    ◄────────►│ P1 ring                       │
+                 └───────────────────────────────┘
+                       ▲
+                       │
+                    B brake
+                  (grounds P1 ring)
+
+
+                 ┌───────────────────────────────┐
+p1c_p4r◄────────►│ P1 carrier = P4 ring         │
+                 └───────────────────────────────┘
+
+
+                 ┌───────────────────────────────┐
+p23    ◄────────►│ P2 ring = P3 sun             │
+                 └───────────────────────────────┘
+
+
+                 ┌───────────────────────────────┐
+c_out  ◄────────►│ P3 ring = P4 sun             │
+                 │ (same driven C-side node)     │
+                 └───────────────────────────────┘
+                       ▲
+                       │
+                     C clutch
+                (Input drives c_out)
+
+
+                 ┌───────────────────────────────┐
+p3c    ◄────────►│ P3 carrier                    │
+                 └───────────────────────────────┘
+                       ▲
+                       │
+                     D clutch
+                  (ties p3c to output)
+
+
+                 ┌───────────────────────────────┐
+output ◄────────►│ P4 carrier = output shaft    │
+                 └───────────────────────────────┘
+
+
+E clutch connects:
+    p23  ◄──────────────────────────────►  c_out
+```
+
+---
+
+## 2) Gearset-by-gearset view
+
+This is the same thing, but organized by planetary set.
+
+```text
+P1:
+    sun    = sun12
+    ring   = p1r
+    carrier= p1c_p4r
+
+P2:
+    sun    = sun12
+    ring   = p23
+    carrier= input
+
+P3:
+    sun    = p23
+    ring   = c_out
+    carrier= p3c
+
+P4:
+    sun    = c_out
+    ring   = p1c_p4r
+    carrier= output
+```
+
+That is really the cleanest compact description of the 8HP topology.
+
+---
+
+## 3) Full topology as a flow-style sketch
+
+```text
+                     ┌──────────── P1 ────────────┐
+                     │                            │
+               sun12 ●                            ● p1r
+                     │                            │
+                     │                            │
+                     └───────────●────────────────┘
+                                 │
+                                 │
+                              p1c_p4r
+                                 │
+                                 │
+                     ┌──────────── P4 ────────────┐
+                     │                            │
+               c_out ●                            ● output
+                     │                            │
+                     │                            │
+                     └───────────●────────────────┘
+
+
+                     ┌──────────── P2 ────────────┐
+                     │                            │
+               sun12 ●                            ● p23
+                     │                            │
+                     │                            │
+                     └───────────●────────────────┘
+                                 │
+                               Input
+                           (P2 carrier)
+
+
+                     ┌──────────── P3 ────────────┐
+                     │                            │
+                 p23 ●                            ● c_out
+                     │                            │
+                     │                            │
+                     └───────────●────────────────┘
+                                 │
+                                p3c
+                                 │
+                                 │
+                             D clutch
+                                 │
+                                 ▼
+                               output
+```
+
+---
+
+## 4) Shift-element map
+
+```text
+A brake:   grounds sun12
+B brake:   grounds p1r
+C clutch:  Input  -> c_out
+D clutch:  p3c    -> output
+E clutch:  p23    -> c_out
+```
+
+That is the whole clutch/brake table in node form.
+
+---
+
+## 5) Why this topology is elegant
+
+The 8HP gets a lot of ratios from a small number of shared nodes:
+
+* `sun12` couples **P1 and P2**
+* `p23` couples **P2 and P3**
+* `p1c_p4r` couples **P1 and P4**
+* `c_out` couples **P3 and P4**
+* `D` couples **P3 carrier to output**
+* `E` couples the **P2/P3 middle node** to the **C-driven node**
+
+So instead of “four isolated planetary sets,” it is really a **highly cross-coupled four-set network**.
+
+---
+
+## 6) The simplest memory version
+
+If you want the shortest possible version to remember:
+
+```text
+Input -> P2 carrier
+A -> grounds P1/P2 common sun
+B -> grounds P1 ring
+C -> drives P3 ring / P4 sun
+E -> ties P2 ring / P3 sun to C-driven node
+P1 carrier = P4 ring
+D -> ties P3 carrier to output
+P4 carrier = output
+```
+
+---
+
+## 7) Super-compact one-line representation
+
+```text
+P1(sun12, p1r, p1c_p4r)
+P2(sun12, p23, input)
+P3(p23, c_out, p3c)
+P4(c_out, p1c_p4r, output)
+
+A: sun12->0
+B: p1r->0
+C: input<->c_out
+D: p3c<->output
+E: p23<->c_out
+```
+
+That one is probably the most useful if you want a solver-oriented summary.
+
+If you want, next I’ll do the **gear-by-gear ASCII power path** for 1st through 8th and reverse.

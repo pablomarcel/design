@@ -644,6 +644,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     p.add_argument("--json", action="store_true", help="Emit JSON output")
     p.add_argument("--ratios-only", action="store_true", help="Emit only ratios")
     p.add_argument("--show-topology", action="store_true", help="Show modeled topology and exit")
+    p.add_argument("--verbose-report", action="store_true", help="Show solver status and note lines even when all states solve cleanly")
     return p
 
 
@@ -670,9 +671,10 @@ def _print_summary(
     ratios_only: bool,
     strict_geometry: bool,
     preset_note: str = "",
+    verbose_report: bool = False,
 ) -> None:
     print("ZF 8HP 8-Speed Kinematic Summary")
-    print("-" * 156)
+    print("-" * 140)
     print(
         f"Tooth counts: P1(Ns1={counts['Ns1']}, Nr1={counts['Nr1']}), "
         f"P2(Ns2={counts['Ns2']}, Nr2={counts['Nr2']}), "
@@ -683,24 +685,40 @@ def _print_summary(
     if preset_note:
         print(f"Preset note: {preset_note}")
     print("Solver path: core_v2")
-    print("-" * 156)
+    print("-" * 140)
+
+    any_issue = any((not r.ok) or (r.status != 'ok') for r in results.values())
+    show_diag = bool(verbose_report or any_issue)
+
     if ratios_only:
-        print(f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s}")
-        print("-" * 156)
+        if show_diag:
+            print(f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s}")
+        else:
+            print(f"{'State':<8s} {'Elems':<14s} {'Ratio':>10s}")
+        print("-" * 140)
         for name, result in results.items():
             elems = "+".join(result.engaged)
             ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
-            print(f"{name:<8s} {elems:<14s} {result.status:<18s} {ratio_txt:>10s}")
-            if result.message:
-                print(f"  note: {result.message}")
+            if show_diag:
+                print(f"{name:<8s} {elems:<14s} {result.status:<18s} {ratio_txt:>10s}")
+                if result.message:
+                    print(f"  note: {result.message}")
+            else:
+                print(f"{name:<8s} {elems:<14s} {ratio_txt:>10s}")
         return
 
-    headers = (
-        f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s} {'Input':>9s} {'sun12':>9s} {'p1r':>9s} "
-        f"{'p23':>9s} {'c_out':>9s} {'p1c_p4r':>9s} {'p3c':>9s} {'Output':>9s}"
-    )
+    if show_diag:
+        headers = (
+            f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s} {'Input':>9s} {'sun12':>9s} {'p1r':>9s} "
+            f"{'p23':>9s} {'c_out':>9s} {'p1c_p4r':>9s} {'p3c':>9s} {'Output':>9s}"
+        )
+    else:
+        headers = (
+            f"{'State':<8s} {'Elems':<14s} {'Ratio':>10s} {'Input':>9s} {'sun12':>9s} {'p1r':>9s} "
+            f"{'p23':>9s} {'c_out':>9s} {'p1c_p4r':>9s} {'p3c':>9s} {'Output':>9s}"
+        )
     print(headers)
-    print("-" * 156)
+    print("-" * 140)
 
     def fmt(speeds: Mapping[str, float], key: str) -> str:
         return f"{speeds[key]:>9.3f}" if key in speeds else f"{'-':>9s}"
@@ -709,14 +727,19 @@ def _print_summary(
         elems = "+".join(result.engaged)
         s = result.speeds
         ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
-        print(
-            f"{name:<8s} {elems:<14.14s} {result.status:<18s} {ratio_txt:>10s} "
+        common = (
+            f"{name:<8s} {elems:<14.14s} {ratio_txt:>10s} "
             f"{fmt(s, 'input')} {fmt(s, 'sun12')} {fmt(s, 'p1r')} {fmt(s, 'p23')} {fmt(s, 'c_out')} "
             f"{fmt(s, 'p1c_p4r')} {fmt(s, 'p3c')} {fmt(s, 'output')}"
         )
-        if result.message:
-            print(f"  note: {result.message}")
-
+        if show_diag:
+            print(f"{name:<8s} {elems:<14.14s} {result.status:<18s} {ratio_txt:>10s} "
+                  f"{fmt(s, 'input')} {fmt(s, 'sun12')} {fmt(s, 'p1r')} {fmt(s, 'p23')} {fmt(s, 'c_out')} "
+                  f"{fmt(s, 'p1c_p4r')} {fmt(s, 'p3c')} {fmt(s, 'output')}")
+            if result.message:
+                print(f"  note: {result.message}")
+        else:
+            print(common)
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_arg_parser()
@@ -774,6 +797,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                     ratios_only=bool(args.ratios_only),
                     strict_geometry=bool(args.strict_geometry),
                     preset_note=preset_note,
+                    verbose_report=bool(args.verbose_report),
                 )
             return 0
 
@@ -795,6 +819,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
                 ratios_only=bool(args.ratios_only),
                 strict_geometry=bool(args.strict_geometry),
                 preset_note=preset_note,
+                verbose_report=bool(args.verbose_report),
             )
         return 0
     except EightSpeedCliError as exc:

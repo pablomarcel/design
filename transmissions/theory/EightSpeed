@@ -1,0 +1,479 @@
+Yes — for **3rd-generation 8HP (2018+)**, it does **not** look like there is one single tooth-count set. The available public data points to **at least three different 3rd-gen gearset variants** with different ratio spreads: **8HP76/I**, **8HP30/III / 8HP51**, and **8HP76/II**. A compiled technical table lists both the ratios and the corresponding tooth-count tuples for those variants, while BMW model data independently confirms the published 8HP51 and 8HP76 gear ratios. ([Wikipedia][1])
+
+Using the same **P1, P2, P3, P4** ordering you used in `eight_speed.py`, the **3rd-gen narrow/wide variants appear to be**:
+
+* **8HP30/III / 8HP51**:
+  `P1 48/96, P2 54/96, P3 60/96, P4 24/102`
+  with ratios about **5.25, 3.36, 2.172, 1.72, 1.316, 1.00, 0.822, 0.64, Rev 3.712**. ([Wikipedia][1])
+
+* **8HP76/I**:
+  `P1 48/96, P2 54/96, P3 69/111, P4 24/96`
+  with ratios about **5.00, 3.20, 2.143, 1.72, 1.313, 1.00, 0.823, 0.64, Rev 3.478**. ([Wikipedia][1])
+
+* **8HP76/II**:
+  `P1 48/96, P2 54/96, P3 69/111, P4 24/108`
+  with ratios about **5.50, 3.52, 2.20, 1.72, 1.317, 1.00, 0.823, 0.64, Rev 3.993**. ([Wikipedia][1])
+
+So the clean takeaway is:
+
+* your **pre-2018 / 2nd-gen candidate** that matched the classic **4.714 / 3.143 / 2.106 / 1.667 / 1.285 / 1.000 / 0.839 / 0.667** family is a different gearset family from the later 3rd-gen units. ([Wikipedia][1])
+* for **2018+**, the most likely tooth-count set depends on **which 3rd-gen 8HP family** you want to model:
+
+  * **8HP51-style**: `48/96, 54/96, 60/96, 24/102`
+  * **8HP76/I-style**: `48/96, 54/96, 69/111, 24/96`
+  * **8HP76/II-style**: `48/96, 54/96, 69/111, 24/108` ([Wikipedia][1])
+
+If your target is the **common 2018+ BMW 8HP51-style box**, I would start by testing:
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 54 --Nr2 96 \
+  --Ns3 60 --Nr3 96 \
+  --Ns4 24 --Nr4 102
+```
+
+That is the strongest public candidate I found for the **3rd-gen 8HP51 / 8HP30-III** family. ([Wikipedia][1])
+
+One caution: I did **not** find an official ZF document in these results that directly publishes the tooth counts themselves; the tooth-count tuples come from a compiled technical source, while the **gear ratios** are corroborated by OEM BMW documents. So I’d treat these tooth counts as **well-supported public candidates**, not OEM-confirmed internal design data. ([Wikipedia][1])
+
+[1]: https://en.wikipedia.org/wiki/ZF_8HP_transmission "ZF 8HP transmission - Wikipedia"
+
+---
+
+Yes — **the September 2022 power-flow sheet matches the structure we ended up building in `eight_speed.py`**.
+
+Not just the gear ratios. The **mechanical logic** matches too.
+
+## Big picture
+
+The 8HP45 is a **4-simple-planetary automatic** with:
+
+* **4 gearsets**: `P1, P2, P3, P4`
+* **5 shift elements**: `A, B, C, D, E`
+* **input on the left**
+* **output on the far right**
+
+The power-flow sheet labels the four gearsets as:
+
+* `RS1`
+* `RS2`
+* `RS3`
+* `RS4`
+
+Those correspond to what we modeled as:
+
+* `P1`
+* `P2`
+* `P3`
+* `P4`
+
+So the power-flow sheet is showing the same transmission family we modeled.
+
+---
+
+# 1) The permanent mechanical connections between the four gearsets
+
+This is the backbone of the whole transmission.
+
+## Connection 1: input drives the P2 carrier
+
+This is one of the fixed facts from the reference material.
+
+So:
+
+* **Input → P2 carrier**
+
+That means P2 is always being fed directly by engine/turbine input at its carrier.
+
+In our model, that is why the P2 carrier is treated as the input-speed member.
+
+---
+
+## Connection 2: A brake holds the common P1/P2 suns
+
+The repair/manual wording and the topology both support:
+
+* **P1 sun and P2 sun are permanently tied together**
+* **A brake grounds that common sun node**
+
+So:
+
+* **A on** means the shared `P1 sun = P2 sun = 0`
+
+In our script this became the common node:
+
+* `sun12`
+
+That was correct.
+
+---
+
+## Connection 3: B brake holds the P1 ring
+
+So:
+
+* **B on** means `P1 ring = 0`
+
+In our model:
+
+* `p1r = 0`
+
+That was also correct.
+
+---
+
+## Connection 4: P4 ring is permanently tied to P1 carrier
+
+This is one of the most important cascade links.
+
+So:
+
+* **P1 carrier = P4 ring**
+
+This is a hard mechanical connection.
+
+In our model, that shared node is:
+
+* `p1c_p4r`
+
+This was exactly the right abstraction.
+
+---
+
+## Connection 5: D clutch ties P3 carrier to P4 carrier
+
+And P4 carrier is the output shaft.
+
+So:
+
+* **D on** means `P3 carrier = P4 carrier = output`
+
+In the model:
+
+* `p3c <-> output`
+
+That matches the manual and the topology.
+
+---
+
+## Connection 6: C clutch drives P3 ring, P4 sun, and E-clutch housing
+
+This is the big “C-side” driven node.
+
+So when **C is on**, input drives a shared rotating node containing:
+
+* **P3 ring**
+* **P4 sun**
+* **E clutch housing**
+
+In our model that driven node was:
+
+* `c_out`
+
+That was the right idea.
+
+So:
+
+* **C on** means `c_out = input speed`
+
+---
+
+## Connection 7: E clutch connects P2 ring to P3 sun
+
+This was the key insight that fixed 5th and 7th.
+
+The original wording says:
+
+* **E connects the P2 annulus to the P3 sun**
+
+And from the assembly wording, that pair behaves like a shared hard-part node in the real mechanism.
+
+That is why the corrected model used:
+
+* a shared member `p23`
+
+meaning:
+
+* **P2 ring = P3 sun**
+
+Then:
+
+* **E on** ties that shared `p23` node to the `c_out` node
+
+So:
+
+* **E on** means `p23 = c_out`
+
+This was the missing closure that made 5th and 7th solve correctly.
+
+---
+
+## Connection 8: P4 carrier is output
+
+This is the final output fact.
+
+So:
+
+* **P4 carrier = output shaft**
+
+And since D connects P3 carrier to P4 carrier:
+
+* D can tie P3 straight into output.
+
+---
+
+# 2) The transmission as a node map
+
+This is the cleanest way to think about it.
+
+## Permanent nodes
+
+### Node A: common sun node
+
+* `P1 sun = P2 sun`
+* controlled by brake **A**
+
+This is:
+
+* `sun12`
+
+---
+
+### Node B: P1 ring
+
+* controlled by brake **B**
+
+This is:
+
+* `p1r`
+
+---
+
+### Node C: shared P2 ring / P3 sun node
+
+* `P2 ring = P3 sun`
+
+This is:
+
+* `p23`
+
+This was the important corrected node.
+
+---
+
+### Node D: C-driven node
+
+Contains:
+
+* `P3 ring`
+* `P4 sun`
+* E-clutch housing
+
+This is:
+
+* `c_out`
+
+When **C** is on, input drives this node.
+
+---
+
+### Node E: P1 carrier / P4 ring
+
+Contains:
+
+* `P1 carrier`
+* `P4 ring`
+
+This is:
+
+* `p1c_p4r`
+
+---
+
+### Node F: P3 carrier / output-side coupling
+
+* `P3 carrier`
+* tied to output when **D** is on
+
+This is:
+
+* `p3c`
+
+---
+
+### Node G: output
+
+* `P4 carrier`
+* output shaft
+
+This is:
+
+* `output`
+
+---
+
+# 3) How the four gearsets are chained together
+
+This is the actual inter-gearset relationship:
+
+## P1 and P2 are coupled at the sun
+
+They share:
+
+* **common sun node** `sun12`
+
+So P1 and P2 are not independent front gearsets. They are cross-coupled.
+
+---
+
+## P2 and P3 are coupled through the P2-ring / P3-sun node
+
+This is the big middle bridge:
+
+* **P2 ring = P3 sun**
+
+That is the shared `p23` node we finally adopted.
+
+This is why P2 and P3 are deeply linked.
+
+---
+
+## P1 and P4 are coupled through P1-car / P4-ring
+
+That gives the rear-side cascade:
+
+* **P1 carrier = P4 ring**
+
+So P1’s carrier motion directly becomes P4’s ring motion.
+
+---
+
+## P3 and P4 are coupled through D
+
+When D is engaged:
+
+* **P3 carrier = P4 carrier = output**
+
+So D creates the output-side tie between those rear gearsets.
+
+---
+
+## P3 and P4 are also linked through C-side drive
+
+Because C drives:
+
+* **P3 ring**
+* **P4 sun**
+
+So the C clutch injects motion into both P3 and P4 simultaneously through a shared driven node.
+
+---
+
+# 4) Does the September 2022 power-flow page match this?
+
+Yes. Very well.
+
+The page shows for each gear:
+
+* which clutches/brakes are darkened
+* how power flows through RS1–RS4
+* the published ratios
+
+That matches the exact shift schedule we used for the 8HP family:
+
+* **1st:** `A + B + C`
+* **2nd:** `A + B + E`
+* **3rd:** `B + C + E`
+* **4th:** `B + D + E`
+* **5th:** `B + C + D`
+* **6th:** `C + D + E`
+* **7th:** `A + C + D`
+* **8th:** `A + D + E`
+* **Rev:** `A + B + D`
+
+And the displayed ratios on the page are the classic 8HP45 spread:
+
+* 1st ≈ 4.70
+* 2nd ≈ 3.13
+* 3rd ≈ 2.10
+* 4th ≈ 1.67
+* 5th ≈ 1.29
+* 6th = 1.00
+* 7th ≈ 0.84
+* 8th ≈ 0.67
+* Rev ≈ 3.30
+
+That is exactly the family we matched in the corrected `eight_speed.py`.
+
+So yes:
+
+> **the repair manual power-flow page is consistent with what we built.**
+
+---
+
+# 5) Why the corrected `eight_speed.py` now makes sense mechanically
+
+The final corrected model used these key truths:
+
+* `sun12` = shared P1/P2 sun node
+* `p1r` = P1 ring
+* `p23` = shared P2 ring / P3 sun node
+* `c_out` = shared C-driven node = P3 ring + P4 sun + E housing
+* `p1c_p4r` = shared P1 carrier / P4 ring node
+* `p3c` = P3 carrier
+* `output` = P4 carrier/output shaft
+
+And the shift elements became:
+
+* **A:** grounds `sun12`
+* **B:** grounds `p1r`
+* **C:** drives `c_out`
+* **D:** ties `p3c` to `output`
+* **E:** ties `p23` to `c_out`
+
+That is a clean core-class transmission model, not a fake ratio patch.
+
+---
+
+# 6) Why 5th and 7th were the problem before
+
+Before the fix, the model treated:
+
+* `P2 ring`
+* `P3 sun`
+
+as separate free members.
+
+That broke the E-off states, especially:
+
+* **5th = B + C + D**
+* **7th = A + C + D**
+
+because the real hardware still reflects the shared `P2 annulus / P3 sun` structure.
+
+Once we collapsed that into the shared node `p23`, the whole gearbox became fully solvable and matched the published ratios.
+
+So the repair manual supports the **final corrected model**, not the earlier broken one.
+
+---
+
+# 7) Clean summary
+
+The 8HP45 mechanical relationships are:
+
+* **Input drives P2 carrier**
+* **P1 sun and P2 sun are one common node**
+* **A grounds that common sun node**
+* **B grounds P1 ring**
+* **P2 ring and P3 sun form the shared middle node**
+* **C drives P3 ring and P4 sun**
+* **E ties the P2-ring / P3-sun node to the C-driven node**
+* **P1 carrier is permanently tied to P4 ring**
+* **D ties P3 carrier to P4 carrier**
+* **P4 carrier is output**
+
+And yes, the September 2022 power-flow sheet is consistent with that structure and with the final `eight_speed.py`.
+
+Next, I can turn this into a compact **ASCII connection diagram** for the 8HP45, which would probably make the whole mechanism much easier to remember.

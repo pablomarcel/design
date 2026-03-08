@@ -321,15 +321,26 @@ python -m transmissions.eight_speed \
   --ratios-only
 ```
 
+# Override tooth counts manually - 4th Generation
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 54 --Nr2 96 \
+  --Ns3 60 --Nr3 108 \
+  --Ns4 24 --Nr4 96
+```
+
 # Override tooth counts manually - 3rd Generation
 
 ```bash
 python -m transmissions.eight_speed \
   --state all \
   --Ns1 48 --Nr1 96 \
-  --Ns2 48 --Nr2 96 \
-  --Ns3 38 --Nr3 96 \
-  --Ns4 23 --Nr4 85
+  --Ns2 54 --Nr2 96 \
+  --Ns3 60 --Nr3 96 \
+  --Ns4 24 --Nr4 102
 ```
 
 # Override tooth counts manually - 2nd Generation
