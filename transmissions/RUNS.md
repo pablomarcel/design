@@ -71,6 +71,104 @@ python -m kinematics.ravigneaux_ratio_map \
   --print-audit
 ```
 
+#### Ford 3 Speed Transmission
+
+```bash
+python -m transmissions.three_speed \
+  --state all \
+  --Ns 33 \
+  --Nr 72
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state all \
+  --Ns-front 34 \
+  --Nr-front 72 \
+  --Ns-rear 36 \
+  --Nr-rear 74
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state 3rd
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state rev \
+  --json
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.three_speed \
+  --list-presets
+```
+
+```bash
+python -m transmissions.three_speed \
+  --state all \
+  --preset ford_c4_reference
+```
+
+#### Ravineaux 4 Speed Transmission
+
+```bash
+python -m transmissions.four_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.four_speed \
+  --state 4th
+```
+
+```bash
+python -m transmissions.four_speed \
+  --state all --json
+```
+
+```bash
+python -m transmissions.four_speed --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.four_speed \
+  --list-presets
+```
+
+#### W5A-580 5 Speed Transmission
+
+```bash
+python -m transmissions.five_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.five_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.five_speed \
+  --Ns-f 46 --Nr-f 72 \
+  --Ns-r 68 --Nr-r 122 \
+  --Ns-m 37 --Nr-m 91
+```
+
 #### Allison 6 Speed Transmission
 
 ```bash
@@ -189,82 +287,25 @@ python -m transmissions.six_speed \
   --preset allison_1000
 ```
 
-#### Ravineaux 4 Speed Transmission
+#### W7A-700 7 Speed Transmission
 
 ```bash
-python -m transmissions.four_speed \
+python -m transmissions.seven_speed \
   --state all
 ```
 
 ```bash
-python -m transmissions.four_speed \
-  --state 4th
-```
-
-```bash
-python -m transmissions.four_speed \
-  --state all --json
-```
-
-```bash
-python -m transmissions.four_speed --state all \
-  --ratios-only
-```
-
-```bash
-python -m transmissions.four_speed \
-  --list-presets
-```
-
-#### Ford 3 Speed Transmission
-
-```bash
-python -m transmissions.three_speed \
-  --state all \
-  --Ns 33 \
-  --Nr 72
-```
-
-```bash
-python -m transmissions.three_speed \
-  --state all \
-  --Ns-front 34 \
-  --Nr-front 72 \
-  --Ns-rear 36 \
-  --Nr-rear 74
-```
-
-```bash
-python -m transmissions.three_speed \
-  --state all
-```
-
-```bash
-python -m transmissions.three_speed \
-  --state 3rd
-```
-
-```bash
-python -m transmissions.three_speed \
-  --state rev \
-  --json
-```
-
-```bash
-python -m transmissions.three_speed \
+python -m transmissions.seven_speed \
   --state all \
   --ratios-only
 ```
 
 ```bash
-python -m transmissions.three_speed \
-  --list-presets
-```
-
-```bash
-python -m transmissions.three_speed \
-  --state all \
-  --preset ford_c4_reference
+python -m transmissions.seven_speed \
+  --Ns-a 52 --Nr-a 106 \
+  --Ns-b 78 --Nr-b 100 \
+  --Ns-r 66 --Nr-r 164 \
+  --Ns-m 62 --Nr-m 168
 ```
 
 #### ZF8HP 8 Speed Transmission
@@ -432,46 +473,4 @@ python -m transmissions.eight_speed \
   --state all \
   --preset zf_8hp51_gen3 \
   --show-topology
-```
-
-#### W5A-580 5 Speed Transmission
-
-```bash
-python -m transmissions.five_speed \
-  --state all
-```
-
-```bash
-python -m transmissions.five_speed \
-  --state all \
-  --ratios-only
-```
-
-```bash
-python -m transmissions.five_speed \
-  --Ns-f 46 --Nr-f 72 \
-  --Ns-r 68 --Nr-r 122 \
-  --Ns-m 37 --Nr-m 91
-```
-
-
-#### W7A-700 7 Speed Transmission
-
-```bash
-python -m transmissions.seven_speed \
-  --state all
-```
-
-```bash
-python -m transmissions.seven_speed \
-  --state all \
-  --ratios-only
-```
-
-```bash
-python -m transmissions.seven_speed \
-  --Ns-a 52 --Nr-a 106 \
-  --Ns-b 78 --Nr-b 100 \
-  --Ns-r 66 --Nr-r 164 \
-  --Ns-m 62 --Nr-m 168
 ```
