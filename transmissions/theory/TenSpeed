@@ -1,0 +1,567 @@
+Yes — this works because the **10R80 is not just “more gears.”** It is a very specific **4-simple-planetary topology** with one extra trick:
+
+> an **intermediate shaft** that ties together three rotating clutches.
+
+That intermediate shaft is what makes **C, D, and F** look mysterious at first.
+
+## Big picture
+
+The 10R80 has:
+
+* **4 simple planetary gearsets**
+* **2 brakes**: `A`, `B`
+* **4 rotating clutches**: `C`, `D`, `E`, `F`
+* **4 applied elements per gear**
+* **output = carrier of gearset 4**
+
+What makes it work so well is that the transmission is **highly cross-coupled**, like the 8HP, but with an added rotating shaft that lets Ford synthesize more usable states.
+
+---
+
+# 1) The permanent hard connections
+
+These are the rigid links that are always there.
+
+Using your `ten_speed.py` node names:
+
+* `r1` = ring of gearset 1
+* `s12` = common sun of gearsets 1 and 2
+* `r4c1` = ring of gearset 4 = carrier of gearset 1
+* `r2s3` = ring of gearset 2 = sun of gearset 3
+* `r3s4` = ring of gearset 3 = sun of gearset 4
+* `interm` = intermediate shaft
+* `p3c` = carrier of gearset 3
+* `output` = carrier of gearset 4 / output shaft
+
+Now the permanent mechanical relationships:
+
+## Gearset 1
+
+* **sun = `s12`**
+* **ring = `r1`**
+* **carrier = `r4c1`**
+
+## Gearset 2
+
+* **sun = `s12`**
+* **ring = `r2s3`**
+* **carrier = input**
+
+## Gearset 3
+
+* **sun = `r2s3`**
+* **ring = `r3s4`**
+* **carrier = `p3c`**
+
+## Gearset 4
+
+* **sun = `r3s4`**
+* **ring = `r4c1`**
+* **carrier = output**
+
+So the hard couplings are:
+
+### Hard link 1
+
+**carrier of P1 = ring of P4**
+
+* `P1.car = P4.ring = r4c1`
+
+### Hard link 2
+
+**ring of P2 = sun of P3**
+
+* `P2.ring = P3.sun = r2s3`
+
+### Hard link 3
+
+**ring of P3 = sun of P4**
+
+* `P3.ring = P4.sun = r3s4`
+
+### Hard link 4
+
+**sun of P1 = sun of P2**
+
+* `P1.sun = P2.sun = s12`
+
+### Hard link 5
+
+**carrier of P2 = input**
+
+* `P2.car = input`
+
+### Hard link 6
+
+**carrier of P4 = output**
+
+* `P4.car = output`
+
+That is the whole topology skeleton.
+
+---
+
+# 2) Why this layout is powerful
+
+This is basically a chain of four simple planetaries, but not in a dumb serial way.
+
+There are shared nodes between neighboring gearsets:
+
+* **P1 and P2 share a sun**
+* **P2 and P3 share a ring/sun node**
+* **P3 and P4 share a ring/sun node**
+* **P1 and P4 share a carrier/ring node**
+
+That means the transmission is a **closed coupled network**, not just:
+input -> set 1 -> set 2 -> set 3 -> set 4
+
+It is more like a web.
+
+That web is why a small number of shift elements can produce many ratios.
+
+---
+
+# 3) What the brakes do
+
+The brakes are the simple part.
+
+## Brake A
+
+Grounds **ring gear of gearset 1**
+
+* `A: r1 -> 0`
+
+So when A is on:
+
+* P1 ring is fixed
+* P1 can act as a reaction set
+
+## Brake B
+
+Grounds the **common sun of gearsets 1 and 2**
+
+* `B: s12 -> 0`
+
+So when B is on:
+
+* P1 sun is fixed
+* P2 sun is fixed
+
+This is a very strong reaction constraint because it affects two gearsets at once.
+
+---
+
+# 4) What clutch E does
+
+E is not mysterious.
+
+## Clutch E
+
+Connects **input** to **sun of P4 / ring of P3**
+
+* `E: input <-> r3s4`
+
+So E makes:
+
+* `r3s4 = input`
+
+Since `r3s4` is both:
+
+* ring of P3
+* sun of P4
+
+E directly injects engine speed into the rear side of the transmission.
+
+This is why E is critical in lower and middle gears, and in some mixer states.
+
+---
+
+# 5) What clutch F does
+
+F is less mysterious once you see the topology.
+
+## Clutch F
+
+Connects the **intermediate shaft** to **ring of P4 / carrier of P1**
+
+* `F: interm <-> r4c1`
+
+Since `r4c1` is:
+
+* ring of P4
+* carrier of P1
+
+F lets the intermediate shaft control that shared rear/front node.
+
+So F is not “just another clutch.”
+It gives the intermediate shaft leverage over:
+
+* the output-side ring of P4
+* and the carrier of P1
+
+This is a huge topological lever.
+
+---
+
+# 6) What clutch C does
+
+Now we get into the mystery shaft.
+
+## Clutch C
+
+Connects **ring of P2 / sun of P3** to the **intermediate shaft**
+
+* `C: r2s3 <-> interm`
+
+So when C is on:
+
+* `r2s3 = interm`
+
+Since `r2s3` is:
+
+* ring of P2
+* sun of P3
+
+C lets the intermediate shaft take control of that middle node.
+
+This means the intermediate shaft can influence both:
+
+* gearset 2
+* gearset 3
+
+at once.
+
+---
+
+# 7) What clutch D does
+
+D is the other half of the mystery.
+
+## Clutch D
+
+Connects **carrier of P3** to the **intermediate shaft**
+
+* `D: p3c <-> interm`
+
+So when D is on:
+
+* `p3c = interm`
+
+Now think about what happens if **C and D are both on**:
+
+* `C` ties `r2s3` to `interm`
+* `D` ties `p3c` to `interm`
+
+Therefore:
+
+* `r2s3 = p3c = interm`
+
+But in gearset 3:
+
+* sun = `r2s3`
+* carrier = `p3c`
+
+If sun and carrier of a simple planetary rotate together, then the whole set is forced to rotate as a block.
+
+So **C + D lock gearset 3 into unity rotation**.
+
+That is one of the biggest secrets of the transmission.
+
+---
+
+# 8) Why C, D, and F are special
+
+Now we can say it clearly.
+
+## C, D, and F are all tied to the intermediate shaft
+
+* `C` connects intermediate shaft to **P2 ring / P3 sun**
+* `D` connects intermediate shaft to **P3 carrier**
+* `F` connects intermediate shaft to **P1 carrier / P4 ring**
+
+So the intermediate shaft can be selectively tied to **three different important nodes** in the gearbox:
+
+1. middle-front node: `r2s3`
+2. middle-rear node: `p3c`
+3. outer wraparound node: `r4c1`
+
+That is why the topology is so rich.
+
+This is the whole genius of the 10R80.
+
+The intermediate shaft is not directly a gearset member, but it can be connected to several gearset members by clutches. That lets Ford create many distinct kinematic states.
+
+---
+
+# 9) The most important combined behaviors
+
+Here is why the gear states work.
+
+## C + D together
+
+`r2s3 = interm = p3c`
+
+That locks **gearset 3** into unit rotation.
+
+This is why in some gears P3 “drops out” and just spins as a block.
+
+---
+
+## C + D + F together
+
+Now intermediate shaft is tied to:
+
+* `r2s3`
+* `p3c`
+* `r4c1`
+
+So a huge portion of the transmission is forced into one speed.
+
+This can make the back half of the transmission rotate as a unit, depending on what A/B/E are doing.
+
+---
+
+## E + F together
+
+Intermediate shaft controls `r4c1`, while input controls `r3s4`.
+
+That makes gearset 4 act like a **mixer**:
+
+* sun at one speed
+* ring at another speed
+* carrier becomes weighted average = output
+
+That is why many ratios come from P4 acting as the final mixing set.
+
+---
+
+# 10) Why the reported results make sense
+
+Look at your successful output:
+
+## 1st: `A + B + D + E`
+
+* A grounds `r1`
+* B grounds `s12`
+* with both sun and ring of P1 grounded, P1 carrier is forced to zero
+* since `P1.car = P4.ring`, that means `r4c1 = 0`
+* E drives `r3s4 = input`
+* output is P4 carrier
+
+So gearset 4 alone behaves like:
+
+* ring fixed
+* sun driven
+* carrier output
+
+That gives the simple underdrive:
+
+* `(S4+R4)/S4 = 4.696`
+
+Exactly what your logs show.
+
+D is on too, but in 1st it is mainly there for shift strategy and continuity.
+
+---
+
+## 2nd: `A + B + C + D`
+
+* A and B still force P1 carrier / P4 ring to zero
+* C and D lock gearset 3 into unity
+* P2, with sun grounded and carrier driven by input, overdrives its ring
+* since P2 ring = P3 sun and P3 is locked by C+D, that motion passes through to P4 sun
+* P4 ring is still zero, so P4 gives final reduction to output
+
+That is why 2nd comes from:
+
+* P2 overdrive feeding P4 reduction
+
+---
+
+## 3rd: `A + C + D + E`
+
+* A grounds `r1`
+* C+D lock P3
+* E drives `r3s4 = input`
+* P2 and P3 spin as a block at input
+* P1 now has ring fixed but common sun at input, so P1 carrier / P4 ring becomes underdriven
+* P4 mixes:
+
+  * sun at input
+  * ring underdriven
+  * carrier = output
+
+Exactly what the article says.
+
+---
+
+## 4th: `A + C + D + F`
+
+* A grounds `r1`
+* C+D lock P3
+* F ties intermediate shaft to `r4c1`
+* since C+D tie intermediate to `r2s3` and `p3c`, now a large cluster shares speed
+* P3 and P4 spin together on the output side
+* the remaining ratio comes mainly from P1 and P2 front-side relationships
+
+---
+
+## 5th: `A + C + E + F`
+
+* A grounds `r1`
+* C ties `r2s3` to intermediate
+* F ties `r4c1` to intermediate
+* so `r2s3 = r4c1 = interm`
+* E drives `r3s4 = input`
+* P4 becomes mixer again
+* P3 is no longer locked as in 4th because D is open
+
+This creates a more subtle underdrive.
+
+---
+
+## 6th: `A + D + E + F`
+
+* A grounds `r1`
+* D ties `p3c` to intermediate
+* F ties `r4c1` to intermediate
+* E drives `r3s4 = input`
+* C is open, so `r2s3` is free to find its own speed through the gear relations
+
+That is why 6th involves all four gearsets and is more complicated.
+
+---
+
+## 7th: `C + D + E + F`
+
+This is the elegant one.
+
+* C ties `r2s3` to intermediate
+* D ties `p3c` to intermediate
+* F ties `r4c1` to intermediate
+* E ties `r3s4` to input
+* with A and B off, nothing is grounded
+* the constraints collapse the whole system into unit rotation
+
+So everything turns at input speed.
+
+That is why 7th is direct:
+
+* ratio = 1.000
+
+---
+
+## 8th: `B + D + E + F`
+
+* B grounds `s12`
+* P2 acts as an overdrive since carrier=input and sun=0
+* E drives `r3s4 = input`
+* D and F couple the intermediate/output-side structure
+* P3 and P4 act as mixers
+
+So you get first overdrive.
+
+---
+
+## 9th: `B + C + E + F`
+
+* B grounds `s12`
+* P2 overdrives its ring
+* C ties that overdriven node into the intermediate shaft
+* F ties intermediate to `r4c1`
+* E still drives `r3s4 = input`
+
+Now P3 drops out more and P4 becomes the key mixer with a faster ring than in 8th.
+
+Hence stronger overdrive.
+
+---
+
+## 10th: `B + C + D + F`
+
+* B grounds `s12`
+* C + D lock P3
+* F ties intermediate to `r4c1`
+* E is open
+* P2 overdrive now effectively defines the top ratio
+* back half spins together at output speed
+
+That is why 10th becomes the clean simple top-gear overdrive.
+
+---
+
+## Reverse: `A + B + D + F`
+
+* A grounds `r1`
+* B grounds `s12`
+* so P1 carrier / P4 ring is zero
+* D and F make intermediate = `p3c = r4c1 = 0`
+* therefore P3 carrier is grounded
+* P2 overdrives its ring
+* that ring is P3 sun
+* with P3 carrier grounded, P3 reverses its ring
+* that reversed motion becomes P4 sun
+* P4 then produces reverse output
+
+That is why reverse works.
+
+---
+
+# 11) Why this transmission is so clever
+
+Because the intermediate shaft lets Ford do something unusual:
+
+Instead of needing every clutch to connect directly to input, output, or ground, they introduced a **floating rotational bus** — the intermediate shaft.
+
+Then they selectively attach that bus to:
+
+* `r2s3`
+* `p3c`
+* `r4c1`
+
+This gives many more useful combinations than a simpler layout.
+
+That is why the 10R can get:
+
+* 10 forward ratios
+* 1 reverse
+* good ratio spacing
+* only 4 applied elements per state
+
+---
+
+# 12) Clean summary of every shift element
+
+## Brakes
+
+* **A**: grounds **P1 ring** (`r1`)
+* **B**: grounds **P1/P2 common sun** (`s12`)
+
+## Rotating clutches
+
+* **C**: ties **P2 ring / P3 sun** to **intermediate shaft**
+* **D**: ties **P3 carrier** to **intermediate shaft**
+* **E**: ties **P3 ring / P4 sun** to **input**
+* **F**: ties **P4 ring / P1 carrier** to **intermediate shaft**
+
+---
+
+# 13) Clean one-line topology summary
+
+```text
+P1(s12, r1, r4c1)
+P2(s12, r2s3, input)
+P3(r2s3, r3s4, p3c)
+P4(r3s4, r4c1, output)
+
+A: r1 -> 0
+B: s12 -> 0
+C: r2s3 <-> interm
+D: p3c <-> interm
+E: input <-> r3s4
+F: r4c1 <-> interm
+```
+
+That is why `ten_speed.py` works: the patent/article topology is internally consistent, and once those node links are represented correctly in the shared core solver, the published 10R80 ratios fall right out.
+
+Next I can turn this into the same kind of **ASCII connection diagram** we did for the 8HP, but now for the 10R80.

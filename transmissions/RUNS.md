@@ -485,3 +485,21 @@ python -m transmissions.eight_speed \
   --preset zf_8hp51_gen3 \
   --show-topology
 ```
+
+
+#### Ford 10R80 10 Speed Transmission
+
+```bash
+python -m transmissions.ten_speed \
+  --state all
+```
+# Override tooth counts manually
+
+```bash
+python -m transmissions.ten_speed \
+  --state all \
+  --Ns1 45 --Nr1 99 \
+  --Ns2 51 --Nr2 89 \
+  --Ns3 63 --Nr3 101 \
+  --Ns4 23 --Nr4 85
+```
