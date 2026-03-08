@@ -317,6 +317,45 @@ python -m transmissions.eight_speed \
 
 ```bash
 python -m transmissions.eight_speed \
+  --state all \
+  --ratios-only
+```
+
+# Override tooth counts manually - 3rd Generation
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 38 --Nr3 96 \
+  --Ns4 23 --Nr4 85
+```
+
+# Override tooth counts manually - 2nd Generation
+
+```bash
+python -m transmissions.eight_speed \
+  --state all \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 60 --Nr3 96 \
+  --Ns4 28 --Nr4 104
+```
+
+# Single-state with manual counts
+
+```bash
+python -m transmissions.eight_speed \
+  --state 1st \
+  --Ns1 48 --Nr1 96 \
+  --Ns2 48 --Nr2 96 \
+  --Ns3 38 --Nr3 96 \
+  --Ns4 23 --Nr4 85
+```
+
+```bash
+python -m transmissions.eight_speed \
   --state 1st
 ```
 
@@ -345,12 +384,6 @@ python -m transmissions.eight_speed \
 python -m transmissions.eight_speed \
   --state 4th \
   --json
-```
-
-```bash
-python -m transmissions.eight_speed \
-  --state all \
-  --ratios-only
 ```
 
 ```bash
@@ -386,39 +419,6 @@ python -m transmissions.eight_speed \
 python -m transmissions.eight_speed \
   --state all \
   --preset zf_8hp45_gen1_candidate
-```
-
-# Override tooth counts manually - 3rd Generation
-
-```bash
-python -m transmissions.eight_speed \
-  --state all \
-  --Ns1 48 --Nr1 96 \
-  --Ns2 48 --Nr2 96 \
-  --Ns3 38 --Nr3 96 \
-  --Ns4 23 --Nr4 85
-```
-
-# Override tooth counts manually - 2nd Generation
-
-```bash
-python -m transmissions.eight_speed \
-  --state all \
-  --Ns1 48 --Nr1 96 \
-  --Ns2 48 --Nr2 96 \
-  --Ns3 60 --Nr3 96 \
-  --Ns4 28 --Nr4 104
-```
-
-# Single-state with manual counts
-
-```bash
-python -m transmissions.eight_speed \
-  --state 1st \
-  --Ns1 48 --Nr1 96 \
-  --Ns2 48 --Nr2 96 \
-  --Ns3 38 --Nr3 96 \
-  --Ns4 23 --Nr4 85
 ```
 
 # Preset plus manual override

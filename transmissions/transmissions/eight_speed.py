@@ -3,40 +3,88 @@
 """
 transmissions.transmissions.eight_speed
 
-ZF 8HP45 / 8HP70 family research-backed diagnostic kinematic model.
+ZF 8HP45 / 8HP70 family 8-speed automatic transmission kinematic model.
 
-This version rebuilds the model around the ATSG clutch application chart and
-planetary-details page that are substantially more trustworthy than the mixed
-public descriptions used earlier.
+Core V2 refactor
+----------------
+This version removes the previous hand-built topology/equation assembly and routes
+the transmission through the reusable shared core stack:
 
-Truth anchor used here
-----------------------
-From the ATSG ZF8HP45 technical service manual:
-- Input shaft drives the P2 carrier and C clutch housing.
-- A brake holds the common P1/P2 sun gears.
-- B brake holds the P1 annulus.
-- C clutch drives the P3 annulus, the P4 sun gear, and the E clutch housing.
-- D clutch connects the P3 carrier with the P4 carrier / output shaft.
-- E clutch connects the P2 annulus gear to the P3 sun gear.
-- P4 annulus connects to P1 carrier.
-- P4 carrier is integral to the output shaft.
+- core.planetary.PlanetaryGearSet
+- core.clutch.{RotatingMember, Clutch, Brake}
+- core.solver.TransmissionSolver
 
-That yields the modeled rotating nodes:
-- input               : turbine / input shaft (normalized to 1.0)
-- sun12               : common sun for P1 and P2
-- p1r                 : P1 ring (annulus)
-- p1c_p4r             : P1 carrier = P4 ring
-- p2r                 : P2 ring (annulus)
-- c_out               : C-clutch output node = P3 ring = P4 sun = E housing
-- p3s                 : P3 sun
-- p3c                 : P3 carrier
-- output              : P4 carrier / output shaft
+Reference basis
+---------------
+This model follows the ATSG-style clutch application chart and planetary member
+relationship notes that were previously used in the local solver version:
+
+- input shaft drives the P2 carrier and C-clutch housing input
+- P1 sun and P2 sun are common -> sun12
+- A brake holds sun12
+- B brake holds the P1 ring (annulus)
+- C clutch drives the P3 ring, P4 sun, and E-clutch housing -> c_out
+- D clutch ties the P3 carrier to the P4 carrier / output shaft
+- E clutch ties the P2 ring to the P3 sun through the C/E housing node
+- P1 carrier is permanently tied to P4 ring -> p1c_p4r
+- P4 carrier is output
+
+Modeled rotating members
+------------------------
+input      : turbine / transmission input shaft, also P2 carrier
+sun12      : common sun for P1 and P2
+p1r        : P1 ring
+p1c_p4r    : P1 carrier = P4 ring
+p2r        : P2 ring
+c_out      : C-clutch output = P3 ring = P4 sun = E housing
+p3s        : P3 sun
+p3c        : P3 carrier
+output     : P4 carrier / output shaft
+
+Planetary relations
+-------------------
+P1: Ns1 * (w_sun12   - w_p1c_p4r) + Nr1 * (w_p1r   - w_p1c_p4r) = 0
+P2: Ns2 * (w_sun12   - w_input)    + Nr2 * (w_p2r   - w_input)    = 0
+P3: Ns3 * (w_p3s     - w_p3c)      + Nr3 * (w_c_out - w_p3c)      = 0
+P4: Ns4 * (w_c_out   - w_output)   + Nr4 * (w_p1c_p4r - w_output) = 0
+
+Shift-element interpretation
+----------------------------
+A : sun12 -> ground
+B : p1r   -> ground
+C : input <-> c_out
+D : p3c   <-> output
+E : p2r   <-> c_out and p3s <-> c_out
+
+Shift chart (ATSG)
+------------------
+Rev : A + B + D
+1st : A + B + C
+2nd : A + B + E
+3rd : B + C + E
+4th : B + D + E
+5th : B + C + D
+6th : C + D + E
+7th : A + C + D
+8th : A + D + E
 
 Important honesty note
 ----------------------
-Even with this better-supported fact set, some states remain underdetermined in
-public information alone. This script is therefore a diagnostic/research model,
-not a final OEM-defensible synthesis engine.
+This is a core-class kinematic reconstruction from public/member-relationship
+notes. It is not an OEM hydraulic model, torque model, or pinion-by-pinion
+synthesis. Public information on the 8HP remains incomplete enough that some
+states may still classify as underdetermined even when the output ratio is
+recoverable.
+
+Implementation note
+-------------------
+The current shared `TransmissionSolver.solve_report()` attempts to cast all
+returned expressions directly to float. That fails for underdetermined states
+that still contain symbolic free parameters. To stay on the shared core stack,
+this module uses `TransmissionSolver` to build the full common equation system
+and only falls back to a tiny report-extraction shim when the core report path
+cannot serialize an underdetermined solution. The topology still comes from the
+shared core objects, not from a separate one-off transmission solver.
 """
 
 from __future__ import annotations
@@ -46,24 +94,27 @@ import inspect
 import json
 import sys
 from dataclasses import dataclass
-from typing import Dict, Mapping, Optional, Sequence, Tuple
+from typing import Dict, Mapping, Optional, Sequence
 
 import sympy as sp
 
 try:
     from ..core.clutch import Brake, Clutch, RotatingMember
     from ..core.planetary import PlanetaryGearSet
+    from ..core.solver import TransmissionSolver, TransmissionSolverError
 except Exception:  # pragma: no cover
     try:
         from core.clutch import Brake, Clutch, RotatingMember  # type: ignore
         from core.planetary import PlanetaryGearSet  # type: ignore
+        from core.solver import TransmissionSolver, TransmissionSolverError  # type: ignore
     except Exception:  # pragma: no cover
         from clutch import Brake, Clutch, RotatingMember  # type: ignore
         from planetary import PlanetaryGearSet  # type: ignore
+        from solver import TransmissionSolver, TransmissionSolverError  # type: ignore
 
 
 class EightSpeedCliError(ValueError):
-    pass
+    """User-facing CLI/configuration error for eight_speed.py."""
 
 
 DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
@@ -79,22 +130,34 @@ DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
 
 PRESETS: Mapping[str, Mapping[str, int]] = {
     "zf_8hp45_reference": {
-        "Ns1": 48, "Nr1": 96,
-        "Ns2": 48, "Nr2": 96,
-        "Ns3": 38, "Nr3": 96,
-        "Ns4": 23, "Nr4": 85,
+        "Ns1": 48,
+        "Nr1": 96,
+        "Ns2": 48,
+        "Nr2": 96,
+        "Ns3": 38,
+        "Nr3": 96,
+        "Ns4": 23,
+        "Nr4": 85,
     },
     "zf_8hp50_candidate": {
-        "Ns1": 48, "Nr1": 96,
-        "Ns2": 48, "Nr2": 96,
-        "Ns3": 38, "Nr3": 96,
-        "Ns4": 24, "Nr4": 89,
+        "Ns1": 48,
+        "Nr1": 96,
+        "Ns2": 48,
+        "Nr2": 96,
+        "Ns3": 38,
+        "Nr3": 96,
+        "Ns4": 24,
+        "Nr4": 89,
     },
     "zf_8hp51_gen3_candidate": {
-        "Ns1": 48, "Nr1": 96,
-        "Ns2": 48, "Nr2": 96,
-        "Ns3": 38, "Nr3": 96,
-        "Ns4": 23, "Nr4": 85,
+        "Ns1": 48,
+        "Nr1": 96,
+        "Ns2": 48,
+        "Nr2": 96,
+        "Ns3": 38,
+        "Nr3": 96,
+        "Ns4": 23,
+        "Nr4": 85,
     },
 }
 
@@ -120,9 +183,40 @@ class SolveResult:
     ratio: Optional[float]
     speeds: Dict[str, float]
     notes: str = ""
-    solver_path: str = "core_v2:atsg_local_param_guard"
-    status: str = "ok"  # ok | underdetermined | inconsistent
+    solver_path: str = "core_v2"
+    status: str = "ok"
     message: str = ""
+
+
+STATE_ALIASES: Mapping[str, str] = {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+    "6": "6th",
+    "6th": "6th",
+    "sixth": "6th",
+    "7": "7th",
+    "7th": "7th",
+    "seventh": "7th",
+    "8": "8th",
+    "8th": "8th",
+    "eighth": "8th",
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev",
+}
 
 
 def _validate_counts_basic(*, Ns: int, Nr: int, label: str) -> None:
@@ -155,37 +249,22 @@ def _make_planetary(*, Ns: int, Nr: int, name: str, sun: RotatingMember, ring: R
     try:
         sig = inspect.signature(PlanetaryGearSet)
         if "geometry_mode" in sig.parameters:
-            return PlanetaryGearSet(Ns=Ns, Nr=Nr, name=name, sun=sun, ring=ring, carrier=carrier,
-                                    geometry_mode=geometry_mode)
+            return PlanetaryGearSet(
+                Ns=Ns,
+                Nr=Nr,
+                name=name,
+                sun=sun,
+                ring=ring,
+                carrier=carrier,
+                geometry_mode=geometry_mode,
+            )
     except Exception:
         pass
     return PlanetaryGearSet(Ns=Ns, Nr=Nr, name=name, sun=sun, ring=ring, carrier=carrier)
 
 
 class ZF8HPEightSpeedTransmission:
-    """
-    ATSG Figure 2 / Figure 3 based topology.
-
-    Shift elements
-    --------------
-    - A brake : sun12 -> ground
-    - B brake : p1r -> ground
-    - C clutch: input -> c_out   (c_out = P3 ring = P4 sun = E housing)
-    - D clutch: p3c -> output
-    - E clutch: c_out <-> p2r and c_out <-> p3s
-
-    Shift chart (ATSG)
-    ------------------
-    R   : A + B + D
-    1st : A + B + C
-    2nd : A + B + E
-    3rd : B + C + E
-    4th : B + D + E
-    5th : B + C + D
-    6th : C + D + E
-    7th : A + C + D
-    8th : A + D + E
-    """
+    """ZF 8HP family kinematic model solved through the shared core stack."""
 
     SHIFT_SCHEDULE: Mapping[str, tuple[str, ...]] = {
         "1st": ("A", "B", "C"),
@@ -196,11 +275,9 @@ class ZF8HPEightSpeedTransmission:
         "6th": ("C", "D", "E"),
         "7th": ("A", "C", "D"),
         "8th": ("A", "D", "E"),
-        "rev": ("A", "B", "D"),
-        "reverse": ("A", "B", "D"),
+        "Rev": ("A", "B", "D"),
     }
-    DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "rev")
-    DISPLAY_NAMES: Mapping[str, str] = {"rev": "Rev"}
+    DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Rev")
 
     def __init__(self, *, Ns1: int, Nr1: int, Ns2: int, Nr2: int, Ns3: int, Nr3: int, Ns4: int, Nr4: int,
                  strict_geometry: bool = False) -> None:
@@ -224,136 +301,224 @@ class ZF8HPEightSpeedTransmission:
         self.p3c = RotatingMember("p3c")
         self.output = RotatingMember("output")
 
-        self.pg1 = _make_planetary(Ns=Ns1, Nr=Nr1, name="P1", sun=self.sun12, ring=self.p1r,
-                                   carrier=self.p1c_p4r, strict_geometry=self.strict_geometry)
-        self.pg2 = _make_planetary(Ns=Ns2, Nr=Nr2, name="P2", sun=self.sun12, ring=self.p2r,
-                                   carrier=self.input, strict_geometry=self.strict_geometry)
-        self.pg3 = _make_planetary(Ns=Ns3, Nr=Nr3, name="P3", sun=self.p3s, ring=self.c_out,
-                                   carrier=self.p3c, strict_geometry=self.strict_geometry)
-        self.pg4 = _make_planetary(Ns=Ns4, Nr=Nr4, name="P4", sun=self.c_out, ring=self.p1c_p4r,
-                                   carrier=self.output, strict_geometry=self.strict_geometry)
+        self.members: Dict[str, RotatingMember] = {
+            "input": self.input,
+            "sun12": self.sun12,
+            "p1r": self.p1r,
+            "p1c_p4r": self.p1c_p4r,
+            "p2r": self.p2r,
+            "c_out": self.c_out,
+            "p3s": self.p3s,
+            "p3c": self.p3c,
+            "output": self.output,
+        }
+
+        self.pg1 = _make_planetary(
+            Ns=Ns1, Nr=Nr1, name="P1", sun=self.sun12, ring=self.p1r,
+            carrier=self.p1c_p4r, strict_geometry=self.strict_geometry,
+        )
+        self.pg2 = _make_planetary(
+            Ns=Ns2, Nr=Nr2, name="P2", sun=self.sun12, ring=self.p2r,
+            carrier=self.input, strict_geometry=self.strict_geometry,
+        )
+        self.pg3 = _make_planetary(
+            Ns=Ns3, Nr=Nr3, name="P3", sun=self.p3s, ring=self.c_out,
+            carrier=self.p3c, strict_geometry=self.strict_geometry,
+        )
+        self.pg4 = _make_planetary(
+            Ns=Ns4, Nr=Nr4, name="P4", sun=self.c_out, ring=self.p1c_p4r,
+            carrier=self.output, strict_geometry=self.strict_geometry,
+        )
 
         self.A = Brake(self.sun12, name="A")
         self.B = Brake(self.p1r, name="B")
         self.C = Clutch(self.input, self.c_out, name="C")
         self.D = Clutch(self.p3c, self.output, name="D")
-        # E ties the E housing (c_out) to both P2 ring and P3 sun.
-        self.E1 = Clutch(self.c_out, self.p2r, name="E_p2r")
-        self.E2 = Clutch(self.c_out, self.p3s, name="E_p3s")
+        self.E_p2r = Clutch(self.c_out, self.p2r, name="E_p2r")
+        self.E_p3s = Clutch(self.c_out, self.p3s, name="E_p3s")
 
         self.constraints: Dict[str, object] = {
             "A": self.A,
             "B": self.B,
             "C": self.C,
             "D": self.D,
-            "E_p2r": self.E1,
-            "E_p3s": self.E2,
+            "E_p2r": self.E_p2r,
+            "E_p3s": self.E_p3s,
         }
 
     def release_all(self) -> None:
-        for c in self.constraints.values():
-            c.release()  # type: ignore[attr-defined]
+        for obj in self.constraints.values():
+            obj.release()  # type: ignore[attr-defined]
+
+    def normalize_state_name(self, state: str) -> str:
+        key = state.strip().lower()
+        if key == "all":
+            return "all"
+        mapped = STATE_ALIASES.get(key)
+        if mapped is None:
+            raise EightSpeedCliError(f"Unknown state: {state}")
+        return mapped
 
     def set_state(self, state: str) -> GearState:
-        key = state.strip().lower()
-        if key not in self.SHIFT_SCHEDULE:
-            raise EightSpeedCliError(f"Unknown state: {state}")
+        key = self.normalize_state_name(state)
+        if key == "all":
+            raise EightSpeedCliError("Use solve_all() when state='all'.")
         self.release_all()
         engaged = self.SHIFT_SCHEDULE[key]
         for name in engaged:
             if name == "E":
-                self.E1.engage()
-                self.E2.engage()
+                self.E_p2r.engage()
+                self.E_p3s.engage()
             else:
                 self.constraints[name].engage()  # type: ignore[index,attr-defined]
-        display = self.DISPLAY_NAMES.get(key, state.strip())
-        return GearState(display, tuple(engaged), "ATSG-based shift-element application")
+        return GearState(name=key, engaged=tuple(engaged), notes="ATSG-based shift-element application")
 
-    def _build_equations(self) -> tuple[list[sp.Expr], list[sp.Symbol], dict[str, sp.Symbol]]:
-        ws12, wp1r, wp1c, wp2r, wcout, wp3s, wp3c, wout = sp.symbols(
-            "ws12 wp1r wp1c wp2r wcout wp3s wp3c wout", real=True
-        )
-        syms = {
-            "sun12": ws12,
-            "p1r": wp1r,
-            "p1c_p4r": wp1c,
-            "p2r": wp2r,
-            "c_out": wcout,
-            "p3s": wp3s,
-            "p3c": wp3c,
-            "output": wout,
-        }
-        eqs: list[sp.Expr] = [
-            self.pg1.Ns * (ws12 - wp1c) + self.pg1.Nr * (wp1r - wp1c),
-            self.pg2.Ns * (ws12 - 1.0) + self.pg2.Nr * (wp2r - 1.0),
-            self.pg3.Ns * (wp3s - wp3c) + self.pg3.Nr * (wcout - wp3c),
-            self.pg4.Ns * (wcout - wout) + self.pg4.Nr * (wp1c - wout),
-        ]
-        if self.A.engaged:
-            eqs.append(ws12)
-        if self.B.engaged:
-            eqs.append(wp1r)
-        if self.C.engaged:
-            eqs.append(wcout - 1.0)
-        if self.D.engaged:
-            eqs.append(wp3c - wout)
-        if self.E1.engaged:
-            eqs.append(wp2r - wcout)
-        if self.E2.engaged:
-            eqs.append(wp3s - wcout)
-        unknowns = [ws12, wp1r, wp1c, wp2r, wcout, wp3s, wp3c, wout]
-        return eqs, unknowns, syms
+    def _build_solver(self) -> TransmissionSolver:
+        solver = TransmissionSolver()
+        if hasattr(solver, "add_members"):
+            solver.add_members(self.members.values())  # type: ignore[attr-defined]
+        else:
+            for member in self.members.values():
+                solver.add_member(member)
 
-    def solve_state(self, state: str) -> SolveResult:
-        gs = self.set_state(state)
-        eqs, unknowns, syms = self._build_equations()
-        try:
-            sols = sp.solve(eqs, unknowns, dict=True)
-        except Exception as exc:
-            raise EightSpeedCliError(f"SymPy solve failure: {exc}") from exc
+        solver.add_gearset(self.pg1)
+        solver.add_gearset(self.pg2)
+        solver.add_gearset(self.pg3)
+        solver.add_gearset(self.pg4)
 
-        if not sols:
-            return SolveResult(
-                state=gs.name, engaged=gs.engaged, ok=False, ratio=None, speeds={},
-                notes="No solution found for the assembled transmission equations.",
-                status="inconsistent", message="No solution found for the assembled transmission equations.",
-            )
+        solver.add_brake(self.A)
+        solver.add_brake(self.B)
+        solver.add_clutch(self.C)
+        solver.add_clutch(self.D)
+        solver.add_clutch(self.E_p2r)
+        solver.add_clutch(self.E_p3s)
+        return solver
 
-        sol = sols[0]
-        unresolved = [name for name, sym in syms.items() if sym not in sol]
-        speeds: Dict[str, float] = {"input": 1.0}
-        non_numeric = []
-        for name, sym in syms.items():
-            if sym in sol:
-                expr = sp.simplify(sol[sym])
-                if expr.free_symbols:
-                    non_numeric.append(name)
-                else:
-                    speeds[name] = float(sp.N(expr))
+    def _member_speeds_from_report(self, report: object) -> Dict[str, float]:
+        member_speeds = dict(getattr(report, "member_speeds", {}))
+        return {name: float(value) for name, value in member_speeds.items()}
 
-        unresolved_all = unresolved + [name for name in non_numeric if name not in unresolved]
-        if "output" in speeds and abs(float(speeds["output"])) > 1e-12:
-            ratio = 1.0 / float(speeds["output"])
-            if unresolved_all:
-                msg = "Underdetermined member speeds: " + ", ".join(unresolved_all)
-                return SolveResult(gs.name, gs.engaged, True, ratio, speeds, notes=msg,
-                                   status="underdetermined", message=msg)
-            return SolveResult(gs.name, gs.engaged, True, ratio, speeds,
-                               notes="Solved using ATSG-based topology.", status="ok", message="ok")
-
-        msg = "Underdetermined member speeds: " + ", ".join(unresolved_all or ["output"])
-        return SolveResult(gs.name, gs.engaged, False, None, speeds, notes=msg,
-                           status="underdetermined", message=msg)
-
-    def solve_all(self) -> Dict[str, SolveResult]:
-        out: Dict[str, SolveResult] = {}
-        for st in self.DISPLAY_ORDER:
-            out[self.DISPLAY_NAMES.get(st, st)] = self.solve_state(st)
+    def _augment_with_numeric_raw_solution(self, *, report: object, speeds: Dict[str, float]) -> Dict[str, float]:
+        raw_solution = getattr(report, "raw_solution", None)
+        symbols = getattr(report, "symbols", None)
+        if not isinstance(raw_solution, dict) or not isinstance(symbols, dict):
+            return speeds
+        out = dict(speeds)
+        for name, sym in symbols.items():
+            if name in out:
+                continue
+            if sym not in raw_solution:
+                continue
+            expr = sp.simplify(raw_solution[sym])
+            if expr.free_symbols:
+                continue
+            out[name] = float(sp.N(expr))
         return out
+
+    def _solve_report_safe(self, solver: TransmissionSolver, *, input_speed: float) -> object:
+        try:
+            return solver.solve_report(input_member="input", input_speed=float(input_speed))  # type: ignore[attr-defined]
+        except TypeError:
+            equations, symbols = solver.build_equations(input_member="input", input_speed=float(input_speed))
+            variables = list(symbols.values())
+            try:
+                solution_list = sp.solve(equations, variables, dict=True)
+            except Exception as exc:
+                raise EightSpeedCliError(f"Core-equation solve failure: {exc}") from exc
+
+            sol0 = solution_list[0] if solution_list else None
+            status = "inconsistent"
+            message = "No solution found for the assembled transmission equations."
+            if sol0 is not None:
+                unresolved = []
+                for name, sym in symbols.items():
+                    expr = sol0.get(sym, None)
+                    if expr is None or getattr(expr, "free_symbols", set()):
+                        unresolved.append(name)
+                if unresolved:
+                    status = "underdetermined"
+                    message = "Underdetermined member speeds: " + ", ".join(unresolved)
+                else:
+                    status = "ok"
+                    message = "Fully determined member-speed solution."
+
+            class _Classification:
+                def __init__(self, status: str, message: str) -> None:
+                    self.status = status
+                    self.message = message
+                    self.ok = status == "ok"
+
+            class _Report:
+                pass
+
+            report = _Report()
+            report.classification = _Classification(status, message)
+            report.raw_solution = sol0
+            report.symbols = dict(symbols)
+            report.equations = list(equations)
+            report.member_speeds = {}
+            if sol0 is not None:
+                for name, sym in symbols.items():
+                    expr = sol0.get(sym, None)
+                    if expr is None:
+                        continue
+                    expr = sp.simplify(expr)
+                    if expr.free_symbols:
+                        continue
+                    report.member_speeds[name] = float(sp.N(expr))
+            report.ok = status == "ok"
+            return report
+        except TransmissionSolverError as exc:
+            raise EightSpeedCliError(f"Core solver failure: {exc}") from exc
+
+    def solve_state(self, state: str, input_speed: float = 1.0) -> SolveResult:
+        gs = self.set_state(state)
+        solver = self._build_solver()
+        if not hasattr(solver, "solve_report"):
+            raise EightSpeedCliError(
+                "Loaded core solver does not support solve_report. This refactored eight_speed.py expects the upgraded Core V2 solver."
+            )
+        report = self._solve_report_safe(solver, input_speed=float(input_speed))
+
+        classification = getattr(report, "classification", None)
+        status = getattr(classification, "status", "unknown")
+        message = getattr(classification, "message", "")
+
+        speeds = self._member_speeds_from_report(report)
+        speeds = self._augment_with_numeric_raw_solution(report=report, speeds=speeds)
+
+        ratio: Optional[float] = None
+        out_speed = speeds.get("output")
+        if out_speed is not None and abs(out_speed) > 1.0e-12:
+            ratio_val = float(input_speed) / float(out_speed)
+            ratio = ratio_val if gs.name == "Rev" else abs(ratio_val)
+
+        ok_flag = bool(getattr(report, "ok", False))
+        if status == "underdetermined" and ratio is not None:
+            ok_flag = True
+
+        notes = gs.notes
+        if message:
+            notes = message if not notes else f"{notes}; {message}"
+
+        return SolveResult(
+            state=gs.name,
+            engaged=gs.engaged,
+            ok=ok_flag,
+            ratio=ratio,
+            speeds=speeds,
+            notes=notes,
+            solver_path="core_v2",
+            status=status,
+            message=message,
+        )
+
+    def solve_all(self, input_speed: float = 1.0) -> Dict[str, SolveResult]:
+        return {state: self.solve_state(state, input_speed=input_speed) for state in self.DISPLAY_ORDER}
 
     def topology_summary(self) -> dict:
         return {
-            "source": "ATSG Figure 2 / Figure 3 style arrangement",
+            "source": "ATSG-style ZF8HP planetary relationship reconstruction",
             "permanent_connections": {
                 "input": "P2 carrier",
                 "sun12": "P1 sun = P2 sun",
@@ -388,12 +553,6 @@ def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
             counts[f"Nr{i}"] = int(nr_val)
     validate_tooth_counts(counts, strict_geometry=bool(args.strict_geometry))
     return counts
-
-
-def _normalize_state_name(state: str) -> str:
-    key = state.strip().lower()
-    aliases = {"reverse": "rev", "r": "rev"}
-    return aliases.get(key, key)
 
 
 def _payload(result: SolveResult) -> Dict[str, object]:
@@ -439,7 +598,7 @@ def _emit_cli_error(*, args: argparse.Namespace, message: str,
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(description="ZF 8HP ATSG-based 8-speed transmission diagnostic model")
+    p = argparse.ArgumentParser(description="ZF 8HP ATSG-based 8-speed transmission kinematic model")
     p.add_argument("--state", default="all", help="State to solve: all, 1st..8th, rev")
     for i in range(1, 5):
         p.add_argument(f"--Ns{i}", type=int, default=None, help=f"P{i} sun tooth count")
@@ -469,7 +628,8 @@ def _print_presets() -> None:
             print(f"  note: {note}")
 
 
-def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool, strict_geometry: bool) -> None:
+def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool,
+                   strict_geometry: bool, preset_note: str = "") -> None:
     print("ZF 8HP 8-Speed Kinematic Summary")
     print("-" * 150)
     print(
@@ -479,7 +639,9 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
         f"P4(Ns4={counts['Ns4']}, Nr4={counts['Nr4']})"
     )
     print(f"Geometry mode: {'strict' if strict_geometry else 'relaxed'}")
-    print("Solver path: core_v2:atsg_local_param_guard")
+    if preset_note:
+        print(f"Preset note: {preset_note}")
+    print("Solver path: core_v2")
     print("-" * 150)
     if ratios_only:
         print(f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s}")
@@ -488,8 +650,8 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
             elems = "+".join(result.engaged)
             ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
             print(f"{name:<8s} {elems:<14s} {result.status:<18s} {ratio_txt:>10s}")
-            if result.notes:
-                print(f"  note: {result.notes}")
+            if result.message:
+                print(f"  note: {result.message}")
         return
 
     headers = (
@@ -498,18 +660,21 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
     )
     print(headers)
     print("-" * 150)
+
+    def fmt(speeds: Mapping[str, float], key: str) -> str:
+        return f"{speeds[key]:>9.3f}" if key in speeds else f"{'-':>9s}"
+
     for name, result in results.items():
         elems = "+".join(result.engaged)
         s = result.speeds
         ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
-        def fmt(key: str) -> str:
-            return f"{s[key]:>9.3f}" if key in s else f"{'-':>9s}"
         print(
             f"{name:<8s} {elems:<14.14s} {result.status:<18s} {ratio_txt:>10s} "
-            f"{fmt('input')} {fmt('sun12')} {fmt('p1r')} {fmt('p2r')} {fmt('c_out')} {fmt('p3s')} {fmt('p1c_p4r')} {fmt('p3c')} {fmt('output')}"
+            f"{fmt(s, 'input')} {fmt(s, 'sun12')} {fmt(s, 'p1r')} {fmt(s, 'p2r')} {fmt(s, 'c_out')} {fmt(s, 'p3s')} "
+            f"{fmt(s, 'p1c_p4r')} {fmt(s, 'p3c')} {fmt(s, 'output')}"
         )
-        if result.notes:
-            print(f"  note: {result.notes}")
+        if result.message:
+            print(f"  note: {result.message}")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -518,72 +683,77 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.list_presets:
         _print_presets()
         return 0
-    tooth_counts: Optional[Dict[str, int]] = None
-    try:
-        tooth_counts = _resolve_tooth_counts(args)
-        tx = ZF8HPEightSpeedTransmission(**tooth_counts, strict_geometry=bool(args.strict_geometry))
-        if args.show_topology:
-            payload = tx.topology_summary()
-            if args.json:
-                print(json.dumps(payload, indent=2))
-            else:
-                print(json.dumps(payload, indent=2))
-            return 0
-        if str(args.state).strip().lower() == "all":
-            results = tx.solve_all()
-            if args.json:
-                payload = {
-                    "ok": True,
-                    "preset": args.preset,
-                    "strict_geometry": bool(args.strict_geometry),
-                    "tooth_counts": tooth_counts,
-                    "solver_path": "core_v2:atsg_local_param_guard",
-                    "states": {name: _payload(result) for name, result in results.items()},
-                }
-                if args.ratios_only:
-                    payload["ratios"] = {name: result.ratio for name, result in results.items()}
-                print(json.dumps(payload, indent=2))
-            else:
-                _print_summary(counts=tooth_counts, results=results,
-                               ratios_only=bool(args.ratios_only), strict_geometry=bool(args.strict_geometry))
-            return 0
 
-        state = _normalize_state_name(args.state)
-        result = tx.solve_state(state)
+    try:
+        counts = _resolve_tooth_counts(args)
+    except EightSpeedCliError as exc:
+        return _emit_cli_error(args=args, message=str(exc))
+
+    tx = ZF8HPEightSpeedTransmission(
+        Ns1=counts["Ns1"], Nr1=counts["Nr1"],
+        Ns2=counts["Ns2"], Nr2=counts["Nr2"],
+        Ns3=counts["Ns3"], Nr3=counts["Nr3"],
+        Ns4=counts["Ns4"], Nr4=counts["Nr4"],
+        strict_geometry=bool(args.strict_geometry),
+    )
+
+    if args.show_topology:
+        payload = tx.topology_summary()
         if args.json:
-            payload = {
-                "ok": True,
-                "preset": args.preset,
-                "strict_geometry": bool(args.strict_geometry),
-                "tooth_counts": tooth_counts,
-                **_payload(result),
-            }
             print(json.dumps(payload, indent=2))
         else:
-            if args.ratios_only:
-                ratio_txt = "-" if result.ratio is None else f"{result.ratio:.6f}"
-                print(f"{result.state}: {ratio_txt}")
-            else:
-                print(f"State: {result.state}")
-                print(f"Engaged: {' + '.join(result.engaged)}")
-                print(
-                    f"Tooth counts: P1(Ns1={tooth_counts['Ns1']}, Nr1={tooth_counts['Nr1']}), "
-                    f"P2(Ns2={tooth_counts['Ns2']}, Nr2={tooth_counts['Nr2']}), "
-                    f"P3(Ns3={tooth_counts['Ns3']}, Nr3={tooth_counts['Nr3']}), "
-                    f"P4(Ns4={tooth_counts['Ns4']}, Nr4={tooth_counts['Nr4']})"
-                )
-                print(f"Geometry mode: {'strict' if args.strict_geometry else 'relaxed'}")
-                print("Solver path: core_v2:atsg_local_param_guard")
-                ratio_txt = "-" if result.ratio is None else f"{result.ratio:.6f}"
-                print(f"Ratio (input/output): {ratio_txt}")
-                print(json.dumps(result.speeds, indent=2))
-                if result.notes:
-                    print(result.notes)
+            print("ZF 8HP Topology Summary")
+            print("-" * 32)
+            print(json.dumps(payload, indent=2))
         return 0
-    except (EightSpeedCliError, ValueError) as exc:
-        return _emit_cli_error(args=args, message=str(exc), tooth_counts=tooth_counts)
-    except Exception as exc:  # pragma: no cover
-        return _emit_cli_error(args=args, message=f"Unexpected solver/runtime failure: {exc}", tooth_counts=tooth_counts)
+
+    state_key = args.state.strip().lower()
+    preset_note = PRESET_NOTES.get(args.preset, "")
+
+    try:
+        if state_key == "all":
+            results = tx.solve_all(input_speed=1.0)
+            if args.json:
+                print(json.dumps({
+                    "ok": all(r.ok for r in results.values()),
+                    "solver_path": "core_v2",
+                    "preset": args.preset,
+                    "strict_geometry": bool(args.strict_geometry),
+                    "tooth_counts": counts,
+                    "results": {name: _payload(res) for name, res in results.items()},
+                }, indent=2))
+            else:
+                _print_summary(
+                    counts=counts,
+                    results=results,
+                    ratios_only=bool(args.ratios_only),
+                    strict_geometry=bool(args.strict_geometry),
+                    preset_note=preset_note,
+                )
+            return 0
+
+        state = tx.normalize_state_name(args.state)
+        result = tx.solve_state(state, input_speed=1.0)
+        if args.json:
+            print(json.dumps({
+                "ok": result.ok,
+                "solver_path": result.solver_path,
+                "preset": args.preset,
+                "strict_geometry": bool(args.strict_geometry),
+                "tooth_counts": counts,
+                "result": _payload(result),
+            }, indent=2))
+        else:
+            _print_summary(
+                counts=counts,
+                results={result.state: result},
+                ratios_only=bool(args.ratios_only),
+                strict_geometry=bool(args.strict_geometry),
+                preset_note=preset_note,
+            )
+        return 0
+    except EightSpeedCliError as exc:
+        return _emit_cli_error(args=args, message=str(exc), tooth_counts=counts)
 
 
 if __name__ == "__main__":  # pragma: no cover
