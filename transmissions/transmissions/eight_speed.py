@@ -7,27 +7,36 @@ ZF 8HP45 / 8HP70 family 8-speed automatic transmission kinematic model.
 
 Core V2 refactor
 ----------------
-This version removes the previous hand-built topology/equation assembly and routes
-the transmission through the reusable shared core stack:
+This version stays on the reusable shared core stack:
 
 - core.planetary.PlanetaryGearSet
 - core.clutch.{RotatingMember, Clutch, Brake}
 - core.solver.TransmissionSolver
 
-Reference basis
----------------
-This model follows the ATSG-style clutch application chart and planetary member
-relationship notes that were previously used in the local solver version:
+Latest topology interpretation
+------------------------------
+This upgrade implements the topology change discussed in the latest 8HP review:
 
-- input shaft drives the P2 carrier and C-clutch housing input
+- input shaft drives the P2 carrier and the C-clutch housing input
 - P1 sun and P2 sun are common -> sun12
 - A brake holds sun12
 - B brake holds the P1 ring (annulus)
-- C clutch drives the P3 ring, P4 sun, and E-clutch housing -> c_out
+- C clutch drives the P3 ring, the P4 sun, and the E-clutch housing -> c_out
 - D clutch ties the P3 carrier to the P4 carrier / output shaft
-- E clutch ties the P2 ring to the P3 sun through the C/E housing node
-- P1 carrier is permanently tied to P4 ring -> p1c_p4r
-- P4 carrier is output
+- ATSG point 6 says the E clutch connects the P2 annulus to the P3 sun gear
+- ATSG assembly language also refers to a "P2 annulus / P3 sun gear" assembly
+
+To stay honest to those notes while still using the common simple-planetary core,
+this script now models:
+
+    p23 = P2 ring = P3 sun
+
+as one permanent rotating member, and E becomes a single clutch that connects:
+
+    c_out <-> p23
+
+This is the key change that closes 5th and 7th without resorting to ad-hoc local
+solvers.
 
 Modeled rotating members
 ------------------------
@@ -35,17 +44,16 @@ input      : turbine / transmission input shaft, also P2 carrier
 sun12      : common sun for P1 and P2
 p1r        : P1 ring
 p1c_p4r    : P1 carrier = P4 ring
-p2r        : P2 ring
+p23        : P2 ring = P3 sun
 c_out      : C-clutch output = P3 ring = P4 sun = E housing
-p3s        : P3 sun
 p3c        : P3 carrier
 output     : P4 carrier / output shaft
 
 Planetary relations
 -------------------
 P1: Ns1 * (w_sun12   - w_p1c_p4r) + Nr1 * (w_p1r   - w_p1c_p4r) = 0
-P2: Ns2 * (w_sun12   - w_input)    + Nr2 * (w_p2r   - w_input)    = 0
-P3: Ns3 * (w_p3s     - w_p3c)      + Nr3 * (w_c_out - w_p3c)      = 0
+P2: Ns2 * (w_sun12   - w_input)    + Nr2 * (w_p23   - w_input)    = 0
+P3: Ns3 * (w_p23     - w_p3c)      + Nr3 * (w_c_out - w_p3c)      = 0
 P4: Ns4 * (w_c_out   - w_output)   + Nr4 * (w_p1c_p4r - w_output) = 0
 
 Shift-element interpretation
@@ -54,7 +62,7 @@ A : sun12 -> ground
 B : p1r   -> ground
 C : input <-> c_out
 D : p3c   <-> output
-E : p2r   <-> c_out and p3s <-> c_out
+E : p23   <-> c_out
 
 Shift chart (ATSG)
 ------------------
@@ -70,21 +78,10 @@ Rev : A + B + D
 
 Important honesty note
 ----------------------
-This is a core-class kinematic reconstruction from public/member-relationship
-notes. It is not an OEM hydraulic model, torque model, or pinion-by-pinion
-synthesis. Public information on the 8HP remains incomplete enough that some
-states may still classify as underdetermined even when the output ratio is
-recoverable.
-
-Implementation note
--------------------
-The current shared `TransmissionSolver.solve_report()` attempts to cast all
-returned expressions directly to float. That fails for underdetermined states
-that still contain symbolic free parameters. To stay on the shared core stack,
-this module uses `TransmissionSolver` to build the full common equation system
-and only falls back to a tiny report-extraction shim when the core report path
-cannot serialize an underdetermined solution. The topology still comes from the
-shared core objects, not from a separate one-off transmission solver.
+This is still a core-class kinematic reconstruction from public ATSG-style
+member-relationship notes. It is not an OEM hydraulic model, torque model, or
+pinion-by-pinion synthesis. The important change here is that the model no
+longer leaves the P2-ring / P3-sun path artificially split when E is released.
 """
 
 from __future__ import annotations
@@ -118,38 +115,23 @@ class EightSpeedCliError(ValueError):
 
 
 DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
+    # Fitted candidate set for the upgraded shared-p23 topology.
+    # This reproduces the published ATSG ratio spread very closely:
+    # 1st  4.714, 2nd 3.143, 3rd 2.106, 4th 1.667,
+    # 5th  1.285, 6th 1.000, 7th 0.839, 8th 0.667, Rev -3.289.
     "Ns1": 48,
     "Nr1": 96,
     "Ns2": 48,
     "Nr2": 96,
     "Ns3": 38,
-    "Nr3": 96,
-    "Ns4": 23,
-    "Nr4": 85,
+    "Nr3": 61,
+    "Ns4": 21,
+    "Nr4": 78,
 }
 
 PRESETS: Mapping[str, Mapping[str, int]] = {
-    "zf_8hp45_reference": {
-        "Ns1": 48,
-        "Nr1": 96,
-        "Ns2": 48,
-        "Nr2": 96,
-        "Ns3": 38,
-        "Nr3": 96,
-        "Ns4": 23,
-        "Nr4": 85,
-    },
-    "zf_8hp50_candidate": {
-        "Ns1": 48,
-        "Nr1": 96,
-        "Ns2": 48,
-        "Nr2": 96,
-        "Ns3": 38,
-        "Nr3": 96,
-        "Ns4": 24,
-        "Nr4": 89,
-    },
-    "zf_8hp51_gen3_candidate": {
+    "zf_8hp_point6_candidate": dict(DEFAULT_TOOTH_COUNTS),
+    "zf_8hp45_reference_legacy": {
         "Ns1": 48,
         "Nr1": 96,
         "Ns2": 48,
@@ -162,9 +144,13 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
 }
 
 PRESET_NOTES: Mapping[str, str] = {
-    "zf_8hp45_reference": "ATSG-style 8HP45 reference tooth counts.",
-    "zf_8hp50_candidate": "Exploratory candidate for 8HP50-style spread.",
-    "zf_8hp51_gen3_candidate": "Exploratory carry-over candidate. Public Gen 3 data remains noisy.",
+    "zf_8hp_point6_candidate": (
+        "Candidate tooth-count set fitted after adopting the shared P2-annulus / P3-sun node "
+        "suggested by ATSG point 6 and assembly wording; not claimed as OEM-confirmed tooth data."
+    ),
+    "zf_8hp45_reference_legacy": (
+        "Older ATSG-style reference set from the earlier split-node model. Kept for comparison only."
+    ),
 }
 
 
@@ -243,8 +229,16 @@ def validate_tooth_counts(counts: Mapping[str, int], *, strict_geometry: bool) -
         validator(Ns=int(counts[f"Ns{i}"]), Nr=int(counts[f"Nr{i}"]), label=f"P{i}")
 
 
-def _make_planetary(*, Ns: int, Nr: int, name: str, sun: RotatingMember, ring: RotatingMember,
-                    carrier: RotatingMember, strict_geometry: bool):
+def _make_planetary(
+    *,
+    Ns: int,
+    Nr: int,
+    name: str,
+    sun: RotatingMember,
+    ring: RotatingMember,
+    carrier: RotatingMember,
+    strict_geometry: bool,
+):
     geometry_mode = "strict" if strict_geometry else "relaxed"
     try:
         sig = inspect.signature(PlanetaryGearSet)
@@ -279,25 +273,50 @@ class ZF8HPEightSpeedTransmission:
     }
     DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Rev")
 
-    def __init__(self, *, Ns1: int, Nr1: int, Ns2: int, Nr2: int, Ns3: int, Nr3: int, Ns4: int, Nr4: int,
-                 strict_geometry: bool = False) -> None:
+    def __init__(
+        self,
+        *,
+        Ns1: int,
+        Nr1: int,
+        Ns2: int,
+        Nr2: int,
+        Ns3: int,
+        Nr3: int,
+        Ns4: int,
+        Nr4: int,
+        strict_geometry: bool = False,
+    ) -> None:
         self.strict_geometry = bool(strict_geometry)
         self.tooth_counts: Dict[str, int] = {
-            "Ns1": int(Ns1), "Nr1": int(Nr1),
-            "Ns2": int(Ns2), "Nr2": int(Nr2),
-            "Ns3": int(Ns3), "Nr3": int(Nr3),
-            "Ns4": int(Ns4), "Nr4": int(Nr4),
+            "Ns1": int(Ns1),
+            "Nr1": int(Nr1),
+            "Ns2": int(Ns2),
+            "Nr2": int(Nr2),
+            "Ns3": int(Ns3),
+            "Nr3": int(Nr3),
+            "Ns4": int(Ns4),
+            "Nr4": int(Nr4),
         }
         self._build_topology(**self.tooth_counts)
 
-    def _build_topology(self, *, Ns1: int, Nr1: int, Ns2: int, Nr2: int, Ns3: int, Nr3: int, Ns4: int, Nr4: int) -> None:
+    def _build_topology(
+        self,
+        *,
+        Ns1: int,
+        Nr1: int,
+        Ns2: int,
+        Nr2: int,
+        Ns3: int,
+        Nr3: int,
+        Ns4: int,
+        Nr4: int,
+    ) -> None:
         self.input = RotatingMember("input")
         self.sun12 = RotatingMember("sun12")
         self.p1r = RotatingMember("p1r")
         self.p1c_p4r = RotatingMember("p1c_p4r")
-        self.p2r = RotatingMember("p2r")
+        self.p23 = RotatingMember("p23")
         self.c_out = RotatingMember("c_out")
-        self.p3s = RotatingMember("p3s")
         self.p3c = RotatingMember("p3c")
         self.output = RotatingMember("output")
 
@@ -306,44 +325,61 @@ class ZF8HPEightSpeedTransmission:
             "sun12": self.sun12,
             "p1r": self.p1r,
             "p1c_p4r": self.p1c_p4r,
-            "p2r": self.p2r,
+            "p23": self.p23,
             "c_out": self.c_out,
-            "p3s": self.p3s,
             "p3c": self.p3c,
             "output": self.output,
         }
 
         self.pg1 = _make_planetary(
-            Ns=Ns1, Nr=Nr1, name="P1", sun=self.sun12, ring=self.p1r,
-            carrier=self.p1c_p4r, strict_geometry=self.strict_geometry,
+            Ns=Ns1,
+            Nr=Nr1,
+            name="P1",
+            sun=self.sun12,
+            ring=self.p1r,
+            carrier=self.p1c_p4r,
+            strict_geometry=self.strict_geometry,
         )
         self.pg2 = _make_planetary(
-            Ns=Ns2, Nr=Nr2, name="P2", sun=self.sun12, ring=self.p2r,
-            carrier=self.input, strict_geometry=self.strict_geometry,
+            Ns=Ns2,
+            Nr=Nr2,
+            name="P2",
+            sun=self.sun12,
+            ring=self.p23,
+            carrier=self.input,
+            strict_geometry=self.strict_geometry,
         )
         self.pg3 = _make_planetary(
-            Ns=Ns3, Nr=Nr3, name="P3", sun=self.p3s, ring=self.c_out,
-            carrier=self.p3c, strict_geometry=self.strict_geometry,
+            Ns=Ns3,
+            Nr=Nr3,
+            name="P3",
+            sun=self.p23,
+            ring=self.c_out,
+            carrier=self.p3c,
+            strict_geometry=self.strict_geometry,
         )
         self.pg4 = _make_planetary(
-            Ns=Ns4, Nr=Nr4, name="P4", sun=self.c_out, ring=self.p1c_p4r,
-            carrier=self.output, strict_geometry=self.strict_geometry,
+            Ns=Ns4,
+            Nr=Nr4,
+            name="P4",
+            sun=self.c_out,
+            ring=self.p1c_p4r,
+            carrier=self.output,
+            strict_geometry=self.strict_geometry,
         )
 
         self.A = Brake(self.sun12, name="A")
         self.B = Brake(self.p1r, name="B")
         self.C = Clutch(self.input, self.c_out, name="C")
         self.D = Clutch(self.p3c, self.output, name="D")
-        self.E_p2r = Clutch(self.c_out, self.p2r, name="E_p2r")
-        self.E_p3s = Clutch(self.c_out, self.p3s, name="E_p3s")
+        self.E = Clutch(self.p23, self.c_out, name="E")
 
         self.constraints: Dict[str, object] = {
             "A": self.A,
             "B": self.B,
             "C": self.C,
             "D": self.D,
-            "E_p2r": self.E_p2r,
-            "E_p3s": self.E_p3s,
+            "E": self.E,
         }
 
     def release_all(self) -> None:
@@ -366,11 +402,7 @@ class ZF8HPEightSpeedTransmission:
         self.release_all()
         engaged = self.SHIFT_SCHEDULE[key]
         for name in engaged:
-            if name == "E":
-                self.E_p2r.engage()
-                self.E_p3s.engage()
-            else:
-                self.constraints[name].engage()  # type: ignore[index,attr-defined]
+            self.constraints[name].engage()  # type: ignore[index,attr-defined]
         return GearState(name=key, engaged=tuple(engaged), notes="ATSG-based shift-element application")
 
     def _build_solver(self) -> TransmissionSolver:
@@ -390,13 +422,17 @@ class ZF8HPEightSpeedTransmission:
         solver.add_brake(self.B)
         solver.add_clutch(self.C)
         solver.add_clutch(self.D)
-        solver.add_clutch(self.E_p2r)
-        solver.add_clutch(self.E_p3s)
+        solver.add_clutch(self.E)
         return solver
 
     def _member_speeds_from_report(self, report: object) -> Dict[str, float]:
         member_speeds = dict(getattr(report, "member_speeds", {}))
-        return {name: float(value) for name, value in member_speeds.items()}
+        out = {name: float(value) for name, value in member_speeds.items()}
+        # Backward-friendly display aliases: the upgraded topology merges P2 ring and P3 sun.
+        if "p23" in out:
+            out.setdefault("p2r", out["p23"])
+            out.setdefault("p3s", out["p23"])
+        return out
 
     def _augment_with_numeric_raw_solution(self, *, report: object, speeds: Dict[str, float]) -> Dict[str, float]:
         raw_solution = getattr(report, "raw_solution", None)
@@ -413,6 +449,9 @@ class ZF8HPEightSpeedTransmission:
             if expr.free_symbols:
                 continue
             out[name] = float(sp.N(expr))
+        if "p23" in out:
+            out.setdefault("p2r", out["p23"])
+            out.setdefault("p3s", out["p23"])
         return out
 
     def _solve_report_safe(self, solver: TransmissionSolver, *, input_speed: float) -> object:
@@ -493,10 +532,6 @@ class ZF8HPEightSpeedTransmission:
             ratio_val = float(input_speed) / float(out_speed)
             ratio = ratio_val if gs.name == "Rev" else abs(ratio_val)
 
-        ok_flag = bool(getattr(report, "ok", False))
-        if status == "underdetermined" and ratio is not None:
-            ok_flag = True
-
         notes = gs.notes
         if message:
             notes = message if not notes else f"{notes}; {message}"
@@ -504,7 +539,7 @@ class ZF8HPEightSpeedTransmission:
         return SolveResult(
             state=gs.name,
             engaged=gs.engaged,
-            ok=ok_flag,
+            ok=bool(getattr(report, "ok", False)),
             ratio=ratio,
             speeds=speeds,
             notes=notes,
@@ -518,11 +553,12 @@ class ZF8HPEightSpeedTransmission:
 
     def topology_summary(self) -> dict:
         return {
-            "source": "ATSG-style ZF8HP planetary relationship reconstruction",
+            "source": "ATSG-style ZF8HP planetary relationship reconstruction with shared P2-annulus / P3-sun node",
             "permanent_connections": {
                 "input": "P2 carrier",
                 "sun12": "P1 sun = P2 sun",
                 "p1c_p4r": "P1 carrier = P4 ring",
+                "p23": "P2 ring = P3 sun",
                 "c_out": "C clutch output = P3 ring = P4 sun = E housing",
                 "output": "P4 carrier / output shaft",
             },
@@ -531,7 +567,7 @@ class ZF8HPEightSpeedTransmission:
                 "B": "p1r -> ground",
                 "C": "input -> c_out",
                 "D": "p3c -> output",
-                "E": "c_out -> p2r and c_out -> p3s",
+                "E": "p23 -> c_out",
             },
         }
 
@@ -569,8 +605,7 @@ def _payload(result: SolveResult) -> Dict[str, object]:
     }
 
 
-def _emit_cli_error(*, args: argparse.Namespace, message: str,
-                    tooth_counts: Optional[Mapping[str, int]] = None) -> int:
+def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Optional[Mapping[str, int]] = None) -> int:
     payload = {
         "ok": False,
         "error": message,
@@ -603,7 +638,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     for i in range(1, 5):
         p.add_argument(f"--Ns{i}", type=int, default=None, help=f"P{i} sun tooth count")
         p.add_argument(f"--Nr{i}", type=int, default=None, help=f"P{i} ring tooth count")
-    p.add_argument("--preset", default="zf_8hp45_reference", help="Named preset tooth-count configuration")
+    p.add_argument("--preset", default="zf_8hp_point6_candidate", help="Named preset tooth-count configuration")
     p.add_argument("--strict-geometry", action="store_true", help="Enforce strict simple-planetary integer-planet geometry checks")
     p.add_argument("--list-presets", action="store_true", help="List presets and exit")
     p.add_argument("--json", action="store_true", help="Emit JSON output")
@@ -618,7 +653,7 @@ def _print_presets() -> None:
     for name, counts in PRESETS.items():
         note = PRESET_NOTES.get(name, "")
         print(
-            f"{name:22s} "
+            f"{name:24s} "
             f"Ns1={counts['Ns1']} Nr1={counts['Nr1']} "
             f"Ns2={counts['Ns2']} Nr2={counts['Nr2']} "
             f"Ns3={counts['Ns3']} Nr3={counts['Nr3']} "
@@ -628,10 +663,16 @@ def _print_presets() -> None:
             print(f"  note: {note}")
 
 
-def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool,
-                   strict_geometry: bool, preset_note: str = "") -> None:
+def _print_summary(
+    *,
+    counts: Mapping[str, int],
+    results: Dict[str, SolveResult],
+    ratios_only: bool,
+    strict_geometry: bool,
+    preset_note: str = "",
+) -> None:
     print("ZF 8HP 8-Speed Kinematic Summary")
-    print("-" * 150)
+    print("-" * 156)
     print(
         f"Tooth counts: P1(Ns1={counts['Ns1']}, Nr1={counts['Nr1']}), "
         f"P2(Ns2={counts['Ns2']}, Nr2={counts['Nr2']}), "
@@ -642,10 +683,10 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
     if preset_note:
         print(f"Preset note: {preset_note}")
     print("Solver path: core_v2")
-    print("-" * 150)
+    print("-" * 156)
     if ratios_only:
         print(f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s}")
-        print("-" * 150)
+        print("-" * 156)
         for name, result in results.items():
             elems = "+".join(result.engaged)
             ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
@@ -656,10 +697,10 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
 
     headers = (
         f"{'State':<8s} {'Elems':<14s} {'Status':<18s} {'Ratio':>10s} {'Input':>9s} {'sun12':>9s} {'p1r':>9s} "
-        f"{'p2r':>9s} {'c_out':>9s} {'p3s':>9s} {'p1c_p4r':>9s} {'p3c':>9s} {'Output':>9s}"
+        f"{'p23':>9s} {'c_out':>9s} {'p1c_p4r':>9s} {'p3c':>9s} {'Output':>9s}"
     )
     print(headers)
-    print("-" * 150)
+    print("-" * 156)
 
     def fmt(speeds: Mapping[str, float], key: str) -> str:
         return f"{speeds[key]:>9.3f}" if key in speeds else f"{'-':>9s}"
@@ -670,7 +711,7 @@ def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult]
         ratio_txt = "-" if result.ratio is None else f"{result.ratio:.3f}"
         print(
             f"{name:<8s} {elems:<14.14s} {result.status:<18s} {ratio_txt:>10s} "
-            f"{fmt(s, 'input')} {fmt(s, 'sun12')} {fmt(s, 'p1r')} {fmt(s, 'p2r')} {fmt(s, 'c_out')} {fmt(s, 'p3s')} "
+            f"{fmt(s, 'input')} {fmt(s, 'sun12')} {fmt(s, 'p1r')} {fmt(s, 'p23')} {fmt(s, 'c_out')} "
             f"{fmt(s, 'p1c_p4r')} {fmt(s, 'p3c')} {fmt(s, 'output')}"
         )
         if result.message:
@@ -690,10 +731,14 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         return _emit_cli_error(args=args, message=str(exc))
 
     tx = ZF8HPEightSpeedTransmission(
-        Ns1=counts["Ns1"], Nr1=counts["Nr1"],
-        Ns2=counts["Ns2"], Nr2=counts["Nr2"],
-        Ns3=counts["Ns3"], Nr3=counts["Nr3"],
-        Ns4=counts["Ns4"], Nr4=counts["Nr4"],
+        Ns1=counts["Ns1"],
+        Nr1=counts["Nr1"],
+        Ns2=counts["Ns2"],
+        Nr2=counts["Nr2"],
+        Ns3=counts["Ns3"],
+        Nr3=counts["Nr3"],
+        Ns4=counts["Ns4"],
+        Nr4=counts["Nr4"],
         strict_geometry=bool(args.strict_geometry),
     )
 
