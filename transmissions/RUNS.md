@@ -502,6 +502,22 @@ python -m transmissions.nine_speed \
   --ratios-only
 ```
 
+# Show speeds
+
+```bash
+python -m transmissions.nine_speed \
+  --state all \
+  --show-speeds
+```
+
+# Verbose report
+
+```bash
+python -m transmissions.nine_speed \
+  --state all \
+  --verbose-report
+```
+
 # 9G-tronic preset
 
 ```bash
