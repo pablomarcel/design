@@ -486,6 +486,39 @@ python -m transmissions.eight_speed \
   --show-topology
 ```
 
+#### Mercedes 9G-tronic 9 Speed Transmission
+
+# All states
+
+```bash
+python -m transmissions.nine_speed \
+  --state all
+```
+# Ratios only
+
+```bash
+python -m transmissions.nine_speed \
+  --state all \
+  --ratios-only
+```
+
+# 9G-tronic preset
+
+```bash
+python -m transmissions.nine_speed \
+  --preset mb_9gtronic_2016
+```
+
+# Override tooth counts manually
+
+```bash
+python -m transmissions.nine_speed \
+  --state all \
+  --S1 46 --R1 98 \
+  --S2 44 --R2 100 \
+  --S3 36 --R3 84 \
+  --S4 34 --R4 86
+```
 
 #### Ford 10R80 10 Speed Transmission
 
