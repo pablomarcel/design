@@ -1,0 +1,338 @@
+Yes. Here is the clean way to read the **7-speed W7A-700** layout.
+
+## Big picture
+
+This transmission is basically:
+
+* a **front compound stage** that the book describes as an **inverse Ravigneaux set**
+* followed by a **rear simple planetary set**
+* followed by a **middle simple planetary set**
+* with the **output taken from the carrier of the middle set**
+
+So power goes **left to right** through three stages.
+
+In the core-based model we built, the front inverse-Ravigneaux was represented by an equivalent reusable-core abstraction, but the **functional connections** are the same idea:
+
+* the front stage creates the first level of ratio transformation
+* that front-stage result feeds the rear set
+* the rear set feeds the middle set
+* the middle carrier is the output
+
+---
+
+## What is connected to what
+
+Using the names from `seven_speed.py`, the rotating members are:
+
+* `input` = turbine / transmission input
+* `F.sunA` = one controllable member of the front compound stage
+* `F.ringB` = the other controllable member of the front compound stage
+* `F.car` = front-stage carrier
+* `R.sun` = rear set sun
+* `R.car` = rear set carrier
+* `M.sun` = middle set sun
+* `Out` = middle set carrier / output shaft
+
+Now the important permanent mechanical links are:
+
+### 1) Input drives the front stage
+
+The transmission input goes into the **front compound stage**.
+
+In the abstraction we used:
+
+* one front mesh is driven from the input on its ring side
+* the other front mesh is driven from the input on its sun side
+
+That is how we emulate the behavior of the inverse Ravigneaux without leaving the reusable core framework.
+
+---
+
+### 2) The front carrier feeds the rear ring
+
+This is one of the most important links:
+
+* **front carrier = rear ring**
+
+In the script that is:
+
+* `F.car` feeds the rear set ring
+
+So whatever speed the front stage produces at its carrier becomes the input to the **rear planetary ring**.
+
+---
+
+### 3) The rear carrier feeds the middle ring
+
+This is the next cascade link:
+
+* **rear carrier = middle ring**
+
+In the script:
+
+* `R.car` is directly tied to the ring of the middle set
+
+So the rear set does not drive the output directly.
+Instead, it drives the **middle ring**, and then the middle set performs the final ratio action.
+
+---
+
+### 4) The middle carrier is the output shaft
+
+This is the final output connection:
+
+* **middle carrier = output shaft**
+
+So the output of the whole transmission is taken from the **carrier of the middle planetary set**.
+
+This is why the middle set is always the last stage in the kinematic chain.
+
+---
+
+### 5) C3 ties the rear sun and middle sun together
+
+This is a very important cross-link:
+
+* **C3 connects rear sun to middle sun**
+
+So when C3 is applied, the rear sun and middle sun rotate together as one member.
+
+That means the rear and middle sets become strongly coupled through their sun gears.
+
+This is one of the key tricks of the mechanism.
+
+---
+
+### 6) C2 ties the input to the rear-car/middle-ring node
+
+Another major cross-link:
+
+* **C2 connects input to rear carrier / middle ring**
+
+Since rear carrier and middle ring are already the same node, C2 effectively ties:
+
+* input
+* rear carrier
+* middle ring
+
+When C2 is on, that whole node is driven at input speed.
+
+This is why upper gears and direct drive become possible.
+
+---
+
+### 7) C1 ties the input to a front-stage control member
+
+C1 acts on the front compound stage:
+
+* **C1 connects input to the controllable front member `F.sunA`**
+
+That causes part of the front stage to lock up with the input instead of being held by a brake.
+
+This changes the behavior of the front stage and moves the transmission into different forward ratios.
+
+---
+
+### 8) The brakes ground specific members
+
+The brakes are what make the planetary sets actually ratio.
+
+They do this:
+
+* **B1** grounds one front-stage control member (`F.sunA`)
+* **B3** grounds the other front-stage control member (`F.ringB`)
+* **B2** grounds the middle sun (`M.sun`)
+* **BR** grounds the rear-car / middle-ring node
+
+So the brakes do not “add power.”
+They create the reaction points that force the gearsets to ratio.
+
+---
+
+## The whole chain in one sentence
+
+The easiest way to understand the W7A-700 is:
+
+> The front compound stage creates an intermediate speed at its carrier, that drives the rear ring; the rear carrier then drives the middle ring; the rear sun and middle sun can be tied together by C3; and the output is taken from the middle carrier.
+
+That is the backbone of the mechanism.
+
+---
+
+## Why the front stage is harder to read in the book
+
+The front stage is the confusing part because it is **not a simple planetary** like the other two.
+
+The book says it is an **inverse Ravigneaux set**, which means:
+
+* one sun gear
+* two ring gears
+* a compound planet arrangement
+* shared carrier structure
+
+That makes the drawing much harder to visually parse than a normal simple set.
+
+So the confusion is not on you.
+Those diagrams are much harder than the ordinary Simpson or Lepelletier-style sketches.
+
+---
+
+## How the forward gears are created
+
+Here is the functional logic of the shift elements.
+
+### 1st: `C3 + B2 + B3`
+
+* B3 grounds one front-stage control member
+* B2 grounds the middle sun
+* C3 ties rear sun to middle sun
+
+Effect:
+
+* front stage ratios strongly
+* rear and middle are both active
+* very large reduction
+
+That is why 1st is the deepest ratio.
+
+---
+
+### 2nd: `C3 + B1 + B2`
+
+* now B1 is the front-stage reaction instead of B3
+* B2 still grounds middle sun
+* C3 still ties rear and middle suns
+
+Effect:
+
+* front-stage behavior changes
+* rear/middle coupling remains
+* less reduction than 1st
+
+---
+
+### 3rd: `C1 + C3 + B2`
+
+* C1 now locks part of the front stage to input
+* C3 still ties rear and middle suns
+* B2 still grounds middle sun
+
+Effect:
+
+* the front stage is no longer reacting through a brake in the same way
+* ratio gets closer to 1
+
+---
+
+### 4th: `C1 + C2 + B2`
+
+* C1 locks front control member to input
+* C2 drives the rear-car / middle-ring node from input
+* B2 grounds middle sun
+
+Effect:
+
+* the rear set is effectively carried along
+* the middle set alone provides the remaining reduction
+* this is why 4th is closer to direct
+
+---
+
+### 5th: `C1 + C2 + C3`
+
+* C1 on
+* C2 on
+* C3 on
+* no reaction brake in the working path
+
+Effect:
+
+* all the key nodes are locked together
+* transmission goes to **direct drive**
+* ratio = 1.00
+
+This is the easiest one to understand.
+
+---
+
+### 6th: `C2 + C3 + B1`
+
+* C2 drives rear-car / middle-ring from input
+* C3 ties rear sun to middle sun
+* B1 grounds the front control member
+
+Effect:
+
+* the coupled rear/middle structure now produces overdrive
+
+---
+
+### 7th: `C2 + C3 + B3`
+
+* same upper-gear structure as 6th
+* but front-stage reaction changes from B1 to B3
+
+Effect:
+
+* even more overdrive
+
+---
+
+## How reverse works
+
+### R1: `C3 + B3 + BR`
+
+* C3 ties rear sun to middle sun
+* B3 grounds one front-stage member
+* BR grounds the rear-car / middle-ring node
+
+Effect:
+
+* the rear/middle train is forced into reverse kinematics
+* output rotates backward
+
+### R2: `C3 + B1 + BR`
+
+* same idea as R1, but the front-stage reaction member changes
+
+Effect:
+
+* second reverse ratio
+
+---
+
+## The three most important permanent nodes to remember
+
+If you remember only three hard connections, remember these:
+
+1. **Front carrier → Rear ring**
+2. **Rear carrier → Middle ring**
+3. **Middle carrier → Output**
+
+And then one important clutch link:
+
+4. **C3 ties Rear sun ↔ Middle sun**
+
+That alone lets you mentally reconstruct most of the transmission.
+
+---
+
+## Why our core model was able to match it
+
+Because even though the front stage drawing is ugly, the mechanism still reduces to a small number of kinematic facts:
+
+* the front stage has two independently controllable members and one shared carrier
+* that shared carrier feeds the rear set
+* the rear set feeds the middle set
+* the rear and middle suns can be tied together
+* the output is the middle carrier
+
+That is exactly the kind of thing the reusable solver can handle once the member relationships are identified correctly.
+
+---
+
+If you want, next I can give you the same explanation as a **node-by-node connection map**, like:
+
+`input -> front stage -> rear ring -> rear carrier -> middle ring -> output`
+
+with each clutch and brake attached to the exact node it acts on.

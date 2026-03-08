@@ -453,3 +453,25 @@ python -m transmissions.five_speed \
   --Ns-r 68 --Nr-r 122 \
   --Ns-m 37 --Nr-m 91
 ```
+
+
+#### W7A-700 7 Speed Transmission
+
+```bash
+python -m transmissions.seven_speed \
+  --state all
+```
+
+```bash
+python -m transmissions.seven_speed \
+  --state all \
+  --ratios-only
+```
+
+```bash
+python -m transmissions.seven_speed \
+  --Ns-a 52 --Nr-a 106 \
+  --Ns-b 78 --Nr-b 100 \
+  --Ns-r 66 --Nr-r 164 \
+  --Ns-m 62 --Nr-m 168
+```

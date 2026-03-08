@@ -3,86 +3,82 @@
 """
 transmissions.transmissions.five_speed
 
-Mercedes-Benz W5A-580 5-speed automatic transmission kinematic model.
+Mercedes-Benz W5A-580 / 722.6-family 5-speed automatic transmission
+kinematic model using the shared Core V2 transmission objects.
 
-Reference basis
----------------
-This module is built from the user-provided gearbox diagram and mechanism
-summary for the Mercedes-Benz W5A-580 / 722.6 family style 5-speed layout:
+Core V2 refactor
+----------------
+This version is intentionally built on the reusable transmission core stack:
+- core.planetary.PlanetaryGearSet
+- core.clutch.{RotatingMember, Clutch, Brake, Sprag}
+- core.solver.TransmissionSolver
 
-- three simple planetary gearsets
-    * forward set
-    * rear set
-    * middle set
-- forward ring is driven by the turbine / input
-- forward carrier drives the rear ring
-- rear carrier drives the middle ring
-- middle carrier is the output
-- C1 locks the forward sun to input
-- C2 connects input to the rear-carrier / middle-ring node
-- C3 connects the rear sun to the middle sun
-- B1 grounds the forward sun
-- B2 grounds the middle sun
-- BR grounds the rear-carrier / middle-ring node
-- F1 and F2 are one-way holding elements used in some states
+Reference topology from the provided W5A-580 description
+--------------------------------------------------------
+The transmission is modeled as three simple planetary gearsets in cascade:
 
-Important honesty note
-----------------------
-This is a *kinematic* central-topology model reconstructed from the provided
-reference figure and text. It is meant for ratio/state analysis, not for clutch
-hydraulics, torque capacity, overrunning logic under all transients, or OEM
-service procedures.
-
-Modeled rotating members
-------------------------
-    input  : turbine / transmission input
-    fs     : forward-set sun
-    fc     : forward-set carrier = rear-set ring
-    rs     : rear-set sun
-    rc     : rear-set carrier = middle-set ring
-    ms     : middle-set sun
-    out    : middle-set carrier = output shaft
-
-Planetary relations
--------------------
 Forward set:
-    Ns_f * (w_fs - w_fc) + Nr_f * (w_in - w_fc) = 0
+    - ring     = input / turbine
+    - sun      = forward_sun
+    - carrier  = forward_carrier
 
 Rear set:
-    Ns_r * (w_rs - w_rc) + Nr_r * (w_fc - w_rc) = 0
+    - ring     = forward_carrier
+    - sun      = rear_sun
+    - carrier  = rear_carrier
 
 Middle set:
-    Ns_m * (w_ms - w_out) + Nr_m * (w_rc - w_out) = 0
+    - ring     = rear_carrier
+    - sun      = middle_sun
+    - carrier  = output
+
+Shift elements:
+    C1 : input ↔ forward_sun
+    C2 : input ↔ rear_carrier
+    C3 : rear_sun ↔ middle_sun
+    B1 : forward_sun → ground
+    B2 : middle_sun → ground
+    BR : rear_carrier → ground
+    F1 : forward_sun one-way hold
+    F2 : rear_sun one-way hold
+
+Design note
+-----------
+This is a legitimate Core V2 kinematic reconstruction, not a hardcoded-ratio
+script. The tooth counts remain a fitted candidate set chosen to reproduce the
+published W5A-580 ratio spread closely; they are not claimed to be OEM-
+confirmed geometry data.
 """
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 from dataclasses import dataclass
-from typing import Dict, List, Mapping, Optional, Sequence, Tuple
+from typing import Dict, List, Mapping, Optional, Sequence
 
-import sympy as sp
+try:
+    from ..core.clutch import Brake, Clutch, RotatingMember, Sprag
+    from ..core.planetary import PlanetaryGearSet
+    from ..core.solver import TransmissionSolver
+except Exception:  # pragma: no cover
+    try:
+        from core.clutch import Brake, Clutch, RotatingMember, Sprag  # type: ignore
+        from core.planetary import PlanetaryGearSet  # type: ignore
+        from core.solver import TransmissionSolver  # type: ignore
+    except Exception:  # pragma: no cover
+        from clutch import Brake, Clutch, RotatingMember, Sprag  # type: ignore
+        from planetary import PlanetaryGearSet  # type: ignore
+        from solver import TransmissionSolver  # type: ignore
 
 
 class FiveSpeedCliError(ValueError):
     """User-facing CLI/configuration error for five_speed.py."""
 
 
-@dataclass(frozen=True)
-class GearState:
-    name: str
-    display_elements: tuple[str, ...]
-    constrained_equalities: tuple[tuple[str, str], ...]
-    constrained_grounds: tuple[str, ...]
-    notes: str = ""
-
-
 DEFAULT_TOOTH_COUNTS: Mapping[str, int] = {
-    # Candidate set chosen to reproduce the published W5A-580 ratios closely:
-    # 1st ≈ 3.59, 2nd ≈ 2.19, 3rd ≈ 1.41, 4th = 1.00, 5th ≈ 0.83,
-    # R1 ≈ -3.16, R2 ≈ -1.93
     "Ns_f": 46,
     "Nr_f": 72,
     "Ns_r": 68,
@@ -103,126 +99,198 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
 }
 
 PRESET_NOTES: Mapping[str, str] = {
-    "w5a580_candidate": "Candidate tooth-count set fitted to the published W5A-580 ratio spread; not claimed as OEM-confirmed tooth data.",
+    "w5a580_candidate": (
+        "Candidate tooth-count set fitted to the published W5A-580 ratio spread; "
+        "not claimed as OEM-confirmed tooth data."
+    ),
 }
 
 
-STATE_ALIASES: Mapping[str, str] = {
-    "1": "1st",
-    "1st": "1st",
-    "first": "1st",
-    "2": "2nd",
-    "2nd": "2nd",
-    "second": "2nd",
-    "3": "3rd",
-    "3rd": "3rd",
-    "third": "3rd",
-    "4": "4th",
-    "4th": "4th",
-    "fourth": "4th",
-    "5": "5th",
-    "5th": "5th",
-    "fifth": "5th",
-    "r1": "R1",
-    "rev1": "R1",
-    "reverse1": "R1",
-    "reverse_1": "R1",
-    "reverse-first": "R1",
-    "r2": "R2",
-    "rev2": "R2",
-    "reverse2": "R2",
-    "reverse_2": "R2",
-    "reverse-second": "R2",
-    "n": "N",
-    "neutral": "N",
-}
+@dataclass(frozen=True)
+class GearState:
+    name: str
+    active_constraints: tuple[str, ...]
+    display_elements: tuple[str, ...]
+    notes: str = ""
+    manual_neutral: bool = False
 
 
-def validate_tooth_counts(counts: Mapping[str, int]) -> None:
-    labels = (
-        ("forward", int(counts["Ns_f"]), int(counts["Nr_f"])),
-        ("rear", int(counts["Ns_r"]), int(counts["Nr_r"])),
-        ("middle", int(counts["Ns_m"]), int(counts["Nr_m"])),
+@dataclass(frozen=True)
+class SolveResult:
+    state: str
+    engaged: tuple[str, ...]
+    speeds: Dict[str, float]
+    ratio: float
+    notes: str = ""
+    solver_path: str = "core_v2"
+
+
+def _validate_counts_basic(*, Ns: int, Nr: int, label: str) -> None:
+    if Ns <= 0 or Nr <= 0:
+        raise FiveSpeedCliError(f"Invalid {label} tooth counts: Ns and Nr must both be positive integers.")
+    if Nr <= Ns:
+        raise FiveSpeedCliError(
+            f"Invalid {label} tooth counts: ring gear teeth Nr ({Nr}) must be greater than sun gear teeth Ns ({Ns})."
+        )
+
+
+def _validate_counts_strict(*, Ns: int, Nr: int, label: str) -> None:
+    _validate_counts_basic(Ns=Ns, Nr=Nr, label=label)
+    if (Nr - Ns) % 2 != 0:
+        raise FiveSpeedCliError(
+            f"Invalid {label} tooth counts under strict geometry mode: (Nr - Ns) must be even so the implied "
+            f"planet tooth count is an integer. Got Ns={Ns}, Nr={Nr}, Nr-Ns={Nr - Ns}."
+        )
+
+
+def validate_tooth_counts(counts: Mapping[str, int], *, strict_geometry: bool) -> None:
+    validator = _validate_counts_strict if strict_geometry else _validate_counts_basic
+    validator(Ns=int(counts["Ns_f"]), Nr=int(counts["Nr_f"]), label="Forward gearset")
+    validator(Ns=int(counts["Ns_r"]), Nr=int(counts["Nr_r"]), label="Rear gearset")
+    validator(Ns=int(counts["Ns_m"]), Nr=int(counts["Nr_m"]), label="Middle gearset")
+
+
+def _make_planetary(
+    *,
+    Ns: int,
+    Nr: int,
+    name: str,
+    sun: RotatingMember,
+    ring: RotatingMember,
+    carrier: RotatingMember,
+    strict_geometry: bool,
+):
+    geometry_mode = "strict" if strict_geometry else "relaxed"
+    try:
+        sig = inspect.signature(PlanetaryGearSet)
+        if "geometry_mode" in sig.parameters:
+            return PlanetaryGearSet(
+                Ns=Ns,
+                Nr=Nr,
+                name=name,
+                sun=sun,
+                ring=ring,
+                carrier=carrier,
+                geometry_mode=geometry_mode,
+            )
+    except Exception:
+        pass
+
+    return PlanetaryGearSet(
+        Ns=Ns,
+        Nr=Nr,
+        name=name,
+        sun=sun,
+        ring=ring,
+        carrier=carrier,
     )
-    for label, Ns, Nr in labels:
-        if Ns <= 0 or Nr <= 0:
-            raise FiveSpeedCliError(f"Invalid {label} tooth counts: Ns and Nr must both be positive integers.")
-        if Nr <= Ns:
-            raise FiveSpeedCliError(
-                f"Invalid {label} tooth counts: ring gear teeth Nr ({Nr}) must be greater than sun gear teeth Ns ({Ns})."
-            )
-        if (Nr - Ns) % 2 != 0:
-            raise FiveSpeedCliError(
-                f"Invalid {label} tooth counts: (Nr - Ns) must be even for a simple planetary interpretation. "
-                f"Got Ns={Ns}, Nr={Nr}, Nr-Ns={Nr - Ns}."
-            )
 
 
 class MercedesW5A580FiveSpeedTransmission:
-    """Three-planetary W5A-580 style transmission kinematic model."""
-
-    DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "R1", "R2", "N")
+    """Three-simple-planetary W5A-580 style transmission model on Core V2."""
 
     SHIFT_SCHEDULE: Mapping[str, GearState] = {
         "1st": GearState(
             name="1st",
+            active_constraints=("C3", "B1", "B2", "F1", "F2"),
             display_elements=("C3(overrun)", "B1(overrun)", "B2", "F1", "F2"),
-            constrained_equalities=(),
-            constrained_grounds=("fs", "rs", "ms"),
-            notes="Forward sun held, rear sun held, middle sun held. Three reductions in cascade.",
+            notes=(
+                "Forward, rear, and middle suns are all held; the three planetary sets reduce speed in cascade."
+            ),
         ),
         "2nd": GearState(
             name="2nd",
+            active_constraints=("C1", "C3", "B2", "F2"),
             display_elements=("C1", "C3(overrun)", "B2", "F2"),
-            constrained_equalities=(("fs", "input"),),
-            constrained_grounds=("rs", "ms"),
-            notes="Forward set rotates as a block; rear and middle sets still reduce speed.",
+            notes=(
+                "C1 locks the forward set so it rotates as a block; rear and middle sets still provide reduction."
+            ),
         ),
         "3rd": GearState(
             name="3rd",
+            active_constraints=("C1", "C2", "B2"),
             display_elements=("C1", "C2", "B2"),
-            constrained_equalities=(("fs", "input"), ("rc", "input")),
-            constrained_grounds=("ms",),
-            notes="Drive reaches the middle ring directly through C2; ratio occurs only in the middle set.",
+            notes="Drive reaches the middle ring directly through C2; the ratio occurs only through the middle set.",
         ),
         "4th": GearState(
             name="4th",
+            active_constraints=("C1", "C2", "C3"),
             display_elements=("C1", "C2", "C3"),
-            constrained_equalities=(("fs", "input"), ("rc", "input"), ("rs", "ms")),
-            constrained_grounds=(),
-            notes="All three planetary sets are locked; direct drive.",
+            notes="All three planetary gearsets are locked; direct drive.",
         ),
         "5th": GearState(
             name="5th",
+            active_constraints=("C2", "C3", "B1"),
             display_elements=("C2", "C3", "B1", "F1(overrun)"),
-            constrained_equalities=(("rc", "input"), ("rs", "ms")),
-            constrained_grounds=("fs",),
-            notes="Forward set reduces the rear-ring speed while C2 drives the middle-ring / rear-carrier node, producing overdrive.",
+            notes=(
+                "The forward set is shifted like 1st while C2 drives the rear-carrier/middle-ring node, producing overdrive."
+            ),
         ),
         "R1": GearState(
             name="R1",
+            active_constraints=("C3", "BR", "F1", "B1"),
             display_elements=("C3(overrun)", "B1(overrun)", "BR", "F1", "F2"),
-            constrained_equalities=(("rs", "ms"),),
-            constrained_grounds=("fs", "rc"),
-            notes="Forward set reduced speed feeds the rear ring while BR grounds the rear-carrier / middle-ring node; output reverses.",
+            notes=(
+                "Forward set reduced speed feeds the rear ring while BR grounds the rear-carrier/middle-ring node; output reverses."
+            ),
         ),
         "R2": GearState(
             name="R2",
+            active_constraints=("C1", "C3", "BR"),
             display_elements=("C1", "C3(overrun)", "BR", "F2"),
-            constrained_equalities=(("fs", "input"), ("rs", "ms")),
-            constrained_grounds=("rc",),
-            notes="Second reverse analogous to second gear: forward set locked, BR grounds the rear-carrier / middle-ring node.",
+            notes="Second reverse analogous to second gear with BR grounding the rear-carrier/middle-ring node.",
         ),
         "N": GearState(
             name="N",
+            active_constraints=("C3", "B1"),
             display_elements=("C3", "B1"),
-            constrained_equalities=(("rs", "ms"),),
-            constrained_grounds=("fs",),
-            notes="Neutral is reported by operating convention. The output is treated as stationary for display purposes.",
+            notes="Neutral is reported by operating convention; output is shown stationary.",
+            manual_neutral=True,
         ),
     }
 
-    def __init__(self, *, Ns_f: int, Nr_f: int, Ns_r: int, Nr_r: int, Ns_m: int, Nr_m: int) -> None:
+    DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "R1", "R2", "N")
+
+    STATE_ALIASES: Mapping[str, str] = {
+        "1": "1st",
+        "1st": "1st",
+        "first": "1st",
+        "2": "2nd",
+        "2nd": "2nd",
+        "second": "2nd",
+        "3": "3rd",
+        "3rd": "3rd",
+        "third": "3rd",
+        "4": "4th",
+        "4th": "4th",
+        "fourth": "4th",
+        "5": "5th",
+        "5th": "5th",
+        "fifth": "5th",
+        "r1": "R1",
+        "rev1": "R1",
+        "reverse1": "R1",
+        "reverse_1": "R1",
+        "r2": "R2",
+        "rev2": "R2",
+        "reverse2": "R2",
+        "reverse_2": "R2",
+        "n": "N",
+        "neutral": "N",
+    }
+
+    def __init__(
+        self,
+        *,
+        Ns_f: int,
+        Nr_f: int,
+        Ns_r: int,
+        Nr_r: int,
+        Ns_m: int,
+        Nr_m: int,
+        strict_geometry: bool = True,
+    ) -> None:
+        self.strict_geometry = bool(strict_geometry)
         self.tooth_counts: Dict[str, int] = {
             "Ns_f": int(Ns_f),
             "Nr_f": int(Nr_f),
@@ -231,119 +299,181 @@ class MercedesW5A580FiveSpeedTransmission:
             "Ns_m": int(Ns_m),
             "Nr_m": int(Nr_m),
         }
-        validate_tooth_counts(self.tooth_counts)
-        self.Ns_f = int(Ns_f)
-        self.Nr_f = int(Nr_f)
-        self.Ns_r = int(Ns_r)
-        self.Nr_r = int(Nr_r)
-        self.Ns_m = int(Ns_m)
-        self.Nr_m = int(Nr_m)
-        self.member_names: tuple[str, ...] = ("input", "fs", "fc", "rs", "rc", "ms", "out")
+        self._build_topology(**self.tooth_counts)
 
-    @staticmethod
-    def normalize_state_name(state: str) -> str:
+    @classmethod
+    def normalize_state_name(cls, state: str) -> str:
         key = state.strip().lower()
         if key == "all":
             return "all"
-        if key not in STATE_ALIASES:
+        if key not in cls.STATE_ALIASES:
             raise FiveSpeedCliError(
-                "Unknown state: {}. Valid states are 1st, 2nd, 3rd, 4th, 5th, R1, R2, N, or all.".format(state)
+                f"Unknown state: {state}. Valid states are 1st, 2nd, 3rd, 4th, 5th, R1, R2, N, or all."
             )
-        return STATE_ALIASES[key]
+        return cls.STATE_ALIASES[key]
 
-    def _symbols(self) -> Dict[str, sp.Symbol]:
-        return {name: sp.symbols(f"w_{name}") for name in self.member_names}
+    def _build_topology(self, *, Ns_f: int, Nr_f: int, Ns_r: int, Nr_r: int, Ns_m: int, Nr_m: int) -> None:
+        self.input = RotatingMember("input")
+        self.forward_sun = RotatingMember("forward_sun")
+        self.forward_carrier = RotatingMember("forward_carrier")
+        self.rear_sun = RotatingMember("rear_sun")
+        self.rear_carrier = RotatingMember("rear_carrier")
+        self.middle_sun = RotatingMember("middle_sun")
+        self.output = RotatingMember("output")
 
-    def _planetary_equations(self, s: Mapping[str, sp.Symbol]) -> List[sp.Expr]:
-        return [
-            self.Ns_f * (s["fs"] - s["fc"]) + self.Nr_f * (s["input"] - s["fc"]),
-            self.Ns_r * (s["rs"] - s["rc"]) + self.Nr_r * (s["fc"] - s["rc"]),
-            self.Ns_m * (s["ms"] - s["out"]) + self.Nr_m * (s["rc"] - s["out"]),
-        ]
-
-    @staticmethod
-    def _constraint_equations(state: GearState, s: Mapping[str, sp.Symbol]) -> List[sp.Expr]:
-        eqs: List[sp.Expr] = []
-        for a, b in state.constrained_equalities:
-            eqs.append(s[a] - s[b])
-        for name in state.constrained_grounds:
-            eqs.append(s[name])
-        return eqs
-
-    def solve(self, state: str, *, input_speed: float = 1.0) -> Dict[str, object]:
-        normalized = self.normalize_state_name(state)
-        if normalized == "all":
-            raise FiveSpeedCliError("Use solve_all() when state='all'.")
-
-        gear_state = self.SHIFT_SCHEDULE[normalized]
-
-        if normalized == "N":
-            return {
-                "state": gear_state.name,
-                "engaged": list(gear_state.display_elements),
-                "speeds": {
-                    "input": float(input_speed),
-                    "fs": 0.0,
-                    "fc": 0.0,
-                    "rs": 0.0,
-                    "rc": 0.0,
-                    "ms": 0.0,
-                    "out": 0.0,
-                },
-                "ratio": 0.0,
-                "ratio_signed": 0.0,
-                "notes": gear_state.notes,
-            }
-
-        s = self._symbols()
-        equations: List[sp.Expr] = []
-        equations.extend(self._planetary_equations(s))
-        equations.extend(self._constraint_equations(gear_state, s))
-        equations.append(s["input"] - float(input_speed))
-
-        variables = [s[name] for name in self.member_names]
-        solutions = sp.solve(equations, variables, dict=True)
-        if not solutions:
-            raise RuntimeError(f"No kinematic solution found for state {normalized}")
-
-        sol = solutions[0]
-        speeds: Dict[str, float] = {}
-        for name in self.member_names:
-            sym = s[name]
-            if sym not in sol:
-                raise RuntimeError(f"Undetermined variable in state {normalized}: {name}")
-            speeds[name] = float(sol[sym])
-
-        output_speed = speeds["out"]
-        if abs(output_speed) < 1.0e-12:
-            raise RuntimeError(f"Output speed is zero in state {normalized}; ratio undefined")
-
-        ratio_signed = float(input_speed) / output_speed
-        ratio_display = ratio_signed if normalized in {"R1", "R2"} else abs(ratio_signed)
-
-        return {
-            "state": gear_state.name,
-            "engaged": list(gear_state.display_elements),
-            "speeds": speeds,
-            "ratio": float(ratio_display),
-            "ratio_signed": float(ratio_signed),
-            "notes": gear_state.notes,
+        self.members: Dict[str, RotatingMember] = {
+            "input": self.input,
+            "forward_sun": self.forward_sun,
+            "forward_carrier": self.forward_carrier,
+            "rear_sun": self.rear_sun,
+            "rear_carrier": self.rear_carrier,
+            "middle_sun": self.middle_sun,
+            "output": self.output,
         }
 
-    def solve_all(self) -> Dict[str, Dict[str, object]]:
-        return {label: self.solve(label) for label in self.DISPLAY_ORDER}
+        self.pg_forward = _make_planetary(
+            Ns=Ns_f,
+            Nr=Nr_f,
+            name="PG_forward",
+            sun=self.forward_sun,
+            ring=self.input,
+            carrier=self.forward_carrier,
+            strict_geometry=self.strict_geometry,
+        )
+        self.pg_rear = _make_planetary(
+            Ns=Ns_r,
+            Nr=Nr_r,
+            name="PG_rear",
+            sun=self.rear_sun,
+            ring=self.forward_carrier,
+            carrier=self.rear_carrier,
+            strict_geometry=self.strict_geometry,
+        )
+        self.pg_middle = _make_planetary(
+            Ns=Ns_m,
+            Nr=Nr_m,
+            name="PG_middle",
+            sun=self.middle_sun,
+            ring=self.rear_carrier,
+            carrier=self.output,
+            strict_geometry=self.strict_geometry,
+        )
+        self.gearsets: List[PlanetaryGearSet] = [self.pg_forward, self.pg_rear, self.pg_middle]
 
+        self.C1 = Clutch(self.input, self.forward_sun, name="C1")
+        self.C2 = Clutch(self.input, self.rear_carrier, name="C2")
+        self.C3 = Clutch(self.rear_sun, self.middle_sun, name="C3")
+        self.B1 = Brake(self.forward_sun, name="B1")
+        self.B2 = Brake(self.middle_sun, name="B2")
+        self.BR = Brake(self.rear_carrier, name="BR")
+        self.F1 = Sprag(self.forward_sun, hold_direction="negative", name="F1")
+        self.F2 = Sprag(self.rear_sun, hold_direction="negative", name="F2")
+
+        self.constraints: Dict[str, object] = {
+            "C1": self.C1,
+            "C2": self.C2,
+            "C3": self.C3,
+            "B1": self.B1,
+            "B2": self.B2,
+            "BR": self.BR,
+            "F1": self.F1,
+            "F2": self.F2,
+        }
+
+    def release_all(self) -> None:
+        for c in self.constraints.values():
+            c.release()  # type: ignore[attr-defined]
+
+    def set_state(self, state: str) -> GearState:
+        key = self.normalize_state_name(state)
+        if key == "all":
+            raise FiveSpeedCliError("Use solve_all() when state='all'.")
+        gs = self.SHIFT_SCHEDULE[key]
+        self.release_all()
+        for name in gs.active_constraints:
+            self.constraints[name].engage()  # type: ignore[attr-defined]
+        return gs
+
+    def _solve_core_v2(self, *, input_speed: float) -> Dict[str, float]:
+        solver = TransmissionSolver()
+
+        if hasattr(solver, "add_members"):
+            solver.add_members(self.members.values())  # type: ignore[attr-defined]
+        else:
+            for member in self.members.values():
+                solver.add_member(member)
+
+        solver.add_gearset(self.pg_forward)
+        solver.add_gearset(self.pg_rear)
+        solver.add_gearset(self.pg_middle)
+
+        solver.add_clutch(self.C1)
+        solver.add_clutch(self.C2)
+        solver.add_clutch(self.C3)
+        solver.add_brake(self.B1)
+        solver.add_brake(self.B2)
+        solver.add_brake(self.BR)
+        solver.add_brake(self.F1)  # type: ignore[arg-type]
+        solver.add_brake(self.F2)  # type: ignore[arg-type]
+
+        if hasattr(solver, "solve_report"):
+            report = solver.solve_report(input_member="input", input_speed=float(input_speed))  # type: ignore[attr-defined]
+            if not getattr(report, "ok", False):
+                message = getattr(getattr(report, "classification", None), "message", "Solver failed")
+                raise FiveSpeedCliError(str(message))
+            speeds = dict(report.member_speeds)  # type: ignore[attr-defined]
+        else:
+            speeds = dict(solver.solve("input", float(input_speed)))
+
+        if "input" not in speeds:
+            speeds["input"] = float(input_speed)
+        return {name: float(value) for name, value in speeds.items()}
+
+    def solve_state(self, state: str, *, input_speed: float = 1.0) -> SolveResult:
+        gs = self.set_state(state)
+
+        if gs.manual_neutral:
+            speeds = {
+                "input": float(input_speed),
+                "forward_sun": 0.0,
+                "forward_carrier": 0.0,
+                "rear_sun": 0.0,
+                "rear_carrier": 0.0,
+                "middle_sun": 0.0,
+                "output": 0.0,
+            }
+            return SolveResult(gs.name, gs.display_elements, speeds, 0.0, gs.notes, solver_path="core_v2")
+
+        speeds = self._solve_core_v2(input_speed=float(input_speed))
+
+        if abs(float(speeds["output"])) < 1.0e-12:
+            raise FiveSpeedCliError(f"Output speed is zero for state {gs.name}; ratio is undefined.")
+
+        ratio_signed = float(input_speed) / float(speeds["output"])
+        ratio = ratio_signed if gs.name in {"R1", "R2"} else abs(ratio_signed)
+        display_speeds = {
+            "input": float(speeds["input"]),
+            "forward_sun": float(speeds["forward_sun"]),
+            "forward_carrier": float(speeds["forward_carrier"]),
+            "rear_sun": float(speeds["rear_sun"]),
+            "rear_carrier": float(speeds["rear_carrier"]),
+            "middle_sun": float(speeds["middle_sun"]),
+            "output": float(speeds["output"]),
+        }
+        return SolveResult(gs.name, gs.display_elements, display_speeds, float(ratio), gs.notes, solver_path="core_v2")
+
+    def solve_all(self, *, input_speed: float = 1.0) -> Dict[str, SolveResult]:
+        return {state: self.solve_state(state, input_speed=float(input_speed)) for state in self.DISPLAY_ORDER}
 
 
 def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
-    counts = dict(DEFAULT_TOOTH_COUNTS)
-
-    if args.preset:
+    if args.preset is None:
+        counts = dict(DEFAULT_TOOTH_COUNTS)
+    else:
         if args.preset not in PRESETS:
-            raise FiveSpeedCliError(
-                f"Unknown preset '{args.preset}'. Available presets: {', '.join(sorted(PRESETS))}"
-            )
-        counts.update(PRESETS[args.preset])
+            valid = ", ".join(sorted(PRESETS))
+            raise FiveSpeedCliError(f"Unknown preset: {args.preset}. Valid presets: {valid}")
+        counts = dict(PRESETS[args.preset])
 
     overrides = {
         "Ns_f": args.Ns_f,
@@ -357,66 +487,19 @@ def _resolve_tooth_counts(args: argparse.Namespace) -> Dict[str, int]:
         if value is not None:
             counts[key] = int(value)
 
-    validate_tooth_counts(counts)
+    validate_tooth_counts(counts, strict_geometry=bool(args.strict_geometry))
     return counts
 
 
-
-def _print_tooth_counts(counts: Mapping[str, int], *, preset: Optional[str] = None) -> None:
-    print("Tooth Counts")
-    print("------------------------------------------------------------")
-    print(f"Forward set: Ns_f={counts['Ns_f']}, Nr_f={counts['Nr_f']}")
-    print(f"Rear set   : Ns_r={counts['Ns_r']}, Nr_r={counts['Nr_r']}")
-    print(f"Middle set : Ns_m={counts['Ns_m']}, Nr_m={counts['Nr_m']}")
-    if preset and preset in PRESET_NOTES:
-        print(f"Preset note: {PRESET_NOTES[preset]}")
-    print()
-
-
-
-def _print_single(result: Mapping[str, object], *, tooth_counts: Mapping[str, int], preset: Optional[str]) -> None:
-    _print_tooth_counts(tooth_counts, preset=preset)
-    print(f"State: {result['state']}")
-    print(f"Engaged: {' + '.join(result['engaged'])}")
-    print(f"Ratio (input/output): {float(result['ratio']):.6f}")
-    print(f"Notes: {result['notes']}")
-    print(json.dumps(result['speeds'], indent=2))
-
-
-
-def _print_all(results: Mapping[str, Mapping[str, object]], *, tooth_counts: Mapping[str, int], preset: Optional[str]) -> None:
-    _print_tooth_counts(tooth_counts, preset=preset)
-    print("Mercedes-Benz W5A-580 5-Speed Kinematic Summary")
-    print("-" * 128)
-    print(f"{'State':<6} {'Elems':<34} {'Ratio':>8} {'Input':>9} {'F.sun':>9} {'F.car':>9} {'R.sun':>9} {'R.car':>9} {'M.sun':>9} {'Out':>9}")
-    print("-" * 128)
-    for key in MercedesW5A580FiveSpeedTransmission.DISPLAY_ORDER:
-        r = results[key]
-        s = r['speeds']
-        print(
-            f"{key:<6} {'+'.join(r['engaged']):<34} "
-            f"{float(r['ratio']):>8.3f} "
-            f"{float(s['input']):>9.3f} "
-            f"{float(s['fs']):>9.3f} "
-            f"{float(s['fc']):>9.3f} "
-            f"{float(s['rs']):>9.3f} "
-            f"{float(s['rc']):>9.3f} "
-            f"{float(s['ms']):>9.3f} "
-            f"{float(s['out']):>9.3f}"
-        )
-
-
-
-def _print_ratios_only(results: Mapping[str, Mapping[str, object]], *, as_json: bool = False) -> None:
-    payload = {key: float(results[key]['ratio']) for key in MercedesW5A580FiveSpeedTransmission.DISPLAY_ORDER}
-    if as_json:
-        print(json.dumps(payload, indent=2))
-        return
-    print("Ratios Only")
-    print("------------------------------------------------------------")
-    for key in MercedesW5A580FiveSpeedTransmission.DISPLAY_ORDER:
-        print(f"{key:>3}: {payload[key]:.6f}")
-
+def _payload(result: SolveResult) -> Dict[str, object]:
+    return {
+        "state": result.state,
+        "engaged": list(result.engaged),
+        "speeds": dict(result.speeds),
+        "ratio": result.ratio,
+        "notes": result.notes,
+        "solver_path": result.solver_path,
+    }
 
 
 def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Optional[Mapping[str, int]] = None) -> int:
@@ -424,6 +507,7 @@ def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Opt
         "ok": False,
         "error": message,
         "preset": getattr(args, "preset", None),
+        "strict_geometry": bool(getattr(args, "strict_geometry", False)),
     }
     if tooth_counts is not None:
         payload["tooth_counts"] = dict(tooth_counts)
@@ -436,30 +520,88 @@ def _emit_cli_error(*, args: argparse.Namespace, message: str, tooth_counts: Opt
         print(message, file=sys.stderr)
         if tooth_counts is not None:
             print(
-                f"Forward: Ns_f={tooth_counts['Ns_f']}, Nr_f={tooth_counts['Nr_f']} | "
-                f"Rear: Ns_r={tooth_counts['Ns_r']}, Nr_r={tooth_counts['Nr_r']} | "
-                f"Middle: Ns_m={tooth_counts['Ns_m']}, Nr_m={tooth_counts['Nr_m']}",
+                "Tooth counts: "
+                f"Forward(Ns_f={tooth_counts['Ns_f']}, Nr_f={tooth_counts['Nr_f']}), "
+                f"Rear(Ns_r={tooth_counts['Ns_r']}, Nr_r={tooth_counts['Nr_r']}), "
+                f"Middle(Ns_m={tooth_counts['Ns_m']}, Nr_m={tooth_counts['Nr_m']})",
                 file=sys.stderr,
             )
     return 2
 
 
-
 def build_arg_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Mercedes-Benz W5A-580 5-speed automatic transmission kinematic solver")
-    p.add_argument("--state", default="all", help="State to solve: 1st, 2nd, 3rd, 4th, 5th, R1, R2, N, or all")
-    p.add_argument("--json", action="store_true", help="Emit JSON output")
-    p.add_argument("--ratios-only", action="store_true", help="Print only the ratios")
-    p.add_argument("--preset", choices=sorted(PRESETS.keys()), default="w5a580_candidate", help="Named tooth-count preset")
+    p.add_argument("--state", default="all", help="State to solve: all, 1st, 2nd, 3rd, 4th, 5th, R1, R2, N")
+    p.add_argument("--preset", default="w5a580_candidate", help="Named tooth-count configuration")
+    p.add_argument("--strict-geometry", action="store_true", help="Enforce strict simple-planetary integer-planet geometry checks")
     p.add_argument("--list-presets", action="store_true", help="List available presets and exit")
-    p.add_argument("--Ns-f", dest="Ns_f", type=int, default=None, help="Forward-set sun tooth count")
-    p.add_argument("--Nr-f", dest="Nr_f", type=int, default=None, help="Forward-set ring tooth count")
-    p.add_argument("--Ns-r", dest="Ns_r", type=int, default=None, help="Rear-set sun tooth count")
-    p.add_argument("--Nr-r", dest="Nr_r", type=int, default=None, help="Rear-set ring tooth count")
-    p.add_argument("--Ns-m", dest="Ns_m", type=int, default=None, help="Middle-set sun tooth count")
-    p.add_argument("--Nr-m", dest="Nr_m", type=int, default=None, help="Middle-set ring tooth count")
+    p.add_argument("--json", action="store_true", help="Emit JSON output")
+    p.add_argument("--ratios-only", action="store_true", help="Emit only ratios")
+    p.add_argument("--Ns-f", dest="Ns_f", type=int, default=None, help="Forward gearset sun tooth count")
+    p.add_argument("--Nr-f", dest="Nr_f", type=int, default=None, help="Forward gearset ring tooth count")
+    p.add_argument("--Ns-r", dest="Ns_r", type=int, default=None, help="Rear gearset sun tooth count")
+    p.add_argument("--Nr-r", dest="Nr_r", type=int, default=None, help="Rear gearset ring tooth count")
+    p.add_argument("--Ns-m", dest="Ns_m", type=int, default=None, help="Middle gearset sun tooth count")
+    p.add_argument("--Nr-m", dest="Nr_m", type=int, default=None, help="Middle gearset ring tooth count")
     return p
 
+
+def _print_presets() -> None:
+    print("Available presets")
+    print("-----------------")
+    for name, counts in PRESETS.items():
+        note = PRESET_NOTES.get(name, "")
+        print(
+            f"{name:18s} "
+            f"Ns_f={counts['Ns_f']} Nr_f={counts['Nr_f']} "
+            f"Ns_r={counts['Ns_r']} Nr_r={counts['Nr_r']} "
+            f"Ns_m={counts['Ns_m']} Nr_m={counts['Nr_m']}"
+        )
+        if note:
+            print(f"  note: {note}")
+
+
+def _print_summary(*, counts: Mapping[str, int], results: Dict[str, SolveResult], ratios_only: bool, strict_geometry: bool, preset: Optional[str]) -> None:
+    print("Tooth Counts")
+    print("------------------------------------------------------------")
+    print(f"Forward set: Ns_f={counts['Ns_f']}, Nr_f={counts['Nr_f']}")
+    print(f"Rear set   : Ns_r={counts['Ns_r']}, Nr_r={counts['Nr_r']}")
+    print(f"Middle set : Ns_m={counts['Ns_m']}, Nr_m={counts['Nr_m']}")
+    if preset and preset in PRESET_NOTES:
+        print(f"Preset note: {PRESET_NOTES[preset]}")
+    print()
+
+    print("Mercedes-Benz W5A-580 5-Speed Kinematic Summary")
+    print("-" * 144)
+    print(f"Geometry mode: {'strict' if strict_geometry else 'relaxed'}")
+    print(f"Solver path: {next(iter(results.values())).solver_path if results else 'core_v2'}")
+    print("-" * 144)
+    if ratios_only:
+        print(f"{'State':<6s} {'Elems':<34s} {'Ratio':>10s}")
+        print("-" * 144)
+        for state, result in results.items():
+            elems = "+".join(result.engaged)
+            print(f"{state:<6s} {elems:<34s} {result.ratio:>10.3f}")
+        return
+
+    print(
+        f"{'State':<6s} {'Elems':<34s} {'Ratio':>8s} "
+        f"{'Input':>9s} {'F.sun':>9s} {'F.car':>9s} {'R.sun':>9s} {'R.car':>9s} {'M.sun':>9s} {'Out':>9s}"
+    )
+    print("-" * 144)
+    for state, result in results.items():
+        s = result.speeds
+        print(
+            f"{state:<6s} {'+'.join(result.engaged):<34s} "
+            f"{result.ratio:>8.3f} "
+            f"{s['input']:>9.3f} "
+            f"{s['forward_sun']:>9.3f} "
+            f"{s['forward_carrier']:>9.3f} "
+            f"{s['rear_sun']:>9.3f} "
+            f"{s['rear_carrier']:>9.3f} "
+            f"{s['middle_sun']:>9.3f} "
+            f"{s['output']:>9.3f}"
+        )
 
 
 def main(argv: Optional[List[str]] = None) -> int:
@@ -467,89 +609,90 @@ def main(argv: Optional[List[str]] = None) -> int:
     args = parser.parse_args(argv)
 
     if args.list_presets:
-        payload = {
-            name: {
-                "tooth_counts": dict(values),
-                "note": PRESET_NOTES.get(name, ""),
-            }
-            for name, values in PRESETS.items()
-        }
         if args.json:
+            payload = {
+                name: {
+                    "tooth_counts": dict(values),
+                    "note": PRESET_NOTES.get(name, ""),
+                }
+                for name, values in PRESETS.items()
+            }
             print(json.dumps(payload, indent=2))
         else:
-            print("Available presets")
-            print("------------------------------------------------------------")
-            for name, data in payload.items():
-                values = data["tooth_counts"]
-                print(
-                    f"{name}: Ns_f={values['Ns_f']}, Nr_f={values['Nr_f']}, "
-                    f"Ns_r={values['Ns_r']}, Nr_r={values['Nr_r']}, "
-                    f"Ns_m={values['Ns_m']}, Nr_m={values['Nr_m']}"
-                )
-                if data["note"]:
-                    print(f"  note: {data['note']}")
+            _print_presets()
         return 0
 
     tooth_counts: Dict[str, int] = {}
     try:
         tooth_counts = _resolve_tooth_counts(args)
-        tx = MercedesW5A580FiveSpeedTransmission(**tooth_counts)
-        normalized = MercedesW5A580FiveSpeedTransmission.normalize_state_name(args.state)
+        tx = MercedesW5A580FiveSpeedTransmission(
+            **tooth_counts,
+            strict_geometry=bool(args.strict_geometry),
+        )
+        normalized = tx.normalize_state_name(args.state)
 
         if normalized == "all":
             results = tx.solve_all()
             if args.json:
-                payload = {
+                payload: Dict[str, object] = {
                     "ok": True,
                     "preset": args.preset,
                     "preset_note": PRESET_NOTES.get(args.preset, ""),
+                    "strict_geometry": bool(args.strict_geometry),
                     "tooth_counts": tooth_counts,
-                    "results": results,
+                    "results": {state: _payload(result) for state, result in results.items()},
                 }
                 if args.ratios_only:
                     payload = {
                         "ok": True,
                         "preset": args.preset,
                         "preset_note": PRESET_NOTES.get(args.preset, ""),
+                        "strict_geometry": bool(args.strict_geometry),
                         "tooth_counts": tooth_counts,
-                        "ratios": {key: float(results[key]['ratio']) for key in tx.DISPLAY_ORDER},
+                        "ratios": {state: results[state].ratio for state in tx.DISPLAY_ORDER},
                     }
                 print(json.dumps(payload, indent=2))
                 return 0
-            if args.ratios_only:
-                _print_tooth_counts(tooth_counts, preset=args.preset)
-                _print_ratios_only(results, as_json=False)
-                return 0
-            _print_all(results, tooth_counts=tooth_counts, preset=args.preset)
+
+            _print_summary(
+                counts=tooth_counts,
+                results=results,
+                ratios_only=bool(args.ratios_only),
+                strict_geometry=bool(args.strict_geometry),
+                preset=args.preset,
+            )
             return 0
 
-        result = tx.solve(normalized)
+        result = tx.solve_state(normalized)
         if args.json:
             payload = {
                 "ok": True,
                 "preset": args.preset,
                 "preset_note": PRESET_NOTES.get(args.preset, ""),
+                "strict_geometry": bool(args.strict_geometry),
                 "tooth_counts": tooth_counts,
-                "result": result,
+                "result": _payload(result),
             }
             if args.ratios_only:
                 payload = {
                     "ok": True,
                     "preset": args.preset,
                     "preset_note": PRESET_NOTES.get(args.preset, ""),
+                    "strict_geometry": bool(args.strict_geometry),
                     "tooth_counts": tooth_counts,
-                    "state": result['state'],
-                    "ratio": float(result['ratio']),
+                    "state": result.state,
+                    "ratio": result.ratio,
                 }
             print(json.dumps(payload, indent=2))
             return 0
 
-        if args.ratios_only:
-            _print_tooth_counts(tooth_counts, preset=args.preset)
-            print(f"{result['state']}: {float(result['ratio']):.6f}")
-            return 0
-
-        _print_single(result, tooth_counts=tooth_counts, preset=args.preset)
+        _print_summary(
+            counts=tooth_counts,
+            results={result.state: result},
+            ratios_only=bool(args.ratios_only),
+            strict_geometry=bool(args.strict_geometry),
+            preset=args.preset,
+        )
         return 0
 
     except FiveSpeedCliError as exc:

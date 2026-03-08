@@ -1,0 +1,466 @@
+Yes. Now `five_speed.py` is using the app the way it was meant to be used.
+
+What that means in practice:
+
+* it is built on the shared transmission core
+* the planetary sets are instantiated as reusable core objects
+* clutches, brakes, and sprags/freewheels are modeled as reusable constraint objects
+* the state solution is going through the common solver path, which your output confirms as `Solver path: core_v2`
+
+So this is no longer the earlier standalone SymPy one-off reconstruction. It is now aligned with the same architectural idea as `three_speed.py` and `six_speed.py`.
+
+The only caveat that still remains is not about architecture, but about data:
+
+* the tooth counts are still a fitted candidate set
+* they are not OEM-confirmed tooth counts
+
+So the honest engineering summary is:
+
+> Architecturally, yes, `five_speed.py` is now implemented correctly on the reusable core framework.
+> Kinematically, the ratios are being produced by the shared solver and constraints, not by cheating.
+> The only non-authoritative part is the chosen tooth-count set, which is fitted to match the published ratio spread.
+
+That is a solid and defensible place to be.
+
+---
+
+Yes — the **5-speed W5A-580** is much easier to understand than the 7-speed once you strip away the ugly book drawing.
+
+## Big picture
+
+This transmission uses:
+
+* a **forward simple planetary set**
+* a **rear simple planetary set**
+* a **middle simple planetary set**
+
+So unlike the 7-speed, there is **no inverse Ravigneaux** in front.
+It is just **three simple planetary gearsets coupled in series**.
+
+The overall flow is:
+
+> **input → forward set → rear set → middle set → output**
+
+with some extra cross-connections through clutches and brakes.
+
+---
+
+## The three most important permanent mechanical links
+
+These are the backbone of the transmission.
+
+### 1) Forward carrier drives the rear ring
+
+This is the first cascade connection:
+
+* **forward carrier = rear ring**
+
+So the forward set does not drive the output directly.
+Its carrier becomes the input member for the rear set, through the rear ring.
+
+In the model:
+
+* `F.car -> rear ring`
+
+---
+
+### 2) Rear carrier drives the middle ring
+
+This is the second cascade connection:
+
+* **rear carrier = middle ring**
+
+So the rear set feeds the middle set.
+
+In the model:
+
+* `R.car -> middle ring`
+
+---
+
+### 3) Middle carrier is the output shaft
+
+This is the final output link:
+
+* **middle carrier = output**
+
+So the transmission output is taken from the **carrier of the middle planetary set**.
+
+In the model:
+
+* `middle carrier -> Out`
+
+---
+
+## One very important sun-to-sun connection
+
+### C3 ties the rear sun and middle sun together
+
+This is one of the key coupling links in the W5A-580:
+
+* **rear sun = middle sun when C3 is applied**
+
+So when C3 is on, the rear and middle sets are coupled through their sun gears.
+
+That is why many of the ratios involve both the rear and middle sets working together.
+
+---
+
+## One very important direct-drive feed
+
+### C2 ties input directly to the middle ring / rear carrier node
+
+Since:
+
+* rear carrier = middle ring
+
+then when **C2** is applied, it ties:
+
+* **input**
+* **rear carrier**
+* **middle ring**
+
+all together.
+
+That is a big deal, because it lets the input bypass part of the earlier ratio path and drive the middle section more directly.
+That is how 3rd, 4th, and 5th move closer to direct and overdrive behavior.
+
+---
+
+## What the clutches and brakes actually act on
+
+Here is the clean node-level interpretation.
+
+### C1
+
+C1 connects the **input to the forward sun**.
+
+So:
+
+* **C1: input ↔ forward sun**
+
+When C1 is on, the forward sun is no longer grounded or freewheeling — it is driven by the input.
+
+---
+
+### C2
+
+C2 connects the **input to the rear-car / middle-ring node**.
+
+So:
+
+* **C2: input ↔ rear carrier ↔ middle ring**
+
+This is one of the most important clutches in the transmission.
+
+---
+
+### C3
+
+C3 connects the **rear sun to the middle sun**.
+
+So:
+
+* **C3: rear sun ↔ middle sun**
+
+---
+
+### B1
+
+B1 grounds the **forward sun**.
+
+So:
+
+* **B1: forward sun → ground**
+
+This provides the reaction member for the forward set in 1st gear and some other states.
+
+---
+
+### B2
+
+B2 grounds the **middle sun**.
+
+So:
+
+* **B2: middle sun → ground**
+
+When C3 is also applied, this effectively grounds both:
+
+* middle sun
+* rear sun
+
+because C3 ties them together.
+
+---
+
+### BR
+
+BR grounds the **rear carrier / middle ring node**.
+
+So:
+
+* **BR: rear carrier / middle ring → ground**
+
+That is mainly used in reverse.
+
+---
+
+### F1
+
+F1 is the freewheel associated with the **forward sun**.
+
+Functionally:
+
+* it supports the forward sun against reverse reaction torque in the appropriate direction
+* in overrun it can release
+
+So in 1st gear the forward sun is effectively supported by **F1 and/or B1** depending on torque direction.
+
+---
+
+### F2
+
+F2 is the freewheel associated with the **rear sun**.
+
+Functionally:
+
+* it supports the rear sun in the holding direction
+* releases in overrun
+
+In 1st and 2nd, the rear sun is supported through **F2**, and in some conditions also through C3/B2 combinations.
+
+---
+
+## The whole transmission as a node chain
+
+This is the cleanest way to picture it:
+
+* **Input** drives the **forward ring**
+* the **forward carrier** drives the **rear ring**
+* the **rear carrier** drives the **middle ring**
+* the **middle carrier** is the **output**
+* the **forward sun** can be grounded by B1, held by F1, or driven by C1
+* the **rear sun** can be held through F2 or tied to the middle sun by C3
+* the **middle sun** can be grounded by B2
+* the **rear sun and middle sun** can be tied together by C3
+* the **rear carrier / middle ring node** can be grounded by BR or driven by C2
+
+That is really the entire mechanism.
+
+---
+
+## Why the 5-speed works the way it does
+
+The transmission gets its different ratios by changing:
+
+* which member of the **forward set** is reaction or driven
+* whether the **rear and middle suns** are tied together
+* whether the **middle sun** is grounded
+* whether the **rear-car / middle-ring node** is grounded or driven
+
+So the first three stages create a cascading ratio action:
+
+1. forward set creates an intermediate speed
+2. rear set transforms that speed further
+3. middle set gives the final output ratio
+
+---
+
+## Gear-by-gear interpretation
+
+## 1st gear: `C3 + B1 + B2 + F1 + F2`
+
+Book wording says the forward sun is supported by F1/B1, and the rear sun is supported by F2 plus C3/B2 path.
+
+What this means functionally:
+
+* **B1/F1 hold the forward sun**
+* **forward ring is input**
+* forward set ratios, producing a reduced speed at the forward carrier
+* **forward carrier drives rear ring**
+* **C3 ties rear sun to middle sun**
+* **B2 grounds middle sun**
+* therefore rear sun is also effectively held
+* rear set ratios
+* **rear carrier drives middle ring**
+* **middle sun is grounded by B2**
+* middle set ratios
+* **middle carrier becomes output**
+
+So in 1st, **all three planetary sets are actively ratioing**.
+
+That is why the reduction is so deep.
+
+---
+
+## 2nd gear: `C1 + C3 + B2 + F2`
+
+Now:
+
+* **C1 drives the forward sun from input**
+* the forward set rotates as a block, or nearly so in the functional sense
+* therefore the forward stage no longer provides the same reduction as in 1st
+* the rear and middle stages still ratio as before:
+
+  * `C3` ties rear sun to middle sun
+  * `B2` grounds middle sun
+  * `F2` supports the rear sun in the holding direction
+
+So in 2nd:
+
+* the **rear and middle sets** still do the ratio work
+* the **forward set** is no longer the main source of reduction
+
+That is why 2nd is numerically much closer to 1 than 1st.
+
+---
+
+## 3rd gear: `C1 + C2 + B2`
+
+Now:
+
+* **C1** keeps the forward stage tied to input
+* **C2** drives the rear-car / middle-ring node directly from input
+* **B2** grounds the middle sun
+
+This means:
+
+* the middle set is now the main active ratioing set
+* the rear set is effectively carried along with the input path instead of acting as a reduction stage
+* the forward and rear sets behave more like locked members in the power path
+
+So in 3rd, the ratio is achieved **primarily through the middle set**.
+
+That matches the mechanism description you shared.
+
+---
+
+## 4th gear: `C1 + C2 + C3`
+
+Now:
+
+* C1 on
+* C2 on
+* C3 on
+
+No brake is providing a reaction member in the active path.
+
+So:
+
+* forward-related nodes are tied to input
+* rear-car / middle-ring node is tied to input
+* rear sun and middle sun are tied together
+* all three gearsets are effectively locked into common rotation
+
+So 4th is **direct drive**, ratio = **1.00**.
+
+This is the easiest gear to visualize.
+
+---
+
+## 5th gear: `C2 + C3 + B1`
+
+Now:
+
+* **B1 grounds the forward sun**
+* so the forward set once again ratios
+* but now **C2** drives the rear-car / middle-ring node directly at input speed
+* **C3** ties rear sun to middle sun
+
+This creates a different interaction:
+
+* the rear/middle side is being driven more directly
+* the coupled rear sun / middle sun is forced to rotate faster than input
+* the output, which is the middle carrier, ends up faster than input
+
+So 5th is an **overdrive**.
+
+That matches the book language: the middle sun and rear sun rotate more quickly than the turbine, and the output speed lies between ring and sun speeds.
+
+---
+
+## Reverse gears
+
+## R1: `C3 + B1 + BR + F1 + F2`
+
+Here:
+
+* forward sun is held by B1/F1
+* rear-car / middle-ring node is grounded by BR
+* rear sun and middle sun are tied by C3
+* the resulting kinematics force the middle carrier/output to rotate backward
+
+So reverse is produced mainly by:
+
+* grounding the rear-car / middle-ring node
+* coupling the suns
+* letting the planetary action invert the output direction
+
+---
+
+## R2: `C1 + C3 + BR + F2`
+
+Same general idea as R1, but:
+
+* C1 drives the forward sun instead of grounding it
+* BR still grounds the rear-car / middle-ring node
+* C3 still ties the rear and middle suns
+
+This gives a different reverse ratio.
+
+---
+
+## Neutral
+
+## N: `C3 + B1`
+
+This combination does not produce a driven output path.
+
+Even though some members are tied or held:
+
+* there is no complete torque path to the output
+* the output remains stationary
+
+---
+
+## The simplest way to remember the W5A-580
+
+Remember these four hard links:
+
+1. **Forward carrier → Rear ring**
+2. **Rear carrier → Middle ring**
+3. **Middle carrier → Output**
+4. **C3 ties Rear sun ↔ Middle sun**
+
+And these three controls:
+
+* **C1 drives forward sun from input**
+* **C2 drives rear-car / middle-ring node from input**
+* **B2 grounds middle sun**
+
+That is enough to mentally reconstruct almost every gear.
+
+---
+
+## Why the diagram is hard to read
+
+The book drawing is annoying because:
+
+* the three gearsets are nested visually
+* the shafts are drawn with overlapping vertical and horizontal segments
+* brakes and clutches are shown as little stubs without obvious node labels
+* the freewheels complicate the logic because they act only in one torque direction
+
+But underneath all that mess, the W5A-580 is actually a pretty logical chain of three simple planetary sets.
+
+It is much more readable once converted into node relationships instead of trying to decode the picture directly.
+
+If you want, next I can turn the 5-speed into a **node-by-node connection map** in the form:
+
+`input -> forward ring`
+`forward carrier -> rear ring`
+`rear carrier -> middle ring`
+`middle carrier -> output`
+
+with every clutch, brake, and freewheel listed against its exact node.
