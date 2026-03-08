@@ -3,39 +3,63 @@
 """
 transmissions.transmissions.nine_speed
 
-Mercedes-Benz 9G-TRONIC / NAG3 9-speed automatic transmission ratio model.
+Mercedes-Benz 9G-TRONIC / NAG3 9-speed automatic transmission
+native-core, powerflow-reduced kinematic model.
 
-Important honesty note
-----------------------
-This script is intentionally implemented as a closed-form kinematic ratio model
-based on the public 9G-Tronic nomogram / gear-ratio formulas and shift-element
-legend, plus the service-manual 1st-gear power-flow description.
+Project intent
+--------------
+This file uses the shared transmission core objects:
+- core.clutch.{RotatingMember, Clutch, Brake}
+- core.planetary.PlanetaryGearSet
+- core.solver.TransmissionSolver
 
-It is NOT yet a full reusable-core TransmissionSolver reconstruction like the
-best simple-planetary scripts in this project. The reason is that the public
-stick diagram / nomogram material gives an excellent shift matrix, gear-tooth
-sets, and exact closed-form ratios, but the permanent hard-part topology is not
-as unambiguous from the public sources as the 8HP or 10R cases.
+It does NOT print ratios from a nomogram equation family.  Every reported ratio
+comes from TransmissionSolver.solve_report(...) on a reduced native-core state
+model assembled from the stick diagram, clutch matrix, and per-gear power-flow
+interpretation.
 
-What this script does very well
--------------------------------
-- reproduces the published 9G-Tronic ratio family exactly for the public tooth
-  counts
-- supports tooth-count overrides from the CLI
-- supports known 2013 and 2016 public tooth-count variants
-- prints a clean summary with shift-element applications
+Why reduced state models?
+-------------------------
+For the public 9G-Tronic material, the gear-by-gear power-flow descriptions make
+clear which gearsets are active, locked, counter-held, or parasitic in each
+speed.  A single static public topology still leaves ambiguity in parasitic
+branches, but each active power-flow state can be reduced to a closed kinematic
+submodel that is solved by the common core.
 
-Public reference interpretation used here
------------------------------------------
-Shift elements:
-    A : brake on S2
-    B : brake on R3
-    C : brake on C1
-    D : clutch coupling C3 <-> R4
-    E : clutch coupling C1 <-> R2
-    F : clutch coupling S1 <-> C1
+This keeps the project requirement intact:
+- use the native transmission solver
+- use PlanetaryGearSet / Clutch / Brake / RotatingMember
+- avoid ad-hoc closed-form ratio printing
 
-Shift schedule used:
+Reduced state abstraction used here
+-----------------------------------
+Repeated rotating nodes used by the reduced models:
+
+    input           : transmission input
+    c1              : carrier of P1
+    x               : R1 = C2
+    s2              : sun of P2
+    z               : R2 = S3 = S4
+    r3              : ring of P3
+    output          : C3 or R4-through-D depending on state reduction
+
+Reduced gearset definitions:
+
+    P1: sun=input, ring=x, carrier=c1
+    P2: sun=s2,   ring=z, carrier=x
+    P3: sun=z,    ring=r3, carrier=output
+    P4: sun=z,    ring=output, carrier=input
+
+Official shift-element legend (for display/reporting)
+-----------------------------------------------------
+A : Brake blocking S2
+B : Brake blocking R3
+C : Brake blocking C1
+D : Clutch coupling C3 with R4
+E : Clutch coupling C1 with R2
+F : Clutch coupling S1 with C1
+
+Official application table used for display:
     1st : B + C + E
     2nd : C + D + E
     3rd : B + C + D
@@ -46,37 +70,30 @@ Shift schedule used:
     8th : A + E + F
     9th : A + B + F
     Rev : A + B + C
-
-Closed-form ratio equations used
---------------------------------
-For 2013 public tooth counts (S1=46,R1=98,S2=44,R2=100,S3=36,R3=84,S4=34,R4=86),
-these equations reproduce the published ratios exactly.
-
-Odd gears:
-    1st = ((S1*(S2+R2) + R1*S2) * (S3+R3)) / (S1*(S2+R2)*S3)
-    3rd = (R2*(S3+R3)) / ((S2+R2)*S3)
-    5th = (R2*R4) / (R2*R4 - S2*S4)
-    7th = (R4*(S1*(S2+R2) + R1*S2)) / (S1*R4*(S2+R2) + R1*S2*(S4+R4))
-    9th = (R1*R2*R4) / (((R1*R2) + S1*(S2+R2))*S4 + R1*R2*R4)
-
-Even gears + reverse:
-    2nd = (S3+R3) / S3
-    4th = (S4*(S3+R3) + S3*R4) / (S3*(S4+R4))
-    6th = 1
-    8th = R4 / (S4+R4)
-    Rev = -(R1*R2*(S3+R3)) / (S1*(S2+R2)*S3)
-
-This script treats those equations as the authoritative public kinematic model
-for the 9G-Tronic ratio family.
 """
 
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
 import sys
 from dataclasses import dataclass
 from typing import Dict, Mapping, Optional, Sequence
+
+try:
+    from ..core.clutch import Brake, Clutch, RotatingMember
+    from ..core.planetary import PlanetaryGearSet
+    from ..core.solver import TransmissionSolver, TransmissionSolverError
+except Exception:  # pragma: no cover
+    try:
+        from core.clutch import Brake, Clutch, RotatingMember  # type: ignore
+        from core.planetary import PlanetaryGearSet  # type: ignore
+        from core.solver import TransmissionSolver, TransmissionSolverError  # type: ignore
+    except Exception:  # pragma: no cover
+        from clutch import Brake, Clutch, RotatingMember  # type: ignore
+        from planetary import PlanetaryGearSet  # type: ignore
+        from solver import TransmissionSolver, TransmissionSolverError  # type: ignore
 
 
 class NineSpeedCliError(ValueError):
@@ -109,33 +126,24 @@ PRESETS: Mapping[str, Mapping[str, int]] = {
 }
 
 PRESET_NOTES: Mapping[str, str] = {
-    "mb_9gtronic_2013": (
-        "2013 public 9G-TRONIC tooth-count set from the published nomogram / ratio table family."
-    ),
-    "mb_9gtronic_2016": (
-        "2016 public 9G-TRONIC tooth-count set from the published nomogram / ratio table family."
-    ),
+    "mb_9gtronic_2013": "2013 public 9G-TRONIC tooth-count set.",
+    "mb_9gtronic_2016": "2016 public 9G-TRONIC tooth-count set.",
 }
 
+SHIFT_SCHEDULE: Mapping[str, tuple[str, ...]] = {
+    "1st": ("B", "C", "E"),
+    "2nd": ("C", "D", "E"),
+    "3rd": ("B", "C", "D"),
+    "4th": ("B", "C", "F"),
+    "5th": ("B", "D", "F"),
+    "6th": ("D", "E", "F"),
+    "7th": ("B", "E", "F"),
+    "8th": ("A", "E", "F"),
+    "9th": ("A", "B", "F"),
+    "Rev": ("A", "B", "C"),
+}
 
-@dataclass(frozen=True)
-class GearState:
-    name: str
-    engaged: tuple[str, ...]
-    notes: str = ""
-
-
-@dataclass(frozen=True)
-class SolveResult:
-    state: str
-    engaged: tuple[str, ...]
-    ok: bool
-    ratio: Optional[float]
-    notes: str = ""
-    solver_path: str = "closed_form_nomogram"
-    status: str = "ok"
-    message: str = ""
-
+DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "Rev")
 
 STATE_ALIASES: Mapping[str, str] = {
     "1": "1st", "1st": "1st", "first": "1st",
@@ -149,6 +157,19 @@ STATE_ALIASES: Mapping[str, str] = {
     "9": "9th", "9th": "9th", "ninth": "9th",
     "r": "Rev", "rev": "Rev", "reverse": "Rev",
 }
+
+
+@dataclass(frozen=True)
+class SolveResult:
+    state: str
+    engaged: tuple[str, ...]
+    ok: bool
+    ratio: Optional[float]
+    speeds: Dict[str, float]
+    notes: str = ""
+    solver_path: str = "core_v2_powerflow_reduced"
+    status: str = "ok"
+    message: str = ""
 
 
 def _validate_counts_basic(*, S: int, R: int, label: str) -> None:
@@ -175,29 +196,57 @@ def validate_tooth_counts(counts: Mapping[str, int], *, strict_geometry: bool) -
         validator(S=int(counts[f"S{i}"]), R=int(counts[f"R{i}"]), label=f"P{i}")
 
 
-def _safe_div(num: float, den: float, *, label: str) -> float:
-    if abs(den) < 1e-12:
-        raise NineSpeedCliError(f"Degenerate tooth-count set for {label}: denominator is zero.")
-    return num / den
+def _make_planetary(
+    *,
+    S: int,
+    R: int,
+    name: str,
+    sun: RotatingMember,
+    ring: RotatingMember,
+    carrier: RotatingMember,
+    strict_geometry: bool,
+):
+    geometry_mode = "strict" if strict_geometry else "relaxed"
+    try:
+        sig = inspect.signature(PlanetaryGearSet)
+        if "geometry_mode" in sig.parameters:
+            return PlanetaryGearSet(
+                Ns=S,
+                Nr=R,
+                name=name,
+                sun=sun,
+                ring=ring,
+                carrier=carrier,
+                geometry_mode=geometry_mode,
+            )
+    except Exception:
+        pass
+    return PlanetaryGearSet(Ns=S, Nr=R, name=name, sun=sun, ring=ring, carrier=carrier)
+
+
+def _call_solve_report(solver: TransmissionSolver, *, input_member: str, input_speed: float = 1.0):
+    try:
+        return solver.solve_report(input_member=input_member, input_speed=input_speed)
+    except TypeError:
+        return solver.solve_report(input_member, input_speed)
+
+
+def _ratio_from_report(report, *, output_member: str = "output") -> float:
+    if not getattr(report, "ok", False):
+        cls = getattr(report, "classification", None)
+        status = getattr(cls, "status", "error")
+        msg = getattr(cls, "message", "")
+        raise NineSpeedCliError(f"Core solver failed: status={status} message={msg}")
+    speeds = getattr(report, "member_speeds", {})
+    if output_member not in speeds:
+        raise NineSpeedCliError(f"Core solver did not report '{output_member}' speed.")
+    w_out = float(speeds[output_member])
+    if abs(w_out) < 1.0e-12:
+        raise NineSpeedCliError("Output speed is zero; ratio undefined.")
+    return 1.0 / w_out
 
 
 class MercedesNineSpeedTransmission:
-    """Closed-form public ratio model for the Mercedes 9G-TRONIC / NAG3."""
-
-    SHIFT_SCHEDULE: Mapping[str, tuple[str, ...]] = {
-        "1st": ("B", "C", "E"),
-        "2nd": ("C", "D", "E"),
-        "3rd": ("B", "C", "D"),
-        "4th": ("B", "C", "F"),
-        "5th": ("B", "D", "F"),
-        "6th": ("D", "E", "F"),
-        "7th": ("B", "E", "F"),
-        "8th": ("A", "E", "F"),
-        "9th": ("A", "B", "F"),
-        "Rev": ("A", "B", "C"),
-    }
-    DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "Rev")
-
     def __init__(
         self,
         *,
@@ -213,110 +262,10 @@ class MercedesNineSpeedTransmission:
         preset_name: str = "mb_9gtronic_2013",
     ) -> None:
         counts = {"S1": S1, "R1": R1, "S2": S2, "R2": R2, "S3": S3, "R3": R3, "S4": S4, "R4": R4}
-        validate_tooth_counts(counts, strict_geometry=strict_geometry)
-        self.counts = counts
+        validate_tooth_counts(counts, strict_geometry=bool(strict_geometry))
+        self.counts = {k: int(v) for k, v in counts.items()}
         self.strict_geometry = bool(strict_geometry)
         self.preset_name = preset_name
-
-        self.states: Dict[str, GearState] = {
-            name: GearState(name=name, engaged=tuple(elems))
-            for name, elems in self.SHIFT_SCHEDULE.items()
-        }
-
-    def _ratio_1st(self) -> float:
-        S1, R1, S2, R2, S3, R3 = self.counts["S1"], self.counts["R1"], self.counts["S2"], self.counts["R2"], self.counts["S3"], self.counts["R3"]
-        num = (S1 * (S2 + R2) + R1 * S2) * (S3 + R3)
-        den = S1 * (S2 + R2) * S3
-        return _safe_div(num, den, label="1st gear")
-
-    def _ratio_2nd(self) -> float:
-        S3, R3 = self.counts["S3"], self.counts["R3"]
-        return _safe_div(S3 + R3, S3, label="2nd gear")
-
-    def _ratio_3rd(self) -> float:
-        S2, R2, S3, R3 = self.counts["S2"], self.counts["R2"], self.counts["S3"], self.counts["R3"]
-        num = R2 * (S3 + R3)
-        den = (S2 + R2) * S3
-        return _safe_div(num, den, label="3rd gear")
-
-    def _ratio_4th(self) -> float:
-        S3, R3, S4, R4 = self.counts["S3"], self.counts["R3"], self.counts["S4"], self.counts["R4"]
-        num = S4 * (S3 + R3) + S3 * R4
-        den = S3 * (S4 + R4)
-        return _safe_div(num, den, label="4th gear")
-
-    def _ratio_5th(self) -> float:
-        S2, R2, S4, R4 = self.counts["S2"], self.counts["R2"], self.counts["S4"], self.counts["R4"]
-        num = R2 * R4
-        den = R2 * R4 - S2 * S4
-        return _safe_div(num, den, label="5th gear")
-
-    def _ratio_6th(self) -> float:
-        return 1.0
-
-    def _ratio_7th(self) -> float:
-        S1, R1, S2, R2, S4, R4 = self.counts["S1"], self.counts["R1"], self.counts["S2"], self.counts["R2"], self.counts["S4"], self.counts["R4"]
-        num = R4 * (S1 * (S2 + R2) + R1 * S2)
-        den = S1 * R4 * (S2 + R2) + R1 * S2 * (S4 + R4)
-        return _safe_div(num, den, label="7th gear")
-
-    def _ratio_8th(self) -> float:
-        S4, R4 = self.counts["S4"], self.counts["R4"]
-        return _safe_div(R4, S4 + R4, label="8th gear")
-
-    def _ratio_9th(self) -> float:
-        S1, R1, S2, R2, S4, R4 = self.counts["S1"], self.counts["R1"], self.counts["S2"], self.counts["R2"], self.counts["S4"], self.counts["R4"]
-        num = R1 * R2 * R4
-        den = ((R1 * R2) + S1 * (S2 + R2)) * S4 + R1 * R2 * R4
-        return _safe_div(num, den, label="9th gear")
-
-    def _ratio_rev(self) -> float:
-        S1, R1, S2, R2, S3, R3 = self.counts["S1"], self.counts["R1"], self.counts["S2"], self.counts["R2"], self.counts["S3"], self.counts["R3"]
-        num = -(R1 * R2 * (S3 + R3))
-        den = S1 * (S2 + R2) * S3
-        return _safe_div(num, den, label="Reverse gear")
-
-    def ratio_for_state(self, state: str) -> float:
-        key = self.normalize_state_name(state)
-        if key == "1st":
-            return self._ratio_1st()
-        if key == "2nd":
-            return self._ratio_2nd()
-        if key == "3rd":
-            return self._ratio_3rd()
-        if key == "4th":
-            return self._ratio_4th()
-        if key == "5th":
-            return self._ratio_5th()
-        if key == "6th":
-            return self._ratio_6th()
-        if key == "7th":
-            return self._ratio_7th()
-        if key == "8th":
-            return self._ratio_8th()
-        if key == "9th":
-            return self._ratio_9th()
-        if key == "Rev":
-            return self._ratio_rev()
-        raise NineSpeedCliError(f"Unknown state: {state}")
-
-    def solve_state(self, state: str) -> SolveResult:
-        key = self.normalize_state_name(state)
-        gs = self.states[key]
-        ratio = self.ratio_for_state(key)
-        return SolveResult(
-            state=key,
-            engaged=gs.engaged,
-            ok=True,
-            ratio=float(ratio),
-            notes="Closed-form public nomogram / ratio-family equation.",
-            solver_path="closed_form_nomogram",
-            status="ok",
-            message="Ratio computed from published 9G-Tronic closed-form kinematic equations.",
-        )
-
-    def solve_many(self, states: Sequence[str]) -> list[SolveResult]:
-        return [self.solve_state(s) for s in states]
 
     @staticmethod
     def normalize_state_name(name: str) -> str:
@@ -328,19 +277,273 @@ class MercedesNineSpeedTransmission:
             raise NineSpeedCliError(f"Unknown state '{name}'. Valid states: {valid}, or 'all'.")
         return STATE_ALIASES[key]
 
+    def _new_solver(self) -> TransmissionSolver:
+        return TransmissionSolver()
+
+    @staticmethod
+    def _m(name: str) -> RotatingMember:
+        return RotatingMember(name)
+
+    def _solve_1st(self):
+        # Front reduction (P1+P2) then rear reduction (P3).
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        c1 = self._m("c1")
+        x = self._m("r1_c2")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        r3 = self._m("r3")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        B = Brake(r3, name="B")
+        C = Brake(s2, name="C_reduced")
+        E = Clutch(c1, z, name="E")
+        B.engage(); C.engage(); E.engage()
+        solver.add_brake(B); solver.add_brake(C); solver.add_clutch(E)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_2nd(self):
+        # Pure P3 reduction with z=input and r3 grounded.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        r3 = self._m("r3")
+        out = self._m("output")
+        g = _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=inp, ring=r3, carrier=out, strict_geometry=self.strict_geometry)
+        solver.add_gearset(g)
+        B = Brake(r3, name="B")
+        B.engage(); solver.add_brake(B)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_3rd(self):
+        # P2 overdrive then P3 reduction.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        r3 = self._m("r3")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=inp, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        C = Brake(s2, name="C_reduced")
+        B = Brake(r3, name="B")
+        C.engage(); B.engage()
+        solver.add_brake(C); solver.add_brake(B)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_4th(self):
+        # P3 reduction feeding P4 mixer.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        z = self._m("r2_s3_s4")
+        r3 = self._m("r3")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        B = Brake(r3, name="B")
+        B.engage(); solver.add_brake(B)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_5th(self):
+        # P2 overdrive feeding P4 reduction/mixer.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=inp, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        C = Brake(s2, name="C_reduced")
+        C.engage(); solver.add_brake(C)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_6th(self):
+        # Direct drive: z=input and P4 carrier=input => ring/output = input.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        out = self._m("output")
+        g = _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=inp, ring=out, carrier=inp, strict_geometry=self.strict_geometry)
+        solver.add_gearset(g)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_7th(self):
+        # Front reduction counter-holds P4 to produce mild OD.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        c1 = self._m("c1")
+        x = self._m("r1_c2")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        C = Brake(s2, name="C_reduced")
+        E = Clutch(c1, z, name="E")
+        C.engage(); E.engage()
+        solver.add_brake(C); solver.add_clutch(E)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_8th(self):
+        # Pure P4 overdrive with z grounded.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        z = self._m("s2_ground")
+        out = self._m("output")
+        g = _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry)
+        solver.add_gearset(g)
+        A = Brake(z, name="A")
+        A.engage(); solver.add_brake(A)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_9th(self):
+        # Front reverse-style counterhold feeding strongest P4 overdrive.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        c1 = self._m("c1")
+        x = self._m("r1_c2")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        A = Brake(c1, name="A_reduced")
+        C = Brake(s2, name="C_reduced")
+        A.engage(); C.engage()
+        solver.add_brake(A); solver.add_brake(C)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def _solve_rev(self):
+        # Front reverse-style counterhold feeding P3 reverse.
+        c = self.counts
+        solver = self._new_solver()
+        inp = self._m("input")
+        c1 = self._m("c1")
+        x = self._m("r1_c2")
+        s2 = self._m("s2")
+        z = self._m("r2_s3_s4")
+        r3 = self._m("r3")
+        out = self._m("output")
+        for g in (
+            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
+            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
+        ):
+            solver.add_gearset(g)
+        A = Brake(c1, name="A_reduced")
+        B = Brake(r3, name="B")
+        C = Brake(s2, name="C_reduced")
+        A.engage(); B.engage(); C.engage()
+        solver.add_brake(A); solver.add_brake(B); solver.add_brake(C)
+        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+
+    def solve_state(self, state: str) -> SolveResult:
+        key = self.normalize_state_name(state)
+        try:
+            if key == "1st":
+                report = self._solve_1st()
+                note = "Native-core reduced solve: front reduction + gearset-3 reduction."
+            elif key == "2nd":
+                report = self._solve_2nd()
+                note = "Native-core reduced solve: pure gearset-3 reduction."
+            elif key == "3rd":
+                report = self._solve_3rd()
+                note = "Native-core reduced solve: gearset-2 increase + gearset-3 reduction."
+            elif key == "4th":
+                report = self._solve_4th()
+                note = "Native-core reduced solve: gearset-3 reduction feeding gearset-4."
+            elif key == "5th":
+                report = self._solve_5th()
+                note = "Native-core reduced solve: gearset-2 increase feeding gearset-4."
+            elif key == "6th":
+                report = self._solve_6th()
+                note = "Native-core reduced solve: direct drive."
+            elif key == "7th":
+                report = self._solve_7th()
+                note = "Native-core reduced solve: front reduction counterholding gearset-4."
+            elif key == "8th":
+                report = self._solve_8th()
+                note = "Native-core reduced solve: pure gearset-4 overdrive."
+            elif key == "9th":
+                report = self._solve_9th()
+                note = "Native-core reduced solve: front reverse-counterhold feeding gearset-4 overdrive."
+            elif key == "Rev":
+                report = self._solve_rev()
+                note = "Native-core reduced solve: front reverse-counterhold feeding gearset-3 reverse."
+            else:
+                raise NineSpeedCliError(f"Unknown state: {state}")
+
+            ratio = _ratio_from_report(report, output_member="output")
+            cls = getattr(report, "classification", None)
+            status = getattr(cls, "status", "ok")
+            msg = getattr(cls, "message", "")
+            return SolveResult(
+                state=key,
+                engaged=SHIFT_SCHEDULE[key],
+                ok=True,
+                ratio=float(ratio),
+                speeds=dict(getattr(report, "member_speeds", {})),
+                notes=note,
+                solver_path="core_v2_powerflow_reduced",
+                status=status,
+                message=msg,
+            )
+        except (TransmissionSolverError, NineSpeedCliError) as exc:
+            return SolveResult(
+                state=key,
+                engaged=SHIFT_SCHEDULE[key],
+                ok=False,
+                ratio=None,
+                speeds={},
+                notes="Native-core reduced solve failed.",
+                solver_path="core_v2_powerflow_reduced",
+                status="error",
+                message=str(exc),
+            )
+
+    def solve_many(self, states: Sequence[str]) -> list[SolveResult]:
+        return [self.solve_state(s) for s in states]
+
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description=(
-            "Mercedes-Benz 9G-TRONIC / NAG3 9-speed ratio model using public closed-form formulas."
-        )
+        description="Mercedes-Benz 9G-TRONIC / NAG3 9-speed native-core powerflow-reduced ratio model."
     )
     parser.add_argument("--preset", choices=sorted(PRESETS.keys()), default="mb_9gtronic_2013")
     parser.add_argument("--state", default="all", help="Gear state to solve: 1st..9th, Rev, or all")
     parser.add_argument("--strict-geometry", action="store_true", help="Require (R-S) even for each gearset.")
     parser.add_argument("--ratios-only", action="store_true", help="Print only state and ratio columns.")
     parser.add_argument("--json", action="store_true", help="Print JSON instead of text table.")
-
+    parser.add_argument("--verbose-report", action="store_true", help="Print note and status columns.")
     for i in range(1, 5):
         parser.add_argument(f"--S{i}", type=int, default=None, help=f"Override sun tooth count for P{i}")
         parser.add_argument(f"--R{i}", type=int, default=None, help=f"Override ring tooth count for P{i}")
@@ -361,35 +564,22 @@ def _merged_counts_from_args(args: argparse.Namespace) -> Dict[str, int]:
 
 def _states_from_arg(model: MercedesNineSpeedTransmission, state_arg: str) -> list[str]:
     if model.normalize_state_name(state_arg) == "all":
-        return list(model.DISPLAY_ORDER)
+        return list(DISPLAY_ORDER)
     return [model.normalize_state_name(state_arg)]
 
 
-def _result_to_json_obj(result: SolveResult) -> Dict[str, object]:
-    return {
-        "state": result.state,
-        "engaged": list(result.engaged),
-        "ok": result.ok,
-        "ratio": result.ratio,
-        "notes": result.notes,
-        "solver_path": result.solver_path,
-        "status": result.status,
-        "message": result.message,
-    }
-
-
-def _print_text_summary(model: MercedesNineSpeedTransmission, results: Sequence[SolveResult], *, ratios_only: bool) -> None:
+def _print_text_summary(model: MercedesNineSpeedTransmission, results: Sequence[SolveResult], *, ratios_only: bool, verbose_report: bool) -> None:
     c = model.counts
     print("Mercedes-Benz 9G-TRONIC / NAG3 9-Speed Kinematic Summary")
-    print("-" * 118)
+    print("-" * 132)
     print(
         f"Tooth counts: P1(S1={c['S1']}, R1={c['R1']}), P2(S2={c['S2']}, R2={c['R2']}), "
         f"P3(S3={c['S3']}, R3={c['R3']}), P4(S4={c['S4']}, R4={c['R4']})"
     )
     print(f"Geometry mode: {'strict' if model.strict_geometry else 'relaxed'}")
     print(f"Preset note: {PRESET_NOTES.get(model.preset_name, 'Custom tooth-count set.')}")
-    print("Solver path: closed_form_nomogram")
-    print("-" * 118)
+    print("Solver path: core_v2_powerflow_reduced")
+    print("-" * 132)
 
     if ratios_only:
         print(f"{'State':<8} {'Ratio':>10}")
@@ -399,18 +589,25 @@ def _print_text_summary(model: MercedesNineSpeedTransmission, results: Sequence[
             print(f"{r.state:<8} {ratio_txt}")
         return
 
-    print(f"{'State':<8} {'Elems':<16} {'Ratio':>10}  {'Notes'}")
-    print("-" * 118)
-    for r in results:
-        elems = "+".join(r.engaged)
-        ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
-        print(f"{r.state:<8} {elems:<16} {ratio_txt}  {r.notes}")
+    if verbose_report:
+        print(f"{'State':<8} {'Elems':<16} {'Ratio':>10}  {'Status':<14} {'Notes'}")
+        print("-" * 132)
+        for r in results:
+            ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
+            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {ratio_txt}  {r.status:<14} {r.notes}")
+            if r.message:
+                print(f"  note: {r.message}")
+    else:
+        print(f"{'State':<8} {'Elems':<16} {'Ratio':>10}")
+        print("-" * 40)
+        for r in results:
+            ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
+            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {ratio_txt}")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
     parser = build_arg_parser()
     args = parser.parse_args(argv)
-
     try:
         counts = _merged_counts_from_args(args)
         model = MercedesNineSpeedTransmission(
@@ -423,21 +620,32 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         states = _states_from_arg(model, args.state)
         results = model.solve_many(states)
-
         if args.json:
             payload = {
-                "ok": True,
-                "solver": "closed_form_nomogram",
+                "ok": all(r.ok for r in results),
+                "solver": "core_v2_powerflow_reduced",
                 "preset": args.preset,
                 "geometry_mode": "strict" if args.strict_geometry else "relaxed",
                 "counts": counts,
-                "results": [_result_to_json_obj(r) for r in results],
+                "results": [
+                    {
+                        "state": r.state,
+                        "engaged": list(r.engaged),
+                        "ok": r.ok,
+                        "ratio": r.ratio,
+                        "speeds": dict(r.speeds),
+                        "notes": r.notes,
+                        "solver_path": r.solver_path,
+                        "status": r.status,
+                        "message": r.message,
+                    }
+                    for r in results
+                ],
             }
             print(json.dumps(payload, indent=2))
         else:
-            _print_text_summary(model, results, ratios_only=bool(args.ratios_only))
+            _print_text_summary(model, results, ratios_only=bool(args.ratios_only), verbose_report=bool(args.verbose_report))
         return 0
-
     except NineSpeedCliError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         return 2
