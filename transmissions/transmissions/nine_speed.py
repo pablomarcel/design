@@ -5,49 +5,55 @@ transmissions.nine_speed
 
 Mercedes-Benz 9G-TRONIC / NAG3 9-speed transmission.
 
-Native-core, powerflow-reduced kinematic model.
+EXPERIMENTAL monolithic public-topology solve using the native core solver.
 
-This file uses the project's native transmission core:
+This file is a best-effort single global topology reconstruction using:
 - RotatingMember
 - PlanetaryGearSet
 - Clutch
 - Brake
 - TransmissionSolver
 
+Single source of truth
+----------------------
+This script follows the Mercedes manual stick diagram and clutch table as the
+authoritative source.
+
+Encoded monolithic topology
+---------------------------
+P1:
+    sun     = input_s1
+    carrier = c1
+    ring    = r1_c2
+
+P2:
+    sun     = s2
+    carrier = r1_c2
+    ring    = r2_s3_s4
+
+P3:
+    sun     = r2_s3_s4
+    carrier = output_c3
+    ring    = r3
+
+P4:
+    sun     = r2_s3_s4
+    carrier = input_s1
+    ring    = r4
+
+Shift elements encoded exactly as requested:
+    A : brake  on s2
+    B : brake  on r3
+    C : brake  on c1
+    D : clutch between output_c3 and r4
+    E : clutch between c1 and r2_s3_s4
+    F : clutch between input_s1 and c1
+
 Important honesty note
----------------------
-This is a native-core solve path, but it is not yet a single monolithic public-
-topology solve of the entire 9G train. Instead, each gear is solved as a
-reduced native-core submodel derived from the stick diagram, clutch matrix, and
-gear-by-gear powerflow interpretation.
-
-That means:
-- ratios come from TransmissionSolver.solve_report(...)
-- no closed-form nomogram equations are used to print ratios
-- each state is modeled with the active/counterheld members needed to close the
-  kinematics cleanly in the common solver
-
-Official public shift-element legend
-------------------------------------
-A : Brake blocking S2
-B : Brake blocking R3
-C : Brake blocking C1
-D : Clutch coupling C3 with R4
-E : Clutch coupling C1 with R2
-F : Clutch coupling S1 with C1
-
-Official application table used for reporting
----------------------------------------------
-1st : B + C + E
-2nd : C + D + E
-3rd : B + C + D
-4th : B + C + F
-5th : B + D + F
-6th : D + E + F
-7th : B + E + F
-8th : A + E + F
-9th : A + B + F
-Rev : A + B + C
+----------------------
+This is a true monolithic native-core solve attempt.
+It does not use closed-form nomogram equations to generate the reported ratio.
+It reports the raw core-solver result for the encoded global topology.
 """
 
 from __future__ import annotations
@@ -109,16 +115,16 @@ PRESET_NOTES: Mapping[str, str] = {
 }
 
 SHIFT_SCHEDULE: Mapping[str, tuple[str, ...]] = {
-    "1st": ("B", "C", "E"),
-    "2nd": ("C", "D", "E"),
-    "3rd": ("B", "C", "D"),
-    "4th": ("B", "C", "F"),
-    "5th": ("B", "D", "F"),
-    "6th": ("D", "E", "F"),
-    "7th": ("B", "E", "F"),
-    "8th": ("A", "E", "F"),
-    "9th": ("A", "B", "F"),
-    "Rev": ("A", "B", "C"),
+    "1st": ("A", "B", "E"),
+    "2nd": ("F", "E", "B"),
+    "3rd": ("F", "A", "B"),
+    "4th": ("A", "B", "D"),
+    "5th": ("F", "A", "D"),
+    "6th": ("F", "E", "D"),
+    "7th": ("E", "A", "D"),
+    "8th": ("C", "E", "D"),
+    "9th": ("C", "A", "D"),
+    "Rev": ("C", "A", "B"),
 }
 
 DISPLAY_ORDER: Sequence[str] = ("1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "Rev")
@@ -135,8 +141,8 @@ STATE_ALIASES: Mapping[str, str] = {
     "r": "Rev", "rev": "Rev", "reverse": "Rev",
 }
 
-ALL_SPEED_KEYS: Sequence[str] = (
-    "input", "c1", "r1_c2", "s2", "r2_s3_s4", "r3", "output"
+SPEED_KEYS: Sequence[str] = (
+    "input_s1", "c1", "r1_c2", "s2", "r2_s3_s4", "r3", "r4", "output_c3"
 )
 
 
@@ -148,7 +154,7 @@ class SolveResult:
     ratio: Optional[float]
     speeds: Dict[str, float]
     notes: str = ""
-    solver_path: str = "core_v2_powerflow_reduced"
+    solver_path: str = "core_v2_monolithic_public_topology"
     status: str = "ok"
     message: str = ""
 
@@ -166,8 +172,7 @@ def _validate_counts_strict(*, S: int, R: int, label: str) -> None:
     _validate_counts_basic(S=S, R=R, label=label)
     if (R - S) % 2 != 0:
         raise NineSpeedCliError(
-            f"Invalid {label} tooth counts under strict geometry mode: (R - S) must be even so the implied planet tooth count is an integer. "
-            f"Got S={S}, R={R}, R-S={R - S}."
+            f"Invalid {label} tooth counts under strict geometry mode: (R - S) must be even."
         )
 
 
@@ -189,31 +194,16 @@ def _make_planetary(*, S: int, R: int, name: str, sun: RotatingMember, ring: Rot
 
 
 def _call_solve_report(solver: TransmissionSolver, *, input_member: str, input_speed: float = 1.0):
-    if hasattr(solver, "solve_report"):
-        fn = getattr(solver, "solve_report")
-        try:
-            return fn(input_member=input_member, input_speed=input_speed)
-        except TypeError:
-            return fn(input_member, input_speed)
-    raise NineSpeedCliError("TransmissionSolver has no solve_report() method.")
+    if not hasattr(solver, "solve_report"):
+        raise NineSpeedCliError("TransmissionSolver has no solve_report() method.")
+    fn = getattr(solver, "solve_report")
+    try:
+        return fn(input_member=input_member, input_speed=input_speed)
+    except TypeError:
+        return fn(input_member, input_speed)
 
 
-def _ratio_from_report(report, *, output_member: str = "output") -> float:
-    if not getattr(report, "ok", False):
-        cls = getattr(report, "classification", None)
-        status = getattr(cls, "status", "error")
-        msg = getattr(cls, "message", "")
-        raise NineSpeedCliError(f"Core solver failed: status={status} message={msg}")
-    speeds = getattr(report, "member_speeds", {})
-    if output_member not in speeds:
-        raise NineSpeedCliError(f"Core solver did not report '{output_member}' speed.")
-    w_out = float(speeds[output_member])
-    if abs(w_out) < 1.0e-12:
-        raise NineSpeedCliError("Output speed is zero; ratio undefined.")
-    return 1.0 / w_out
-
-
-class MercedesNineSpeedTransmission:
+class MercedesNineSpeedMonolithic:
     def __init__(
         self,
         *,
@@ -244,209 +234,80 @@ class MercedesNineSpeedTransmission:
             raise NineSpeedCliError(f"Unknown state '{name}'. Valid states: {valid}, or 'all'.")
         return STATE_ALIASES[key]
 
-    def _new_solver(self) -> TransmissionSolver:
-        return TransmissionSolver()
-
-    @staticmethod
-    def _m(name: str) -> RotatingMember:
-        return RotatingMember(name)
-
-    def _solve_1st(self):
+    def _build_solver(self, engaged: Sequence[str]) -> TransmissionSolver:
         c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        c1 = self._m("c1")
-        x = self._m("r1_c2")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        r3 = self._m("r3")
-        out = self._m("output")
-        for g in (
-            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
-        ):
+        solver = TransmissionSolver()
+
+        input_s1 = RotatingMember("input_s1")
+        c1 = RotatingMember("c1")
+        r1_c2 = RotatingMember("r1_c2")
+        s2 = RotatingMember("s2")
+        r2_s3_s4 = RotatingMember("r2_s3_s4")
+        r3 = RotatingMember("r3")
+        output_c3 = RotatingMember("output_c3")
+        r4 = RotatingMember("r4")
+
+        p1 = _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=input_s1, ring=r1_c2, carrier=c1, strict_geometry=self.strict_geometry)
+        p2 = _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=r2_s3_s4, carrier=r1_c2, strict_geometry=self.strict_geometry)
+        p3 = _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=r2_s3_s4, ring=r3, carrier=output_c3, strict_geometry=self.strict_geometry)
+        p4 = _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=r2_s3_s4, ring=r4, carrier=input_s1, strict_geometry=self.strict_geometry)
+
+        for g in (p1, p2, p3, p4):
             solver.add_gearset(g)
+
+        A = Brake(s2, name="A")
         B = Brake(r3, name="B")
-        C = Brake(s2, name="C_reduced")
-        E = Clutch(c1, z, name="E")
-        B.engage(); C.engage(); E.engage()
-        solver.add_brake(B); solver.add_brake(C); solver.add_clutch(E)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+        C = Brake(c1, name="C")
+        D = Clutch(output_c3, r4, name="D")
+        E = Clutch(c1, r2_s3_s4, name="E")
+        F = Clutch(input_s1, c1, name="F")
 
-    def _solve_2nd(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        r3 = self._m("r3")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=inp, ring=r3, carrier=out, strict_geometry=self.strict_geometry))
-        B = Brake(r3, name="B_reduced")
-        B.engage(); solver.add_brake(B)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+        for obj in (A, B, C):
+            solver.add_brake(obj)
+        for obj in (D, E, F):
+            solver.add_clutch(obj)
 
-    def _solve_3rd(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        r3 = self._m("r3")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=inp, strict_geometry=self.strict_geometry))
-        solver.add_gearset(_make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry))
-        C = Brake(s2, name="C_reduced")
-        B = Brake(r3, name="B")
-        C.engage(); B.engage(); solver.add_brake(C); solver.add_brake(B)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+        if "A" in engaged:
+            A.engage()
+        if "B" in engaged:
+            B.engage()
+        if "C" in engaged:
+            C.engage()
+        if "D" in engaged:
+            D.engage()
+        if "E" in engaged:
+            E.engage()
+        if "F" in engaged:
+            F.engage()
 
-    def _solve_4th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        z = self._m("r2_s3_s4")
-        r3 = self._m("r3")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry))
-        solver.add_gearset(_make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry))
-        B = Brake(r3, name="B")
-        B.engage(); solver.add_brake(B)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_5th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=inp, strict_geometry=self.strict_geometry))
-        solver.add_gearset(_make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry))
-        C = Brake(s2, name="C_reduced")
-        C.engage(); solver.add_brake(C)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_6th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=inp, ring=out, carrier=inp, strict_geometry=self.strict_geometry))
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_7th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        c1 = self._m("c1")
-        x = self._m("r1_c2")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        out = self._m("output")
-        for g in (
-            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
-        ):
-            solver.add_gearset(g)
-        C = Brake(s2, name="C_reduced")
-        E = Clutch(c1, z, name="E")
-        C.engage(); E.engage(); solver.add_brake(C); solver.add_clutch(E)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_8th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        z = self._m("r2_s3_s4")
-        out = self._m("output")
-        solver.add_gearset(_make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry))
-        A = Brake(z, name="A_reduced")
-        A.engage(); solver.add_brake(A)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_9th(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        c1 = self._m("c1")
-        x = self._m("r1_c2")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        out = self._m("output")
-        for g in (
-            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S4"], R=c["R4"], name="P4", sun=z, ring=out, carrier=inp, strict_geometry=self.strict_geometry),
-        ):
-            solver.add_gearset(g)
-        A = Brake(c1, name="A_syn_C1_hold")
-        C = Brake(s2, name="C_reduced")
-        A.engage(); C.engage(); solver.add_brake(A); solver.add_brake(C)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
-
-    def _solve_rev(self):
-        c = self.counts
-        solver = self._new_solver()
-        inp = self._m("input")
-        c1 = self._m("c1")
-        x = self._m("r1_c2")
-        s2 = self._m("s2")
-        z = self._m("r2_s3_s4")
-        r3 = self._m("r3")
-        out = self._m("output")
-        for g in (
-            _make_planetary(S=c["S1"], R=c["R1"], name="P1", sun=inp, ring=x, carrier=c1, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S2"], R=c["R2"], name="P2", sun=s2, ring=z, carrier=x, strict_geometry=self.strict_geometry),
-            _make_planetary(S=c["S3"], R=c["R3"], name="P3", sun=z, ring=r3, carrier=out, strict_geometry=self.strict_geometry),
-        ):
-            solver.add_gearset(g)
-        A = Brake(c1, name="A_syn_C1_hold")
-        C = Brake(s2, name="C_reduced")
-        B = Brake(r3, name="B")
-        A.engage(); B.engage(); C.engage(); solver.add_brake(A); solver.add_brake(B); solver.add_brake(C)
-        return _call_solve_report(solver, input_member="input", input_speed=1.0)
+        return solver
 
     def solve_state(self, state: str) -> SolveResult:
         key = self.normalize_state_name(state)
-        if key == "1st":
-            report = self._solve_1st(); note = "Native-core reduced solve: front reduction + gearset-3 reduction."
-        elif key == "2nd":
-            report = self._solve_2nd(); note = "Native-core reduced solve: pure gearset-3 reduction."
-        elif key == "3rd":
-            report = self._solve_3rd(); note = "Native-core reduced solve: gearset-2 increase + gearset-3 reduction."
-        elif key == "4th":
-            report = self._solve_4th(); note = "Native-core reduced solve: gearset-3 reduction feeding gearset-4."
-        elif key == "5th":
-            report = self._solve_5th(); note = "Native-core reduced solve: gearset-2 increase feeding gearset-4."
-        elif key == "6th":
-            report = self._solve_6th(); note = "Native-core reduced solve: direct drive."
-        elif key == "7th":
-            report = self._solve_7th(); note = "Native-core reduced solve: front reduction counterholding gearset-4."
-        elif key == "8th":
-            report = self._solve_8th(); note = "Native-core reduced solve: pure gearset-4 overdrive."
-        elif key == "9th":
-            report = self._solve_9th(); note = "Native-core reduced solve: front counterhold feeding gearset-4 overdrive."
-        elif key == "Rev":
-            report = self._solve_rev(); note = "Native-core reduced solve: front counterhold feeding gearset-3 reverse."
-        else:
-            raise NineSpeedCliError(f"Unknown state: {state}")
+        engaged = SHIFT_SCHEDULE[key]
+        solver = self._build_solver(engaged)
+        report = _call_solve_report(solver, input_member="input_s1", input_speed=1.0)
 
-        ratio = _ratio_from_report(report, output_member="output")
         cls = getattr(report, "classification", None)
         status = getattr(cls, "status", "ok")
-        msg = getattr(cls, "message", "")
-        speeds = {k: float(v) for k, v in getattr(report, "member_speeds", {}).items()}
+        message = getattr(cls, "message", "")
+        speeds_raw = getattr(report, "member_speeds", {})
+        speeds: Dict[str, float] = {k: float(speeds_raw[k]) for k in SPEED_KEYS if k in speeds_raw}
+
+        ratio: Optional[float] = None
+        if report.ok and "output_c3" in speeds and abs(speeds["output_c3"]) > 1.0e-12:
+            ratio = 1.0 / speeds["output_c3"]
+
         return SolveResult(
             state=key,
-            engaged=SHIFT_SCHEDULE[key],
+            engaged=engaged,
+            ok=bool(report.ok),
             ratio=ratio,
-            ok=True,
             speeds=speeds,
-            solver_path="core_v2_powerflow_reduced",
+            notes="Experimental monolithic public-topology native-core solve.",
+            solver_path="core_v2_monolithic_public_topology",
             status=status,
-            message=msg,
-            notes=note,
+            message=message,
         )
 
     def solve_many(self, states: Sequence[str]) -> list[SolveResult]:
@@ -455,15 +316,14 @@ class MercedesNineSpeedTransmission:
 
 def build_arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        description="Mercedes-Benz 9G-TRONIC / NAG3 9-speed native-core powerflow-reduced kinematic model."
+        description="Mercedes-Benz 9G-TRONIC / NAG3 monolithic public-topology native-core solve."
     )
     parser.add_argument("--preset", choices=sorted(PRESETS.keys()), default="mb_9gtronic_2013")
     parser.add_argument("--state", default="all", help="Gear state to solve: 1st..9th, Rev, or all")
     parser.add_argument("--strict-geometry", action="store_true", help="Require (R-S) even for each gearset.")
-    parser.add_argument("--ratios-only", action="store_true", help="Print only state and ratio columns.")
-    parser.add_argument("--json", action="store_true", help="Print JSON instead of text table.")
-    parser.add_argument("--verbose-report", action="store_true", help="Print note column as well.")
-    parser.add_argument("--show-speeds", action="store_true", help="Print reduced-state member speeds like 8HP/10R reports.")
+    parser.add_argument("--ratios-only", action="store_true", help="Print only state, status, and ratio.")
+    parser.add_argument("--show-speeds", action="store_true", help="Show per-member solved speeds.")
+    parser.add_argument("--json", action="store_true", help="Print JSON.")
     for i in range(1, 5):
         parser.add_argument(f"--S{i}", type=int, default=None, help=f"Override sun tooth count for P{i}")
         parser.add_argument(f"--R{i}", type=int, default=None, help=f"Override ring tooth count for P{i}")
@@ -473,42 +333,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
 def _merged_counts_from_args(args: argparse.Namespace) -> Dict[str, int]:
     counts = dict(PRESETS[args.preset])
     for i in range(1, 5):
-        sval = getattr(args, f"S{i}")
-        rval = getattr(args, f"R{i}")
-        if sval is not None:
-            counts[f"S{i}"] = int(sval)
-        if rval is not None:
-            counts[f"R{i}"] = int(rval)
+        s_attr = getattr(args, f"S{i}")
+        r_attr = getattr(args, f"R{i}")
+        if s_attr is not None:
+            counts[f"S{i}"] = int(s_attr)
+        if r_attr is not None:
+            counts[f"R{i}"] = int(r_attr)
     return counts
 
 
-def _states_from_arg(model: MercedesNineSpeedTransmission, state_arg: str) -> list[str]:
+def _states_from_arg(model: MercedesNineSpeedMonolithic, state_arg: str) -> list[str]:
     if model.normalize_state_name(state_arg) == "all":
         return list(DISPLAY_ORDER)
     return [model.normalize_state_name(state_arg)]
 
 
-def _result_to_json_obj(result: SolveResult) -> Dict[str, object]:
-    return {
-        "state": result.state,
-        "engaged": list(result.engaged),
-        "ok": result.ok,
-        "ratio": result.ratio,
-        "speeds": dict(result.speeds),
-        "notes": result.notes,
-        "solver_path": result.solver_path,
-        "status": result.status,
-        "message": result.message,
-    }
-
-
-def _format_speed(result: SolveResult, key: str) -> str:
-    if key not in result.speeds:
-        return "-"
-    return f"{result.speeds[key]:.3f}"
-
-
-def _print_text_summary(model: MercedesNineSpeedTransmission, results: Sequence[SolveResult], *, ratios_only: bool, verbose_report: bool, show_speeds: bool) -> None:
+def _print_text_summary(model: MercedesNineSpeedMonolithic, results: Sequence[SolveResult], *, ratios_only: bool, show_speeds: bool) -> None:
     c = model.counts
     print("Mercedes-Benz 9G-TRONIC / NAG3 9-Speed Kinematic Summary")
     print("-" * 156)
@@ -518,42 +358,44 @@ def _print_text_summary(model: MercedesNineSpeedTransmission, results: Sequence[
     )
     print(f"Geometry mode: {'strict' if model.strict_geometry else 'relaxed'}")
     print(f"Preset note: {PRESET_NOTES.get(model.preset_name, 'Custom tooth-count set.')}")
-    print("Solver path: core_v2_powerflow_reduced")
+    print("Solver path: core_v2_monolithic_public_topology")
     print("-" * 156)
 
     if ratios_only:
-        print(f"{'State':<8} {'Ratio':>10}")
-        print("-" * 20)
+        print(f"{'State':<8} {'Elems':<16} {'Status':<18} {'Ratio':>10}")
+        print("-" * 60)
         for r in results:
             ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
-            print(f"{r.state:<8} {ratio_txt}")
+            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {r.status:<18} {ratio_txt}")
         return
 
     if show_speeds:
-        print(
-            f"{'State':<8} {'Elems':<16} {'Ratio':>10}  {'Input':>8} {'c1':>8} {'r1_c2':>8} {'s2':>8} {'r2_s3_s4':>10} {'r3':>8} {'Output':>8}"
+        header = (
+            f"{'State':<8} {'Elems':<16} {'Status':<16} {'Ratio':>10} "
+            f"{'input_s1':>10} {'c1':>10} {'r1_c2':>10} {'s2':>10} {'r2_s3_s4':>10} {'r3':>10} {'r4':>10} {'output_c3':>10}"
         )
-        print("-" * 156)
+        print(header)
+        print("-" * len(header))
         for r in results:
             ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
-            print(
-                f"{r.state:<8} {'+'.join(r.engaged):<16} {ratio_txt}  "
-                f"{_format_speed(r,'input'):>8} {_format_speed(r,'c1'):>8} {_format_speed(r,'r1_c2'):>8} {_format_speed(r,'s2'):>8} {_format_speed(r,'r2_s3_s4'):>10} {_format_speed(r,'r3'):>8} {_format_speed(r,'output'):>8}"
-            )
-        return
-
-    if verbose_report:
-        print(f"{'State':<8} {'Elems':<16} {'Ratio':>10}  {'Notes'}")
-        print("-" * 156)
-        for r in results:
-            ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
-            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {ratio_txt}  {r.notes}")
+            row = [
+                f"{r.state:<8}",
+                f"{'+'.join(r.engaged):<16}",
+                f"{r.status:<16}",
+                ratio_txt,
+            ]
+            for key in SPEED_KEYS:
+                if key in r.speeds:
+                    row.append(f"{r.speeds[key]:10.3f}")
+                else:
+                    row.append(f"{'-':>10}")
+            print(" ".join(row))
     else:
-        print(f"{'State':<8} {'Elems':<16} {'Ratio':>10}")
-        print("-" * 40)
+        print(f"{'State':<8} {'Elems':<16} {'Status':<16} {'Ratio':>10}  {'Message'}")
+        print("-" * 156)
         for r in results:
             ratio_txt = "-" if r.ratio is None else f"{r.ratio:10.3f}"
-            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {ratio_txt}")
+            print(f"{r.state:<8} {'+'.join(r.engaged):<16} {r.status:<16} {ratio_txt}  {r.message}")
 
 
 def main(argv: Optional[Sequence[str]] = None) -> int:
@@ -561,7 +403,7 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     args = parser.parse_args(argv)
     try:
         counts = _merged_counts_from_args(args)
-        model = MercedesNineSpeedTransmission(
+        model = MercedesNineSpeedMonolithic(
             S1=counts["S1"], R1=counts["R1"],
             S2=counts["S2"], R2=counts["R2"],
             S3=counts["S3"], R3=counts["R3"],
@@ -571,24 +413,32 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         )
         states = _states_from_arg(model, args.state)
         results = model.solve_many(states)
+
         if args.json:
             payload = {
                 "ok": True,
-                "solver": "core_v2_powerflow_reduced",
+                "solver": "core_v2_monolithic_public_topology",
                 "preset": args.preset,
                 "geometry_mode": "strict" if args.strict_geometry else "relaxed",
                 "counts": counts,
-                "results": [_result_to_json_obj(r) for r in results],
+                "results": [
+                    {
+                        "state": r.state,
+                        "engaged": list(r.engaged),
+                        "ok": r.ok,
+                        "status": r.status,
+                        "message": r.message,
+                        "ratio": r.ratio,
+                        "speeds": dict(r.speeds),
+                        "notes": r.notes,
+                        "solver_path": r.solver_path,
+                    }
+                    for r in results
+                ],
             }
             print(json.dumps(payload, indent=2))
         else:
-            _print_text_summary(
-                model,
-                results,
-                ratios_only=bool(args.ratios_only),
-                verbose_report=bool(args.verbose_report),
-                show_speeds=bool(args.show_speeds),
-            )
+            _print_text_summary(model, results, ratios_only=bool(args.ratios_only), show_speeds=bool(args.show_speeds))
         return 0
     except NineSpeedCliError as exc:
         print(f"Error: {exc}", file=sys.stderr)
