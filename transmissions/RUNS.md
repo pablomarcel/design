@@ -71,7 +71,7 @@ python -m kinematics.ravigneaux_ratio_map \
   --print-audit
 ```
 
-#### Ford 3 Speed Transmission
+#### Ford C4 3 Speed Transmission
 
 ```bash
 python -m transmissions.three_speed \
