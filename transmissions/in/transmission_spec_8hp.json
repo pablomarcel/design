@@ -13,6 +13,26 @@
     "p3c",
     "output"
   ],
+  "speed_display_order": [
+    "input",
+    "sun12",
+    "p1r",
+    "p23",
+    "c_out",
+    "p1c_p4r",
+    "p3c",
+    "output"
+  ],
+  "speed_display_labels": {
+    "input": "Input",
+    "sun12": "sun12",
+    "p1r": "p1r",
+    "p23": "p23",
+    "c_out": "c_out",
+    "p1c_p4r": "p1c_p4r",
+    "p3c": "p3c",
+    "output": "Output"
+  },
   "gearsets": [
     {
       "name": "P1",

@@ -66,6 +66,8 @@ class TransmissionSpec:
     members: list[str] = field(default_factory=list)
     display_order: list[str] = field(default_factory=list)
     state_aliases: dict[str, str] = field(default_factory=dict)
+    speed_display_order: list[str] = field(default_factory=list)
+    speed_display_labels: dict[str, str] = field(default_factory=dict)
     strict_geometry: bool = False
     notes: str = ""
     presets: dict[str, Any] = field(default_factory=dict)
@@ -81,13 +83,29 @@ class TransmissionSpec:
         strict_geometry = bool(d.get("strict_geometry", False))
         notes = str(d.get("notes", ""))
 
-        members = [ensure_str(x, context="spec.members[]") for x in ensure_list(d.get("members"), context="spec.members")]
-        display_order = [ensure_str(x, context="spec.display_order[]") for x in ensure_list(d.get("display_order"), context="spec.display_order")]
+        members = [
+            ensure_str(x, context="spec.members[]")
+            for x in ensure_list(d.get("members"), context="spec.members")
+        ]
+        display_order = [
+            ensure_str(x, context="spec.display_order[]")
+            for x in ensure_list(d.get("display_order"), context="spec.display_order")
+        ]
+        speed_display_order = [
+            ensure_str(x, context="spec.speed_display_order[]")
+            for x in ensure_list(d.get("speed_display_order"), context="spec.speed_display_order")
+        ]
 
         raw_aliases = ensure_dict(d.get("state_aliases"), context="spec.state_aliases")
         state_aliases = {
             ensure_str(k, context="spec.state_aliases key"): ensure_str(v, context="spec.state_aliases value")
             for k, v in raw_aliases.items()
+        }
+
+        raw_speed_labels = ensure_dict(d.get("speed_display_labels"), context="spec.speed_display_labels")
+        speed_display_labels = {
+            ensure_str(k, context="spec.speed_display_labels key"): ensure_str(v, context="spec.speed_display_labels value")
+            for k, v in raw_speed_labels.items()
         }
 
         presets = ensure_dict(d.get("presets"), context="spec.presets")
@@ -150,6 +168,8 @@ class TransmissionSpec:
             members=members,
             display_order=display_order,
             state_aliases=state_aliases,
+            speed_display_order=speed_display_order,
+            speed_display_labels=speed_display_labels,
             strict_geometry=strict_geometry,
             notes=notes,
             presets=presets,
@@ -192,9 +212,15 @@ class ShiftSchedule:
         for raw_state, raw_elements in raw_states.items():
             state_name = normalize_state_name(str(raw_state), aliases)
             elems = ensure_list(raw_elements, context=f"schedule.states.{raw_state}")
-            states[state_name] = tuple(ensure_str(x, context=f"schedule.states.{raw_state}[]") for x in elems)
+            states[state_name] = tuple(
+                ensure_str(x, context=f"schedule.states.{raw_state}[]")
+                for x in elems
+            )
 
-        display_order = [ensure_str(x, context="schedule.display_order[]") for x in ensure_list(d.get("display_order"), context="schedule.display_order")]
+        display_order = [
+            ensure_str(x, context="schedule.display_order[]")
+            for x in ensure_list(d.get("display_order"), context="schedule.display_order")
+        ]
         notes = str(d.get("notes", ""))
 
         return ShiftSchedule(states=states, notes=notes, display_order=display_order)

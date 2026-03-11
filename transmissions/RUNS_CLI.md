@@ -25,13 +25,23 @@ python -m cli \
   --show-speeds
 ```
 
-#### Solves a transmission spec - shows ratios only
+#### Solves a transmission spec - shows ratios only - legacy
 
 ```bash
 python -m cli \
   --spec in/transmission_spec_8hp.json \
   --schedule in/shift_schedule_8hp.json \
   --preset legacy \
+  --ratios-only
+```
+
+#### Solves a transmission spec - shows ratios only - base
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_8hp.json \
+  --schedule in/shift_schedule_8hp.json \
+  --preset base \
   --ratios-only
 ```
 

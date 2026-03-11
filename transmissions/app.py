@@ -84,6 +84,8 @@ class TransmissionApplication:
             "available_states": model.available_states(),
             "results": results,
             "member_order": list(model.spec.members) if model.spec.members else [],
+            "speed_display_order": list(model.spec.speed_display_order) if model.spec.speed_display_order else [],
+            "speed_display_labels": dict(model.spec.speed_display_labels) if model.spec.speed_display_labels else {},
             "gearsets": [
                 {
                     "name": g.name,
@@ -203,15 +205,25 @@ def _tooth_counts_text(payload: Mapping[str, Any]) -> str:
 
 
 def _speed_column_order(payload: Mapping[str, Any]) -> list[str]:
+    explicit = payload.get("speed_display_order", [])
     member_order = payload.get("member_order", [])
     results = payload.get("results", {})
 
-    if isinstance(member_order, list) and member_order:
-        ordered = [str(x) for x in member_order]
-    else:
-        ordered = []
+    ordered: list[str] = []
+    seen: set[str] = set()
 
-    seen = set(ordered)
+    if isinstance(explicit, list) and explicit:
+        for x in explicit:
+            key = str(x)
+            if key not in seen:
+                ordered.append(key)
+                seen.add(key)
+    elif isinstance(member_order, list) and member_order:
+        for x in member_order:
+            key = str(x)
+            if key not in seen:
+                ordered.append(key)
+                seen.add(key)
 
     if isinstance(results, dict):
         for _state, res in results.items():
@@ -219,11 +231,19 @@ def _speed_column_order(payload: Mapping[str, Any]) -> list[str]:
             if not isinstance(speeds, dict):
                 continue
             for key in speeds.keys():
-                if key not in seen:
-                    ordered.append(str(key))
-                    seen.add(str(key))
+                skey = str(key)
+                if skey not in seen:
+                    ordered.append(skey)
+                    seen.add(skey)
 
     return ordered
+
+
+def _speed_col_label(payload: Mapping[str, Any], key: str) -> str:
+    labels = payload.get("speed_display_labels", {})
+    if isinstance(labels, dict) and key in labels:
+        return str(labels[key])
+    return key
 
 
 def _render_plain_compact(
@@ -280,10 +300,9 @@ def _render_plain_wide(payload: Mapping[str, Any]) -> str:
         f"{'State':<8} "
         f"{'Elems':<18} "
         f"{'Ratio':>10} "
-        f"{'Status':<20}"
     )
     for col in member_cols:
-        header += f" {col:>10}"
+        header += f" {_speed_col_label(payload, col):>10}"
     lines.append(header)
     lines.append("-" * 180)
 
@@ -291,8 +310,7 @@ def _render_plain_wide(payload: Mapping[str, Any]) -> str:
         row = (
             f"{state_name:<8} "
             f"{_format_elems(res.get('engaged', [])):<18} "
-            f"{_format_ratio(res.get('ratio'), ndigits=3):>10} "
-            f"{_status_label(res):<20}"
+            f"{_format_ratio(res.get('ratio'), ndigits=3):>10}"
         )
         speeds = res.get("speeds", {})
         if not isinstance(speeds, dict):
@@ -391,10 +409,9 @@ def _render_rich_wide(console, payload: Mapping[str, Any]) -> None:
     table.add_column("State", justify="left", no_wrap=True)
     table.add_column("Elems", justify="left", no_wrap=True)
     table.add_column("Ratio", justify="right", no_wrap=True)
-    table.add_column("Status", justify="left", no_wrap=True)
 
     for col in member_cols:
-        table.add_column(col, justify="right", no_wrap=True)
+        table.add_column(_speed_col_label(payload, col), justify="right", no_wrap=True)
 
     results = payload.get("results", {})
     for state_name, res in results.items():
@@ -402,7 +419,6 @@ def _render_rich_wide(console, payload: Mapping[str, Any]) -> None:
             str(state_name),
             _format_elems(res.get("engaged", [])),
             _format_ratio(res.get("ratio"), ndigits=3),
-            _status_label(res),
         ]
 
         speeds = res.get("speeds", {})
