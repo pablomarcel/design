@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from io import StringIO
 from typing import Any, Mapping
 
 try:
@@ -174,7 +175,7 @@ def _render_plain_report(
     lines: list[str] = []
 
     lines.append(f"{payload['name']} — Transmission Summary")
-    lines.append("-" * 116)
+    lines.append("-" * 100)
     lines.append(f"Input member : {payload['input_member']}")
     lines.append(f"Output member: {payload['output_member']}")
     lines.append(f"Input speed  : {payload['input_speed']}")
@@ -182,27 +183,27 @@ def _render_plain_report(
 
     topo_text = _topology_text(payload)
     if topo_text:
-        lines.append("-" * 116)
+        lines.append("-" * 100)
         lines.append("Topology")
-        lines.append("-" * 116)
+        lines.append("-" * 100)
         lines.append(topo_text)
 
     results = payload.get("results", {})
-    lines.append("-" * 116)
-    lines.append(f"{'State':<12} {'Ratio':>12} {'Status':<22} {'Elems':<28}")
-    lines.append("-" * 116)
+    lines.append("-" * 100)
+    lines.append(f"{'State':<12} {'Ratio':>12} {'Status':<22} {'Elems':<24}")
+    lines.append("-" * 100)
 
     for state_name, res in results.items():
         ratio_txt = _format_ratio(res.get("ratio"))
         status_txt = _status_label(res)
         elems_txt = _format_elems(res.get("engaged", []))
-        lines.append(f"{state_name:<12} {ratio_txt:>12} {status_txt:<22} {elems_txt:<28}")
+        lines.append(f"{state_name:<12} {ratio_txt:>12} {status_txt:<22} {elems_txt:<24}")
 
         if show_speeds:
             speeds = res.get("speeds", {})
             if speeds:
                 speed_txt = ", ".join(f"{k}={float(v):.6f}" for k, v in speeds.items())
-                lines.append(f"  w   : {speed_txt}")
+                lines.append(f"  speeds: {speed_txt}")
 
     return "\n".join(lines)
 
@@ -221,7 +222,13 @@ def _render_rich_report(
     except Exception:
         return _render_plain_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
 
-    console = Console(record=True)
+    buffer = StringIO()
+    console = Console(
+        file=buffer,
+        force_terminal=True,
+        color_system="auto",
+        width=100,
+    )
 
     title = f"{payload['name']}"
     subtitle = (
@@ -268,7 +275,7 @@ def _render_rich_report(
 
             console.print(Panel(speed_table, title=f"{state_name} Speeds", expand=False))
 
-    return console.export_text()
+    return buffer.getvalue().rstrip()
 
 
 def render_text_report(
