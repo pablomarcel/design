@@ -1,0 +1,15 @@
+{
+  "states": {
+    "1st": ["A", "B", "C"],
+    "2nd": ["A", "B", "E"],
+    "3rd": ["B", "C", "E"],
+    "4th": ["B", "D", "E"],
+    "5th": ["B", "C", "D"],
+    "6th": ["C", "D", "E"],
+    "7th": ["A", "C", "D"],
+    "8th": ["A", "D", "E"],
+    "Rev": ["A", "B", "D"]
+  },
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Rev"],
+  "notes": "Shift schedule separate from the transmission topology."
+}

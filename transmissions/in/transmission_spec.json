@@ -1,0 +1,98 @@
+{
+  "name": "Example Universal 4-Planetary Transmission",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+  "members": [
+    "input",
+    "sun12",
+    "p1r",
+    "p1c_p4r",
+    "p23",
+    "c_out",
+    "p3c",
+    "output"
+  ],
+  "gearsets": [
+    {
+      "name": "P1",
+      "Ns": 48,
+      "Nr": 96,
+      "sun": "sun12",
+      "ring": "p1r",
+      "carrier": "p1c_p4r"
+    },
+    {
+      "name": "P2",
+      "Ns": 48,
+      "Nr": 96,
+      "sun": "sun12",
+      "ring": "p23",
+      "carrier": "input"
+    },
+    {
+      "name": "P3",
+      "Ns": 38,
+      "Nr": 61,
+      "sun": "p23",
+      "ring": "c_out",
+      "carrier": "p3c"
+    },
+    {
+      "name": "P4",
+      "Ns": 21,
+      "Nr": 78,
+      "sun": "c_out",
+      "ring": "p1c_p4r",
+      "carrier": "output"
+    }
+  ],
+  "clutches": [
+    { "name": "C", "a": "input", "b": "c_out" },
+    { "name": "D", "a": "p3c", "b": "output" },
+    { "name": "E", "a": "p23", "b": "c_out" }
+  ],
+  "brakes": [
+    { "name": "A", "member": "sun12" },
+    { "name": "B", "member": "p1r" }
+  ],
+  "permanent_ties": [],
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "Rev"],
+  "state_aliases": {
+    "1": "1st",
+    "2": "2nd",
+    "3": "3rd",
+    "4": "4th",
+    "5": "5th",
+    "6": "6th",
+    "7": "7th",
+    "8": "8th",
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+  "presets": {
+    "base": {
+      "gearsets": {
+        "P1": { "Ns": 48, "Nr": 96 },
+        "P2": { "Ns": 48, "Nr": 96 },
+        "P3": { "Ns": 38, "Nr": 61 },
+        "P4": { "Ns": 21, "Nr": 78 }
+      },
+      "strict_geometry": false
+    },
+    "legacy": {
+      "gearsets": {
+        "P1": { "Ns": 48, "Nr": 96 },
+        "P2": { "Ns": 48, "Nr": 96 },
+        "P3": { "Ns": 38, "Nr": 96 },
+        "P4": { "Ns": 23, "Nr": 85 }
+      },
+      "strict_geometry": false
+    }
+  },
+  "notes": "Universal topology spec consumed directly by the generic JSON builder.",
+  "meta": {
+    "author": "Pablo"
+  }
+}
