@@ -482,7 +482,7 @@ python -m transmissions.eight_speed \
 ```bash
 python -m transmissions.eight_speed \
   --state all \
-  --preset zf_8hp51_gen3 \
+  --preset zf_8hp45_reference_legacy \
   --show-topology
 ```
 
