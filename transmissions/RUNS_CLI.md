@@ -6,6 +6,15 @@ python -m cli \
   --schedule in/shift_schedule_8hp.json
 ```
 
+#### Solves a transmission spec - all states - show speeds
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_8hp.json \
+  --schedule in/shift_schedule_8hp.json \
+  --show-speeds
+```
+
 #### Solves a transmission spec - 8th gear - shows speeds
 
 ```bash

@@ -83,6 +83,21 @@ class TransmissionApplication:
             "strict_geometry": model.spec.strict_geometry,
             "available_states": model.available_states(),
             "results": results,
+            "member_order": list(model.spec.members) if model.spec.members else [],
+            "gearsets": [
+                {
+                    "name": g.name,
+                    "Ns": g.Ns,
+                    "Nr": g.Nr,
+                    "sun": g.sun,
+                    "ring": g.ring,
+                    "carrier": g.carrier,
+                }
+                for g in model.spec.gearsets
+            ],
+            "preset": req.preset,
+            "schedule_notes": getattr(model.schedule, "notes", ""),
+            "spec_notes": model.spec.notes,
         }
 
         if req.show_topology:
@@ -92,11 +107,20 @@ class TransmissionApplication:
         return payload
 
 
-def _format_ratio(value: Any) -> str:
+def _format_ratio(value: Any, *, ndigits: int = 6) -> str:
     if value is None:
         return "-"
     try:
-        return f"{float(value):.6f}"
+        return f"{float(value):.{ndigits}f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _format_speed(value: Any, *, ndigits: int = 3) -> str:
+    if value is None:
+        return "-"
+    try:
+        return f"{float(value):.{ndigits}f}"
     except (TypeError, ValueError):
         return str(value)
 
@@ -110,7 +134,6 @@ def _format_elems(elems: Any) -> str:
 def _status_label(res: Mapping[str, Any]) -> str:
     status = str(res.get("status", "") or "").strip()
     ok = bool(res.get("ok", False))
-
     if status:
         return status
     return "ok" if ok else "error"
@@ -166,69 +189,152 @@ def _topology_text(payload: Mapping[str, Any]) -> str:
     return str(topo)
 
 
+def _tooth_counts_text(payload: Mapping[str, Any]) -> str:
+    gearsets = payload.get("gearsets", [])
+    if not isinstance(gearsets, list) or not gearsets:
+        return ""
+
+    parts: list[str] = []
+    for g in gearsets:
+        if not isinstance(g, dict):
+            continue
+        parts.append(f"{g.get('name', '?')}(Ns={g.get('Ns')}, Nr={g.get('Nr')})")
+    return ", ".join(parts)
+
+
+def _speed_column_order(payload: Mapping[str, Any]) -> list[str]:
+    member_order = payload.get("member_order", [])
+    results = payload.get("results", {})
+
+    if isinstance(member_order, list) and member_order:
+        ordered = [str(x) for x in member_order]
+    else:
+        ordered = []
+
+    seen = set(ordered)
+
+    if isinstance(results, dict):
+        for _state, res in results.items():
+            speeds = res.get("speeds", {})
+            if not isinstance(speeds, dict):
+                continue
+            for key in speeds.keys():
+                if key not in seen:
+                    ordered.append(str(key))
+                    seen.add(str(key))
+
+    return ordered
+
+
+def _render_plain_compact(
+    payload: Mapping[str, Any],
+    *,
+    ratios_only: bool = False,
+) -> str:
+    lines: list[str] = []
+    lines.append(f"{payload['name']} — Transmission Summary")
+    lines.append("-" * 116)
+
+    tooth_txt = _tooth_counts_text(payload)
+    if tooth_txt:
+        lines.append(f"Tooth counts : {tooth_txt}")
+    lines.append(f"Geometry mode: {'strict' if payload.get('strict_geometry') else 'relaxed'}")
+    lines.append(f"Input member : {payload['input_member']}")
+    lines.append(f"Output member: {payload['output_member']}")
+    lines.append(f"Input speed  : {payload['input_speed']}")
+
+    results = payload.get("results", {})
+    lines.append("-" * 116)
+    lines.append(f"{'State':<12} {'Ratio':>12} {'Status':<22} {'Elems':<24}")
+    lines.append("-" * 116)
+
+    for state_name, res in results.items():
+        lines.append(
+            f"{state_name:<12} "
+            f"{_format_ratio(res.get('ratio')):>12} "
+            f"{_status_label(res):<22} "
+            f"{_format_elems(res.get('engaged', [])):<24}"
+        )
+
+    return "\n".join(lines)
+
+
+def _render_plain_wide(payload: Mapping[str, Any]) -> str:
+    member_cols = _speed_column_order(payload)
+    results = payload.get("results", {})
+
+    lines: list[str] = []
+    lines.append(f"{payload['name']} — Transmission Kinematic Summary")
+    lines.append("-" * 180)
+
+    tooth_txt = _tooth_counts_text(payload)
+    if tooth_txt:
+        lines.append(f"Tooth counts: {tooth_txt}")
+    lines.append(f"Geometry mode: {'strict' if payload.get('strict_geometry') else 'relaxed'}")
+    lines.append(f"Input member: {payload['input_member']}")
+    lines.append(f"Output member: {payload['output_member']}")
+    lines.append(f"Input speed: {payload['input_speed']}")
+    lines.append("-" * 180)
+
+    header = (
+        f"{'State':<8} "
+        f"{'Elems':<18} "
+        f"{'Ratio':>10} "
+        f"{'Status':<20}"
+    )
+    for col in member_cols:
+        header += f" {col:>10}"
+    lines.append(header)
+    lines.append("-" * 180)
+
+    for state_name, res in results.items():
+        row = (
+            f"{state_name:<8} "
+            f"{_format_elems(res.get('engaged', [])):<18} "
+            f"{_format_ratio(res.get('ratio'), ndigits=3):>10} "
+            f"{_status_label(res):<20}"
+        )
+        speeds = res.get("speeds", {})
+        if not isinstance(speeds, dict):
+            speeds = {}
+        for col in member_cols:
+            row += f" {_format_speed(speeds.get(col), ndigits=3):>10}"
+        lines.append(row)
+
+    return "\n".join(lines)
+
+
 def _render_plain_report(
     payload: Mapping[str, Any],
     *,
     show_speeds: bool = False,
     ratios_only: bool = False,
 ) -> str:
-    lines: list[str] = []
-
-    lines.append(f"{payload['name']} — Transmission Summary")
-    lines.append("-" * 100)
-    lines.append(f"Input member : {payload['input_member']}")
-    lines.append(f"Output member: {payload['output_member']}")
-    lines.append(f"Input speed  : {payload['input_speed']}")
-    lines.append(f"Geometry mode: {'strict' if payload.get('strict_geometry') else 'relaxed'}")
-
     topo_text = _topology_text(payload)
+
+    if show_speeds:
+        base = _render_plain_wide(payload)
+    else:
+        base = _render_plain_compact(payload, ratios_only=ratios_only)
+
     if topo_text:
-        lines.append("-" * 100)
-        lines.append("Topology")
-        lines.append("-" * 100)
-        lines.append(topo_text)
+        return (
+            base
+            + "\n"
+            + "-" * 116
+            + "\nTopology\n"
+            + "-" * 116
+            + "\n"
+            + topo_text
+        )
 
-    results = payload.get("results", {})
-    lines.append("-" * 100)
-    lines.append(f"{'State':<12} {'Ratio':>12} {'Status':<22} {'Elems':<24}")
-    lines.append("-" * 100)
-
-    for state_name, res in results.items():
-        ratio_txt = _format_ratio(res.get("ratio"))
-        status_txt = _status_label(res)
-        elems_txt = _format_elems(res.get("engaged", []))
-        lines.append(f"{state_name:<12} {ratio_txt:>12} {status_txt:<22} {elems_txt:<24}")
-
-        if show_speeds:
-            speeds = res.get("speeds", {})
-            if speeds:
-                speed_txt = ", ".join(f"{k}={float(v):.6f}" for k, v in speeds.items())
-                lines.append(f"  speeds: {speed_txt}")
-
-    return "\n".join(lines)
+    return base
 
 
-def _render_rich_report(
-    payload: Mapping[str, Any],
-    *,
-    show_speeds: bool = False,
-    ratios_only: bool = False,
-) -> str:
-    try:
-        from rich.console import Console
-        from rich.panel import Panel
-        from rich.table import Table
-        from rich.text import Text
-    except Exception:
-        return _render_plain_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
-
-    buffer = StringIO()
-    console = Console(
-        file=buffer,
-        force_terminal=True,
-        color_system="auto",
-        width=100,
-    )
+def _render_rich_compact(console, payload: Mapping[str, Any]) -> None:
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
 
     title = f"{payload['name']}"
     subtitle = (
@@ -239,9 +345,9 @@ def _render_rich_report(
     )
     console.print(Panel(Text(subtitle), title=title, expand=False))
 
-    topo_text = _topology_text(payload)
-    if topo_text:
-        console.print(Panel(topo_text, title="Topology", expand=False))
+    tooth_txt = _tooth_counts_text(payload)
+    if tooth_txt:
+        console.print(f"Tooth counts: {tooth_txt}")
 
     table = Table(show_header=True, header_style="bold")
     table.add_column("State", justify="left")
@@ -260,20 +366,85 @@ def _render_rich_report(
 
     console.print(table)
 
+
+def _render_rich_wide(console, payload: Mapping[str, Any]) -> None:
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    title = f"{payload['name']}"
+    subtitle = (
+        f"input={payload['input_member']}   "
+        f"output={payload['output_member']}   "
+        f"speed={payload['input_speed']}   "
+        f"geometry={'strict' if payload.get('strict_geometry') else 'relaxed'}"
+    )
+    console.print(Panel(Text(subtitle), title=title, expand=False))
+
+    tooth_txt = _tooth_counts_text(payload)
+    if tooth_txt:
+        console.print(f"Tooth counts: {tooth_txt}")
+
+    member_cols = _speed_column_order(payload)
+
+    table = Table(show_header=True, header_style="bold", expand=False)
+    table.add_column("State", justify="left", no_wrap=True)
+    table.add_column("Elems", justify="left", no_wrap=True)
+    table.add_column("Ratio", justify="right", no_wrap=True)
+    table.add_column("Status", justify="left", no_wrap=True)
+
+    for col in member_cols:
+        table.add_column(col, justify="right", no_wrap=True)
+
+    results = payload.get("results", {})
+    for state_name, res in results.items():
+        row = [
+            str(state_name),
+            _format_elems(res.get("engaged", [])),
+            _format_ratio(res.get("ratio"), ndigits=3),
+            _status_label(res),
+        ]
+
+        speeds = res.get("speeds", {})
+        if not isinstance(speeds, dict):
+            speeds = {}
+
+        for col in member_cols:
+            row.append(_format_speed(speeds.get(col), ndigits=3))
+
+        table.add_row(*row)
+
+    console.print(table)
+
+
+def _render_rich_report(
+    payload: Mapping[str, Any],
+    *,
+    show_speeds: bool = False,
+    ratios_only: bool = False,
+) -> str:
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+    except Exception:
+        return _render_plain_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
+
+    buffer = StringIO()
+    console = Console(
+        file=buffer,
+        force_terminal=True,
+        color_system="auto",
+        width=220,
+    )
+
     if show_speeds:
-        for state_name, res in results.items():
-            speeds = res.get("speeds", {})
-            if not speeds:
-                continue
+        _render_rich_wide(console, payload)
+    else:
+        _render_rich_compact(console, payload)
 
-            speed_table = Table(show_header=True, header_style="bold")
-            speed_table.add_column("Member", justify="left")
-            speed_table.add_column("Speed", justify="right")
-
-            for member, value in speeds.items():
-                speed_table.add_row(str(member), f"{float(value):.6f}")
-
-            console.print(Panel(speed_table, title=f"{state_name} Speeds", expand=False))
+    topo_text = _topology_text(payload)
+    if topo_text:
+        console.print(Panel(topo_text, title="Topology", expand=False))
 
     return buffer.getvalue().rstrip()
 
