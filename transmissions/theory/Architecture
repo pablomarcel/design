@@ -32,6 +32,10 @@ transmissions
 │   ├── eight_speed.py
 │   └── ten_speed.py
 │
-└── visualization
-    ├── schematic.py
-    └── animation.py
+├── apis.py
+├── app.py
+├── cli.py
+├── io.py
+├── model.py
+├── module_loader.py
+└── utils.py

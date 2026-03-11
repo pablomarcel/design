@@ -32,16 +32,16 @@
     },
     {
       "name": "P3",
-      "Ns": 38,
-      "Nr": 61,
+      "Ns": 60,
+      "Nr": 108,
       "sun": "p23",
       "ring": "c_out",
       "carrier": "p3c"
     },
     {
       "name": "P4",
-      "Ns": 21,
-      "Nr": 78,
+      "Ns": 24,
+      "Nr": 96,
       "sun": "c_out",
       "ring": "p1c_p4r",
       "carrier": "output"
@@ -75,18 +75,18 @@
     "base": {
       "gearsets": {
         "P1": { "Ns": 48, "Nr": 96 },
-        "P2": { "Ns": 48, "Nr": 96 },
-        "P3": { "Ns": 38, "Nr": 61 },
-        "P4": { "Ns": 21, "Nr": 78 }
+        "P2": { "Ns": 54, "Nr": 96 },
+        "P3": { "Ns": 60, "Nr": 108 },
+        "P4": { "Ns": 24, "Nr": 96 }
       },
       "strict_geometry": false
     },
     "legacy": {
       "gearsets": {
         "P1": { "Ns": 48, "Nr": 96 },
-        "P2": { "Ns": 48, "Nr": 96 },
-        "P3": { "Ns": 38, "Nr": 96 },
-        "P4": { "Ns": 23, "Nr": 85 }
+        "P2": { "Ns": 54, "Nr": 96 },
+        "P3": { "Ns": 60, "Nr": 96 },
+        "P4": { "Ns": 24, "Nr": 102 }
       },
       "strict_geometry": false
     }
