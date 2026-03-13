@@ -1,0 +1,49 @@
+Because the question is not really **“is 10 speeds too many?”** — it is **“was the TC10 the right solution for the Class 8 market?”**
+
+The short answer is: **there is a market for many forward ratios in commercial trucks, but the market overwhelmingly chose AMTs, not a torque-converter full automatic like the TC10.** Today the mainstream heavy-truck market is built around AMTs such as Detroit DT12, Eaton Cummins Endurant, Volvo I-Shift, Mack mDRIVE, and PACCAR TX-12/TX-18. OEMs market these specifically for efficiency and on-highway use, and Volvo now explicitly says AMTs have become the industry standard in North America. ([Freightliner][1])
+
+So why didn’t OEMs and fleets really embrace the TC10?
+
+**1. Allison aimed it at the wrong slice of the market for big volume.**
+Allison’s own filings repeatedly said it had **very limited exposure to the Class 8 line-haul tractor market** because **lower-priced manuals and AMTs generally met those trucks’ needs**. It positioned the TC10 for a narrower “metro tractor” or mixed urban/highway duty cycle, not for the bread-and-butter long-haul fleet market. ([SEC][2])
+
+**2. Long-haul fleets care brutally about fuel economy and total cost.**
+AMTs became attractive because they keep the efficiency of a manual-style geartrain while removing driver shift variability. Industry coverage from that period notes AMTs’ principal virtue was fuel economy, and OEMs today still sell DT12, Endurant, I-Shift, and TX-12 as efficiency-focused products. In long steady-state highway cruising, that matters more than the smoother launch and shift feel of a full automatic. ([Heavy Duty Trucking][3])
+
+**3. The TC10 was more expensive than the alternatives.**
+A 2014 HDT test-drive report said Navistar noted the TC10 was priced about **15–20% more than Eaton UltraShift products**, which themselves already cost thousands more than comparable manuals. That is a hard sell in large fleets unless the TCO case is overwhelming. ([Heavy Duty Trucking][4])
+
+**4. OEM support existed, but it was limited and late.**
+The TC10 first appeared with Navistar/International, later expanded to PACCAR models, and then International LT with Cummins X15. So it was not that “no OEM wanted it” — some did offer it — but it never became the default powertrain path across the major line-haul platforms the way DT12, I-Shift, mDRIVE, and Endurant did. ([Heavy Duty Trucking][5])
+
+**5. Allison eventually pulled the plug.**
+In March 2020, Allison ended **new production** of the TC10 and kept only replacement/ReTran support. That tells you the business case did not scale the way Allison hoped. ([Heavy Duty Trucking][6])
+
+Your instinct about “10 speeds” is directionally right, but the market answered it differently:
+
+* **Yes, commercial trucks absolutely want lots of ratios.**
+* **No, they did not particularly want a TC10-style full automatic for mainstream Class 8 linehaul.**
+
+In practice, the market migrated toward **12-, 13-, and 18-speed AMTs**, because they delivered:
+
+* enough ratio coverage,
+* better highway efficiency,
+* lower cost than a full automatic,
+* strong engine/transmission integration from the OEM,
+* and easier driver operation than manuals. ([Freightliner][1])
+
+So the clean conclusion is:
+
+**The TC10 did not fail because “10 speeds aren’t useful.” It struggled because the dominant Class 8 market wanted the ratio coverage and driver ease of an automatic, but with the fuel-efficiency and cost structure of an AMT.** The winners were DT12, Endurant, I-Shift, mDRIVE, and TX-series AMTs — not because they had fewer gears, but because they matched the economics of long-haul trucking better. ([SEC][2])
+
+If you want, I can also break this down from a **transmission architecture** perspective — why a torque-converter 10-speed makes more sense in pickup trucks like the 10R80 than in Class 8 highway tractors.
+
+[1]: https://www.freightliner.com/demand-detroit/detroit-dt12-on-highway-series-transmissions/?utm_source=chatgpt.com "Detroit DT12 Series Transmissions"
+[2]: https://www.sec.gov/Archives/edgar/data/1411207/000119312518047233/d503860d10k.htm?utm_source=chatgpt.com "Form 10-K"
+[3]: https://www.truckinginfo.com/articles/automated-mechanical-transmissions-gaining-steadily-in-class-8-trucks?utm_source=chatgpt.com "Automated Mechanical Transmissions Gaining Steadily in ..."
+[4]: https://www.truckinginfo.com/articles/test-drive-allisons-tc10-automatic-transmission?utm_source=chatgpt.com "Test Drive: Allison's TC10 Automatic Transmission"
+[5]: https://www.truckinginfo.com/products/new-allison-tc10-tractor-transmission-available-for-order-at-navistar?utm_source=chatgpt.com "New Allison TC10 Tractor Transmission Available for Order ..."
+[6]: https://www.truckinginfo.com/news/allison-eallison-ends-tc10-transmission-productionnds-tc10-transmission-producti?utm_source=chatgpt.com "Allison Ends TC10 Transmission Production"
+
+---
+
