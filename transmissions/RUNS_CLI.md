@@ -265,23 +265,13 @@ python -m cli \
   --show-speeds
 ```
 
-### Solves a transmission spec - shows ratios only - legacy
+### Solves a transmission spec - shows ratios only - mb_9gtronic_2013
 
 ```bash
 python -m cli \
   --spec in/transmission_spec_w9a_700.json \
   --schedule in/shift_schedule_w9a_700.json \
-  --preset legacy \
-  --ratios-only
-```
-
-### Solves a transmission spec - shows ratios only - base
-
-```bash
-python -m cli \
-  --spec in/transmission_spec_w9a_700.json \
-  --schedule in/shift_schedule_w9a_700.json \
-  --preset base \
+  --preset mb_9gtronic_2013 \
   --ratios-only
 ```
 

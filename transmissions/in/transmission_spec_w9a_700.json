@@ -1,0 +1,160 @@
+{
+  "name": "Mercedes-Benz 9G-TRONIC / NAG3 9-Speed",
+  "input_member": "input_s1",
+  "output_member": "output_c3",
+  "strict_geometry": false,
+
+  "members": [
+    "input_s1",
+    "c1",
+    "r1_c2",
+    "s2",
+    "r2_s3_s4",
+    "r3",
+    "r4",
+    "output_c3"
+  ],
+
+  "speed_display_order": [
+    "input_s1",
+    "c1",
+    "r1_c2",
+    "s2",
+    "r2_s3_s4",
+    "r3",
+    "r4",
+    "output_c3"
+  ],
+
+  "speed_display_labels": {
+    "input_s1": "Input",
+    "c1": "c1",
+    "r1_c2": "r1_c2",
+    "s2": "s2",
+    "r2_s3_s4": "r2_s3_s4",
+    "r3": "r3",
+    "r4": "r4",
+    "output_c3": "Output"
+  },
+
+  "gearsets": [
+    {
+      "name": "P1",
+      "Ns": 46,
+      "Nr": 98,
+      "sun": "input_s1",
+      "ring": "r1_c2",
+      "carrier": "c1"
+    },
+    {
+      "name": "P2",
+      "Ns": 44,
+      "Nr": 100,
+      "sun": "s2",
+      "ring": "r2_s3_s4",
+      "carrier": "r1_c2"
+    },
+    {
+      "name": "P3",
+      "Ns": 36,
+      "Nr": 84,
+      "sun": "r2_s3_s4",
+      "ring": "r3",
+      "carrier": "output_c3"
+    },
+    {
+      "name": "P4",
+      "Ns": 34,
+      "Nr": 86,
+      "sun": "r2_s3_s4",
+      "ring": "r4",
+      "carrier": "input_s1"
+    }
+  ],
+
+  "clutches": [
+    { "name": "D", "a": "output_c3", "b": "r4" },
+    { "name": "E", "a": "c1", "b": "r2_s3_s4" },
+    { "name": "F", "a": "input_s1", "b": "c1" }
+  ],
+
+  "brakes": [
+    { "name": "A", "member": "s2" },
+    { "name": "B", "member": "r3" },
+    { "name": "C", "member": "c1" }
+  ],
+
+  "sprags": [],
+  "permanent_ties": [],
+
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "Rev"],
+
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+
+    "6": "6th",
+    "6th": "6th",
+    "sixth": "6th",
+
+    "7": "7th",
+    "7th": "7th",
+    "seventh": "7th",
+
+    "8": "8th",
+    "8th": "8th",
+    "eighth": "8th",
+
+    "9": "9th",
+    "9th": "9th",
+    "ninth": "9th",
+
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+
+  "presets": {
+    "mb_9gtronic_2013": {
+      "gearsets": {
+        "P1": { "Ns": 46, "Nr": 98 },
+        "P2": { "Ns": 44, "Nr": 100 },
+        "P3": { "Ns": 36, "Nr": 84 },
+        "P4": { "Ns": 34, "Nr": 86 }
+      },
+      "strict_geometry": false
+    },
+    "mb_9gtronic_2016": {
+      "gearsets": {
+        "P1": { "Ns": 46, "Nr": 98 },
+        "P2": { "Ns": 44, "Nr": 100 },
+        "P3": { "Ns": 37, "Nr": 83 },
+        "P4": { "Ns": 34, "Nr": 86 }
+      },
+      "strict_geometry": false
+    }
+  },
+
+  "notes": "Universal topology spec for Mercedes-Benz 9G-TRONIC / NAG3 monolithic public-topology solve.",
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from nine_speed.py universal-core topology."
+  }
+}
