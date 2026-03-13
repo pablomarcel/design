@@ -17,7 +17,7 @@ python -m cli \
   --show-speeds
 ```
 
-### Solves a transmission spec - 8th gear - shows speeds
+### Solves a transmission spec - 3rd gear - shows speeds
 
 ```bash
 python -m cli \
@@ -51,6 +51,62 @@ python -m cli \
 ```bash
 python -m cli \
   --spec in/transmission_spec_ford_c4.json \
+  --list-presets
+```
+
+#### Ravigneaux - 4 Speed Transmission
+
+### Solves a transmission spec - all states
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
+  --schedule in/shift_schedule_ravigneaux.json
+```
+
+### Solves a transmission spec - all states - show speeds
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
+  --schedule in/shift_schedule_ravigneaux.json \
+  --show-speeds
+```
+
+### Solves a transmission spec - 3rd gear - shows speeds
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
+  --schedule in/shift_schedule_ravigneaux.json \
+  --state 3rd \
+  --show-speeds
+```
+
+### Solves a transmission spec - shows ratios only - ravigneaux_reference
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
+  --schedule in/shift_schedule_ravigneaux.json \
+  --preset ravigneaux_reference \
+  --ratios-only
+```
+
+### Solves a transmission spec - overrides teeth count
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
+  --schedule in/shift_schedule_ravigneaux.json \
+  --set PG_front.Ns=23 PG_front.Nr=85
+```
+
+### List presets
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ravigneaux.json \
   --list-presets
 ```
 

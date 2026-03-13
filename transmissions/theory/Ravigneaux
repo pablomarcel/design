@@ -1,0 +1,163 @@
+Yes — after analyzing `four_speed.py`, my assessment is:
+
+**You cannot represent the current 4-speed Ravigneaux script faithfully with the universal CLI app as it exists today using only a transmission spec JSON + shift schedule JSON.**
+
+And the reason is very specific.
+
+## Why not
+
+The current universal CLI app is built around:
+
+* `TransmissionSpec.gearsets`
+* each gearset being a **simple planetary** with `sun`, `ring`, `carrier`
+* the generic builder then feeding those into `TransmissionSolver` through `PlanetaryGearSet`, `Clutch`, `Brake`, `Sprag`, and permanent ties
+
+That works for all the transmissions you already confirmed:
+
+* 3 speed
+* 5 speed
+* 6 speed
+* 7 speed
+* 8 speed
+* 9 speed
+* 10 speed
+
+because they were either:
+
+* true simple-planetary networks, or
+* equivalent abstractions built out of simple planetary meshes and shared nodes.
+
+The 7-speed is the clearest example: it explicitly says the inverse-Ravigneaux front stage was converted into an **equivalent two-mesh shared-carrier abstraction** specifically so it could stay inside the reusable `PlanetaryGearSet` + `TransmissionSolver` framework.
+
+## What `four_speed.py` actually does
+
+`four_speed.py` says the opposite.
+
+It explicitly states:
+
+* it does **not** solve through `core.solver.TransmissionSolver`
+* Core V2 currently understands **simple planetary gearsets**
+* this transmission is modeled through its **own central-member equations**
+* solver path is `ravigneaux_local_core_v2`
+
+And those equations are not simple-planetary equations. The file uses these two custom Ravigneaux central-member relations:
+
+* `Ns_small * (w_small - w_carrier) - Nr * (w_ring - w_carrier) = 0`
+* `Ns_large * (w_large - w_carrier) + Nr * (w_ring - w_carrier) = 0`
+
+Then it solves them locally with SymPy in `_solve_local()`, not through the generic core solver.
+
+## What the 4-speed script needs that the universal app does not currently have
+
+The dedicated 4-speed model needs per-state data that looks like:
+
+* engaged elements
+* **input member**
+* output member
+
+That is because the input changes by gear:
+
+* 1st: input = `sun_small`
+* 2nd: input = `sun_small`
+* 3rd: input = `ring`
+* 4th: input = `carrier`
+* Rev: input = `sun_large`
+
+Your current universal shift-schedule schema supports:
+
+* `active_constraints`
+* `display_elements`
+* `manual_neutral`
+* `notes`
+
+But it does **not** support:
+
+* per-state `input_member`
+* per-state `output_member`
+* per-state custom solver mode
+* custom non-simple-planetary equations
+
+So even if I created JSON files, the current universal app would not know what to do with them.
+
+## So can we come up with JSON files?
+
+### For documentation or future use: yes
+
+I can absolutely write a **candidate** `transmission_spec_ravigneaux_4spd.json` and `shift_schedule_ravigneaux_4spd.json` that describe:
+
+* members:
+
+  * `sun_small`
+  * `sun_large`
+  * `ring`
+  * `carrier`
+* shift elements:
+
+  * `B_carrier`
+  * `B_large`
+  * `C_direct`
+* states:
+
+  * `1st`, `2nd`, `3rd`, `4th`, `Rev`
+* tooth counts:
+
+  * `Ns_small`
+  * `Ns_large`
+  * `Nr`
+
+### For the current universal CLI app to actually run them: no
+
+Not without upgrading the app.
+
+## What would need to change to support it
+
+You would need a new core capability, one of these two approaches:
+
+### Option 1: add a native Ravigneaux gearset type
+
+Something like:
+
+* `RavigneauxGearSet`
+* plus generic solver support for its custom equations
+
+This is the cleanest long-term architecture.
+
+### Option 2: add a “custom local solver mode” to the universal app
+
+That would mean extending the universal JSON app so a spec can say something like:
+
+* `"solver_mode": "ravigneaux_local"`
+* plus specify:
+
+  * members
+  * tooth counts
+  * custom equations
+  * per-state input member
+
+That would be more flexible, but it is also more ad hoc.
+
+## My recommendation
+
+Your memory was correct.
+
+The 4-speed Ravigneaux script is **not currently universal-CLI compatible** in the same way as the 3/5/6/7/8/9/10 speed transmissions, because it depends on:
+
+* a **local custom kinematic solve path**
+* **custom central-member equations**
+* **per-state input member changes**
+
+So the honest assessment is:
+
+**No, not with the current universal app architecture.**
+
+But:
+
+**Yes, if you are willing to upgrade the universal app to support a Ravigneaux-specific solver mode or a native `RavigneauxGearSet`.**
+
+The smallest practical upgrade would probably be:
+
+* extend `TransmissionSpec` with `solver_mode`
+* extend `ShiftStateSpec` with `input_member`
+* add a `ravigneaux_local` branch in `model.py` that reproduces the same local symbolic solve from `four_speed.py`
+
+That would let the 4-speed live inside the universal CLI app without forcing the simple-planetary solver to do something it was never designed to do.

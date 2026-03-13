@@ -1,0 +1,148 @@
+A sprag is basically a **one-way holding device**.
+
+That is the simplest intuition.
+
+A clutch can connect two rotating members both ways.
+A brake can hold a member to ground both ways.
+A sprag is different: it **locks in one rotational direction and freewheels in the other**.
+
+## What “sprag” literally means
+
+In transmission language, a sprag is a type of **one-way clutch** built from asymmetrical little wedging elements called sprags.
+
+You can picture it like this:
+
+* in one direction, those elements tilt and **wedge**
+* in the other direction, they release and **roll/freewheel**
+
+So mechanically it behaves like:
+
+* **locked one way**
+* **free the other way**
+
+That is why it is sometimes grouped with:
+
+* overrunning clutches
+* one-way clutches
+* roller clutches
+
+## What it means mechanically
+
+A sprag does **not** mean “hold this member always.”
+
+It means:
+
+* if the member tries to rotate in the blocked direction, the sprag reacts and holds it
+* if the member rotates in the allowed direction, the sprag does nothing and lets it spin
+
+That is the key difference from a brake.
+
+### Brake
+
+* always grounds the member when applied
+
+### Sprag
+
+* only grounds the member **for one sense of motion**
+
+So a sprag is a **direction-sensitive ground reaction element**.
+
+## Why that matters in an automatic transmission
+
+Because some gear states need a member to be held **only during torque flow in one direction**, but they do **not** want a harsh bind or engine braking in the opposite sense.
+
+That gives designers useful behavior like:
+
+* smooth automatic upshifts
+* automatic release/freewheel during certain transitions
+* torque reaction only when needed
+* reduced need for one extra fully controlled friction element in some operating ranges
+
+In old-school automatics especially, sprags were a big deal because they let the transmission:
+
+* hold a reaction member during acceleration
+* then overrun smoothly when the kinematics reverse during a shift or coast condition
+
+## Why it matters in your app
+
+Because a sprag is **not equivalent** to a brake.
+
+That was exactly the issue you hit with the Mercedes 5-speed.
+
+If you model a sprag as an ordinary brake, you are telling the solver:
+
+* “this member is always grounded when engaged”
+
+But a real sprag means:
+
+* “this member is grounded only if motion tries to happen in the blocked direction”
+
+That changes the constraint set.
+
+So in the app:
+
+* a **clutch** adds an equality between two members
+* a **brake** grounds one member
+* a **sprag** grounds one member **conditionally by direction**
+
+That is why it is its own object.
+
+## Why the object matters conceptually
+
+Because your transmission app is trying to represent real hardware logic, not just generic math constraints.
+
+Without a sprag object, the model loses an important kind of transmission behavior:
+
+* one-way reaction support
+* overrun behavior
+* some coast/drive asymmetry
+* some shift-state realism
+
+In other words, sprags matter because they are a **different kind of kinematic constraint**.
+
+## Intuition with a simple analogy
+
+Think of a bicycle freewheel.
+
+* Pedal forward: it engages and transmits torque
+* Stop pedaling while wheel keeps spinning: it freewheels
+
+A sprag is not exactly the same hardware, but the intuition is similar:
+it is a **one-way engagement device**.
+
+## In the context of your universal CLI app
+
+It matters because certain transmissions, like your:
+
+* Ford 3-speed
+* Mercedes 5-speed
+
+actually use sprag behavior in their dedicated scripts.
+
+So if the universal CLI app wants to reproduce those transmissions honestly, it must support sprags as first-class elements, not fake them as brakes.
+
+That is why adding sprag support to `model.py` was important:
+
+* the topology parser needed to understand them
+* the shift schedule needed to reference them
+* the solver path needed to include them
+
+Otherwise the universal app would be incomplete for real automatic transmission architectures.
+
+## Practical summary
+
+A sprag is:
+
+* a **one-way clutch**
+* a device that **locks in one direction**
+* and **freewheels in the other**
+
+Mechanically it is relevant because it provides:
+
+* directional holding
+* overrunning behavior
+* smoother and more realistic automatic transmission states
+
+In your app it matters because it is a **distinct transmission constraint type** that cannot always be replaced by a normal brake without changing the physics/kinematics.
+
+The next good step before Ravigneaux is to talk about how a sprag differs mathematically from a brake in the constraint equations.
