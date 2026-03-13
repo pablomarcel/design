@@ -1,0 +1,54 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": ["C3", "B1", "B2", "F1", "F2"],
+      "display_elements": ["C3", "B1", "B2", "F1", "F2"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "2nd": {
+      "active_constraints": ["C1", "C3", "B2", "F2"],
+      "display_elements": ["C1", "C3", "B2", "F2"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "3rd": {
+      "active_constraints": ["C1", "C2", "B2"],
+      "display_elements": ["C1", "C2", "B2"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "4th": {
+      "active_constraints": ["C1", "C2", "C3"],
+      "display_elements": ["C1", "C2", "C3"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "5th": {
+      "active_constraints": ["C2", "C3", "B1"],
+      "display_elements": ["C2", "C3", "B1"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "R1": {
+      "active_constraints": ["C3", "BR", "F1", "B1"],
+      "display_elements": ["C3", "BR", "F1", "B1"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "R2": {
+      "active_constraints": ["C1", "C3", "BR"],
+      "display_elements": ["C1", "C3", "BR"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "N": {
+      "active_constraints": ["C3", "B1"],
+      "display_elements": ["C3", "B1"],
+      "manual_neutral": true,
+      "notes": "Neutral is reported through the manual-neutral convention used by the dedicated W5A-580 implementation."
+    }
+  },
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "R1", "R2", "N"],
+  "notes": "Shift schedule for Mercedes-Benz W5A-580 / 722.6-family 5-speed transmission."
+}

@@ -1,0 +1,66 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": ["C3", "B2", "B3"],
+      "display_elements": ["C3", "B2", "B3"],
+      "manual_neutral": false,
+      "notes": "C3 + B2 + B3"
+    },
+    "2nd": {
+      "active_constraints": ["C3", "B1", "B2"],
+      "display_elements": ["C3", "B1", "B2"],
+      "manual_neutral": false,
+      "notes": "C3 + B1 + B2"
+    },
+    "3rd": {
+      "active_constraints": ["C1", "C3", "B2"],
+      "display_elements": ["C1", "C3", "B2"],
+      "manual_neutral": false,
+      "notes": "C1 + C3 + B2"
+    },
+    "4th": {
+      "active_constraints": ["C1", "C2", "B2"],
+      "display_elements": ["C1", "C2", "B2"],
+      "manual_neutral": false,
+      "notes": "C1 + C2 + B2"
+    },
+    "5th": {
+      "active_constraints": ["C1", "C2", "C3"],
+      "display_elements": ["C1", "C2", "C3"],
+      "manual_neutral": false,
+      "notes": "C1 + C2 + C3 direct"
+    },
+    "6th": {
+      "active_constraints": ["C2", "C3", "B1"],
+      "display_elements": ["C2", "C3", "B1"],
+      "manual_neutral": false,
+      "notes": "C2 + C3 + B1 overdrive"
+    },
+    "7th": {
+      "active_constraints": ["C2", "C3", "B3"],
+      "display_elements": ["C2", "C3", "B3"],
+      "manual_neutral": false,
+      "notes": "C2 + C3 + B3 overdrive"
+    },
+    "R1": {
+      "active_constraints": ["C3", "B3", "BR"],
+      "display_elements": ["C3", "B3", "BR"],
+      "manual_neutral": false,
+      "notes": "C3 + B3 + BR reverse"
+    },
+    "R2": {
+      "active_constraints": ["C3", "B1", "BR"],
+      "display_elements": ["C3", "B1", "BR"],
+      "manual_neutral": false,
+      "notes": "C3 + B1 + BR reverse"
+    },
+    "N": {
+      "active_constraints": ["C3", "B3"],
+      "display_elements": ["C3", "B3"],
+      "manual_neutral": true,
+      "notes": "Neutral/reporting convention from the dedicated W7A-700 implementation."
+    }
+  },
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "R1", "R2", "N"],
+  "notes": "Shift schedule for Mercedes-Benz W7A-700 / 7G-Tronic-style 7-speed transmission."
+}

@@ -1,0 +1,151 @@
+{
+  "name": "Mercedes-Benz W5A-580 5-Speed",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+
+  "members": [
+    "input",
+    "forward_sun",
+    "forward_carrier",
+    "rear_sun",
+    "rear_carrier",
+    "middle_sun",
+    "output"
+  ],
+
+  "speed_display_order": [
+    "input",
+    "forward_sun",
+    "forward_carrier",
+    "rear_sun",
+    "rear_carrier",
+    "middle_sun",
+    "output"
+  ],
+
+  "speed_display_labels": {
+    "input": "Input",
+    "forward_sun": "forward_sun",
+    "forward_carrier": "forward_carrier",
+    "rear_sun": "rear_sun",
+    "rear_carrier": "rear_carrier",
+    "middle_sun": "middle_sun",
+    "output": "Output"
+  },
+
+  "gearsets": [
+    {
+      "name": "PG_forward",
+      "Ns": 46,
+      "Nr": 72,
+      "sun": "forward_sun",
+      "ring": "input",
+      "carrier": "forward_carrier"
+    },
+    {
+      "name": "PG_rear",
+      "Ns": 68,
+      "Nr": 122,
+      "sun": "rear_sun",
+      "ring": "forward_carrier",
+      "carrier": "rear_carrier"
+    },
+    {
+      "name": "PG_middle",
+      "Ns": 37,
+      "Nr": 91,
+      "sun": "middle_sun",
+      "ring": "rear_carrier",
+      "carrier": "output"
+    }
+  ],
+
+  "clutches": [
+    { "name": "C1", "a": "input", "b": "forward_sun" },
+    { "name": "C2", "a": "input", "b": "rear_carrier" },
+    { "name": "C3", "a": "rear_sun", "b": "middle_sun" }
+  ],
+
+  "brakes": [
+    { "name": "B1", "member": "forward_sun" },
+    { "name": "B2", "member": "middle_sun" },
+    { "name": "BR", "member": "rear_carrier" }
+  ],
+
+  "sprags": [
+    {
+      "name": "F1",
+      "member": "forward_sun",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    },
+    {
+      "name": "F2",
+      "member": "rear_sun",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    }
+  ],
+
+  "permanent_ties": [],
+
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "R1", "R2", "N"],
+
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+
+    "r1": "R1",
+    "rev1": "R1",
+    "reverse1": "R1",
+    "reverse_1": "R1",
+
+    "r2": "R2",
+    "rev2": "R2",
+    "reverse2": "R2",
+    "reverse_2": "R2",
+
+    "r": "R1",
+    "rev": "R1",
+    "reverse": "R1",
+
+    "n": "N",
+    "neutral": "N"
+  },
+
+  "presets": {
+    "w5a580_candidate": {
+      "gearsets": {
+        "PG_forward": { "Ns": 46, "Nr": 72 },
+        "PG_rear": { "Ns": 68, "Nr": 122 },
+        "PG_middle": { "Ns": 37, "Nr": 91 }
+      },
+      "strict_geometry": false
+    }
+  },
+
+  "notes": "Universal topology spec for Mercedes-Benz W5A-580 / 722.6-family 5-speed transmission with explicit sprag support for F1 and F2.",
+
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from five_speed.py universal-core topology."
+  }
+}

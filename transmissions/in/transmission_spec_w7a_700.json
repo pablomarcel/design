@@ -1,0 +1,155 @@
+{
+  "name": "Mercedes-Benz W7A-700 7-Speed",
+  "input_member": "input",
+  "output_member": "out",
+  "strict_geometry": false,
+
+  "members": [
+    "input",
+    "fa",
+    "fb",
+    "fc",
+    "rs",
+    "rc",
+    "ms",
+    "out"
+  ],
+
+  "speed_display_order": [
+    "input",
+    "fa",
+    "fb",
+    "fc",
+    "rs",
+    "rc",
+    "ms",
+    "out"
+  ],
+
+  "speed_display_labels": {
+    "input": "Input",
+    "fa": "fa",
+    "fb": "fb",
+    "fc": "fc",
+    "rs": "rs",
+    "rc": "rc",
+    "ms": "ms",
+    "out": "Output"
+  },
+
+  "gearsets": [
+    {
+      "name": "PG_A",
+      "Ns": 52,
+      "Nr": 106,
+      "sun": "fa",
+      "ring": "input",
+      "carrier": "fc"
+    },
+    {
+      "name": "PG_B",
+      "Ns": 78,
+      "Nr": 100,
+      "sun": "input",
+      "ring": "fb",
+      "carrier": "fc"
+    },
+    {
+      "name": "PG_R",
+      "Ns": 66,
+      "Nr": 164,
+      "sun": "rs",
+      "ring": "fc",
+      "carrier": "rc"
+    },
+    {
+      "name": "PG_M",
+      "Ns": 62,
+      "Nr": 168,
+      "sun": "ms",
+      "ring": "rc",
+      "carrier": "out"
+    }
+  ],
+
+  "clutches": [
+    { "name": "C1", "a": "input", "b": "fa" },
+    { "name": "C2", "a": "input", "b": "rc" },
+    { "name": "C3", "a": "rs", "b": "ms" }
+  ],
+
+  "brakes": [
+    { "name": "B1", "member": "fa" },
+    { "name": "B2", "member": "ms" },
+    { "name": "B3", "member": "fb" },
+    { "name": "BR", "member": "rc" }
+  ],
+
+  "sprags": [],
+
+  "permanent_ties": [],
+
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "R1", "R2", "N"],
+
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+
+    "6": "6th",
+    "6th": "6th",
+    "sixth": "6th",
+
+    "7": "7th",
+    "7th": "7th",
+    "seventh": "7th",
+
+    "r1": "R1",
+    "rev1": "R1",
+    "reverse1": "R1",
+    "reverse_1": "R1",
+
+    "r2": "R2",
+    "rev2": "R2",
+    "reverse2": "R2",
+    "reverse_2": "R2",
+
+    "n": "N",
+    "neutral": "N"
+  },
+
+  "presets": {
+    "w7a700_candidate": {
+      "gearsets": {
+        "PG_A": { "Ns": 52, "Nr": 106 },
+        "PG_B": { "Ns": 78, "Nr": 100 },
+        "PG_R": { "Ns": 66, "Nr": 164 },
+        "PG_M": { "Ns": 62, "Nr": 168 }
+      },
+      "strict_geometry": false
+    }
+  },
+
+  "notes": "Universal topology spec for Mercedes-Benz W7A-700 / 7G-Tronic-style 7-speed transmission using the inverse-Ravigneaux equivalent front-stage abstraction from seven_speed.py.",
+
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from seven_speed.py universal-core topology."
+  }
+}

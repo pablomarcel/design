@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, Mapping
 
 try:
-    from .core.clutch import Brake, Clutch, RotatingMember
+    from .core.clutch import Brake, Clutch, RotatingMember, Sprag
     from .core.planetary import PlanetaryGearSet
     from .core.solver import TransmissionSolver
     from .utils import (
@@ -17,7 +17,7 @@ try:
         normalize_state_name,
     )
 except ImportError:
-    from core.clutch import Brake, Clutch, RotatingMember
+    from core.clutch import Brake, Clutch, RotatingMember, Sprag
     from core.planetary import PlanetaryGearSet
     from core.solver import TransmissionSolver
     from utils import (
@@ -54,6 +54,23 @@ class BrakeSpec:
     member: str
 
 
+@dataclass(frozen=True)
+class SpragSpec:
+    name: str
+    member: str
+    hold_direction: str = "counter_clockwise"
+    locked_when_engaged: bool = True
+
+
+@dataclass(frozen=True)
+class ShiftStateSpec:
+    name: str
+    active_constraints: tuple[str, ...]
+    display_elements: tuple[str, ...]
+    notes: str = ""
+    manual_neutral: bool = False
+
+
 @dataclass
 class TransmissionSpec:
     name: str
@@ -62,6 +79,7 @@ class TransmissionSpec:
     gearsets: list[GearsetSpec]
     clutches: list[ClutchSpec]
     brakes: list[BrakeSpec]
+    sprags: list[SpragSpec] = field(default_factory=list)
     permanent_ties: list[tuple[str, str]] = field(default_factory=list)
     members: list[str] = field(default_factory=list)
     display_order: list[str] = field(default_factory=list)
@@ -149,6 +167,18 @@ class TransmissionSpec:
                 )
             )
 
+        sprags: list[SpragSpec] = []
+        for idx, item in enumerate(ensure_list(d.get("sprags"), context="spec.sprags")):
+            s = ensure_dict(item, context=f"spec.sprags[{idx}]")
+            sprags.append(
+                SpragSpec(
+                    name=ensure_str(s.get("name"), context=f"spec.sprags[{idx}].name"),
+                    member=ensure_str(s.get("member"), context=f"spec.sprags[{idx}].member"),
+                    hold_direction=str(s.get("hold_direction", "counter_clockwise")).strip() or "counter_clockwise",
+                    locked_when_engaged=bool(s.get("locked_when_engaged", True)),
+                )
+            )
+
         permanent_ties: list[tuple[str, str]] = []
         for idx, item in enumerate(ensure_list(d.get("permanent_ties"), context="spec.permanent_ties")):
             if not isinstance(item, list) or len(item) != 2:
@@ -164,6 +194,7 @@ class TransmissionSpec:
             gearsets=gearsets,
             clutches=clutches,
             brakes=brakes,
+            sprags=sprags,
             permanent_ties=permanent_ties,
             members=members,
             display_order=display_order,
@@ -191,6 +222,9 @@ class TransmissionSpec:
         for b in self.brakes:
             out.append(b.member)
 
+        for s in self.sprags:
+            out.append(s.member)
+
         for a, b in self.permanent_ties:
             out.extend([a, b])
 
@@ -199,7 +233,7 @@ class TransmissionSpec:
 
 @dataclass
 class ShiftSchedule:
-    states: dict[str, tuple[str, ...]]
+    states: dict[str, ShiftStateSpec]
     notes: str = ""
     display_order: list[str] = field(default_factory=list)
 
@@ -207,14 +241,64 @@ class ShiftSchedule:
     def from_dict(data: Mapping[str, Any], *, aliases: Mapping[str, str] | None = None) -> "ShiftSchedule":
         d = ensure_dict(data, context="shift schedule")
         raw_states = ensure_dict(d.get("states"), context="schedule.states")
-        states: dict[str, tuple[str, ...]] = {}
+        states: dict[str, ShiftStateSpec] = {}
 
-        for raw_state, raw_elements in raw_states.items():
+        for raw_state, raw_spec in raw_states.items():
             state_name = normalize_state_name(str(raw_state), aliases)
-            elems = ensure_list(raw_elements, context=f"schedule.states.{raw_state}")
-            states[state_name] = tuple(
-                ensure_str(x, context=f"schedule.states.{raw_state}[]")
-                for x in elems
+
+            # Legacy simple form:
+            # "1st": ["A", "B", "C"]
+            if isinstance(raw_spec, list):
+                elems = ensure_list(raw_spec, context=f"schedule.states.{raw_state}")
+                active = tuple(
+                    ensure_str(x, context=f"schedule.states.{raw_state}[]")
+                    for x in elems
+                )
+                states[state_name] = ShiftStateSpec(
+                    name=state_name,
+                    active_constraints=active,
+                    display_elements=active,
+                    notes="",
+                    manual_neutral=False,
+                )
+                continue
+
+            # Rich form:
+            # "N": {
+            #   "active_constraints": ["C3","B1"],
+            #   "display_elements": ["C3","B1"],
+            #   "manual_neutral": true,
+            #   "notes": "..."
+            # }
+            spec_obj = ensure_dict(raw_spec, context=f"schedule.states.{raw_state}")
+
+            active_raw = ensure_list(
+                spec_obj.get("active_constraints", spec_obj.get("engaged")),
+                context=f"schedule.states.{raw_state}.active_constraints",
+            )
+            active = tuple(
+                ensure_str(x, context=f"schedule.states.{raw_state}.active_constraints[]")
+                for x in active_raw
+            )
+
+            display_raw = ensure_list(
+                spec_obj.get("display_elements", list(active)),
+                context=f"schedule.states.{raw_state}.display_elements",
+            )
+            display = tuple(
+                ensure_str(x, context=f"schedule.states.{raw_state}.display_elements[]")
+                for x in display_raw
+            )
+
+            notes = str(spec_obj.get("notes", ""))
+            manual_neutral = bool(spec_obj.get("manual_neutral", False))
+
+            states[state_name] = ShiftStateSpec(
+                name=state_name,
+                active_constraints=active,
+                display_elements=display,
+                notes=notes,
+                manual_neutral=manual_neutral,
             )
 
         display_order = [
@@ -246,9 +330,13 @@ class GenericTransmission:
         self._validate_schedule_elements()
 
     def _validate_schedule_elements(self) -> None:
-        valid = {c.name for c in self.spec.clutches} | {b.name for b in self.spec.brakes}
-        for state, engaged in self.schedule.states.items():
-            for elem in engaged:
+        valid = (
+            {c.name for c in self.spec.clutches}
+            | {b.name for b in self.spec.brakes}
+            | {s.name for s in self.spec.sprags}
+        )
+        for state, state_spec in self.schedule.states.items():
+            for elem in state_spec.active_constraints:
                 if elem not in valid:
                     valid_txt = ", ".join(sorted(valid))
                     raise TransmissionAppError(
@@ -259,7 +347,15 @@ class GenericTransmission:
     def _member_map(self) -> dict[str, RotatingMember]:
         return {name: RotatingMember(name) for name in self.spec.all_member_names()}
 
-    def build_solver(self) -> tuple[TransmissionSolver, dict[str, RotatingMember], dict[str, Clutch], dict[str, Brake]]:
+    def build_solver(
+        self,
+    ) -> tuple[
+        TransmissionSolver,
+        dict[str, RotatingMember],
+        dict[str, Clutch],
+        dict[str, Brake],
+        dict[str, Sprag],
+    ]:
         members = self._member_map()
         solver = TransmissionSolver()
 
@@ -287,10 +383,22 @@ class GenericTransmission:
             solver.add_brake(obj)
             brake_map[b.name] = obj
 
+        sprag_map: dict[str, Sprag] = {}
+        for s in self.spec.sprags:
+            obj = Sprag(
+                members[s.member],
+                hold_direction=s.hold_direction,
+                locked_when_engaged=s.locked_when_engaged,
+                name=s.name,
+            )
+            # Core solver already accepts sprags through the brake path.
+            solver.add_brake(obj)  # type: ignore[arg-type]
+            sprag_map[s.name] = obj
+
         for a, b in self.spec.permanent_ties:
             solver.add_permanent_tie(a, b)
 
-        return solver, members, clutch_map, brake_map
+        return solver, members, clutch_map, brake_map, sprag_map
 
     def topology_summary(self) -> dict[str, Any]:
         return {
@@ -312,6 +420,15 @@ class GenericTransmission:
             ],
             "clutches": [{"name": c.name, "a": c.a, "b": c.b} for c in self.spec.clutches],
             "brakes": [{"name": b.name, "member": b.member} for b in self.spec.brakes],
+            "sprags": [
+                {
+                    "name": s.name,
+                    "member": s.member,
+                    "hold_direction": s.hold_direction,
+                    "locked_when_engaged": s.locked_when_engaged,
+                }
+                for s in self.spec.sprags
+            ],
             "permanent_ties": [list(x) for x in self.spec.permanent_ties],
             "schedule_states": list(self.schedule.states.keys()),
             "notes": self.spec.notes,
@@ -334,6 +451,14 @@ class GenericTransmission:
 
         return list(self.schedule.states.keys())
 
+    def _manual_neutral_speeds(self, *, input_speed: float) -> dict[str, float]:
+        speeds: dict[str, float] = {}
+        for name in self.spec.all_member_names():
+            speeds[name] = 0.0
+        speeds[self.spec.input_member] = float(input_speed)
+        speeds[self.spec.output_member] = 0.0
+        return speeds
+
     def solve_state(self, state: str, *, input_speed: float = 1.0) -> GenericSolveResult:
         resolved = self.normalize_state_name(state)
         if resolved.lower() == "all":
@@ -343,15 +468,31 @@ class GenericTransmission:
             valid = ", ".join(self.available_states())
             raise TransmissionAppError(f"Unknown state '{state}'. Valid states: {valid}")
 
-        engaged = self.schedule.states[resolved]
-        solver, _members, clutch_map, brake_map = self.build_solver()
+        state_spec = self.schedule.states[resolved]
+
+        if state_spec.manual_neutral:
+            return GenericSolveResult(
+                state=resolved,
+                engaged=tuple(state_spec.display_elements),
+                ok=True,
+                ratio=0.0,
+                speeds=self._manual_neutral_speeds(input_speed=float(input_speed)),
+                notes=state_spec.notes,
+                solver_path="core_generic_json_builder",
+                status="manual_neutral",
+                message="State reported through manual-neutral convention.",
+            )
+
+        solver, _members, clutch_map, brake_map, sprag_map = self.build_solver()
         solver.release_all()
 
-        for elem in engaged:
+        for elem in state_spec.active_constraints:
             if elem in clutch_map:
                 clutch_map[elem].engage()
             elif elem in brake_map:
                 brake_map[elem].engage()
+            elif elem in sprag_map:
+                sprag_map[elem].engage()
             else:
                 raise TransmissionAppError(f"Internal error: unknown shift element '{elem}'.")
 
@@ -374,11 +515,11 @@ class GenericTransmission:
 
         return GenericSolveResult(
             state=resolved,
-            engaged=tuple(engaged),
+            engaged=tuple(state_spec.display_elements),
             ok=bool(report.ok),
             ratio=ratio,
             speeds=speeds,
-            notes="",
+            notes=state_spec.notes,
             solver_path="core_generic_json_builder",
             status=status,
             message=message,
