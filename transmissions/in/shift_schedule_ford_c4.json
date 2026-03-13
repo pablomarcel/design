@@ -1,0 +1,42 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": ["forward_clutch", "sprag"],
+      "display_elements": ["forward_clutch", "sprag"],
+      "manual_neutral": false,
+      "notes": "Drive 1st: Forward clutch applied, rear carrier held by sprag."
+    },
+    "2nd": {
+      "active_constraints": ["forward_clutch", "intermediate_band"],
+      "display_elements": ["forward_clutch", "intermediate_band"],
+      "manual_neutral": false,
+      "notes": "Drive 2nd: Forward clutch applied, sun held by intermediate band."
+    },
+    "3rd": {
+      "active_constraints": ["forward_clutch", "high_reverse_clutch"],
+      "display_elements": ["forward_clutch", "high_reverse_clutch"],
+      "manual_neutral": false,
+      "notes": "Drive 3rd: Forward clutch and High/Reverse clutch applied for direct drive."
+    },
+    "Rev": {
+      "active_constraints": ["high_reverse_clutch", "low_reverse_band"],
+      "display_elements": ["high_reverse_clutch", "low_reverse_band"],
+      "manual_neutral": false,
+      "notes": "Reverse: High/Reverse clutch drives sun, Low/Reverse band holds rear carrier."
+    },
+    "Manual1": {
+      "active_constraints": ["forward_clutch", "low_reverse_band", "sprag"],
+      "display_elements": ["forward_clutch", "low_reverse_band", "sprag"],
+      "manual_neutral": false,
+      "notes": "Manual 1: Forward clutch applied, rear carrier held by Low/Reverse band."
+    },
+    "Manual2": {
+      "active_constraints": ["forward_clutch", "intermediate_band"],
+      "display_elements": ["forward_clutch", "intermediate_band"],
+      "manual_neutral": false,
+      "notes": "Manual 2: Forward clutch applied, sun held by intermediate band."
+    }
+  },
+  "display_order": ["1st", "2nd", "3rd", "Rev", "Manual1", "Manual2"],
+  "notes": "Shift schedule for Ford C4-style 3-speed Simpson automatic transmission."
+}

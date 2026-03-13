@@ -1,0 +1,123 @@
+{
+  "name": "Ford C4 3-Speed",
+  "input_member": "input",
+  "output_member": "front_carrier",
+  "strict_geometry": false,
+
+  "members": [
+    "input",
+    "front_ring",
+    "sun",
+    "front_carrier",
+    "rear_ring",
+    "rear_carrier"
+  ],
+
+  "speed_display_order": [
+    "input",
+    "front_ring",
+    "sun",
+    "front_carrier",
+    "rear_carrier"
+  ],
+
+  "speed_display_labels": {
+    "input": "Input",
+    "front_ring": "front_ring",
+    "sun": "sun",
+    "front_carrier": "Output",
+    "rear_carrier": "rear_carrier"
+  },
+
+  "gearsets": [
+    {
+      "name": "PG_front",
+      "Ns": 33,
+      "Nr": 72,
+      "sun": "sun",
+      "ring": "front_ring",
+      "carrier": "front_carrier"
+    },
+    {
+      "name": "PG_rear",
+      "Ns": 33,
+      "Nr": 72,
+      "sun": "sun",
+      "ring": "rear_ring",
+      "carrier": "rear_carrier"
+    }
+  ],
+
+  "clutches": [
+    { "name": "forward_clutch", "a": "input", "b": "front_ring" },
+    { "name": "high_reverse_clutch", "a": "input", "b": "sun" }
+  ],
+
+  "brakes": [
+    { "name": "intermediate_band", "member": "sun" },
+    { "name": "low_reverse_band", "member": "rear_carrier" }
+  ],
+
+  "sprags": [
+    {
+      "name": "sprag",
+      "member": "rear_carrier",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    }
+  ],
+
+  "permanent_ties": [
+    ["front_carrier", "rear_ring"]
+  ],
+
+  "display_order": ["1st", "2nd", "3rd", "Rev", "Manual1", "Manual2"],
+
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev",
+
+    "manual1": "Manual1",
+    "manual_1": "Manual1",
+
+    "manual2": "Manual2",
+    "manual_2": "Manual2"
+  },
+
+  "presets": {
+    "ford_c4_reference": {
+      "gearsets": {
+        "PG_front": { "Ns": 33, "Nr": 72 },
+        "PG_rear": { "Ns": 33, "Nr": 72 }
+      },
+      "strict_geometry": false
+    },
+    "simpson_demo": {
+      "gearsets": {
+        "PG_front": { "Ns": 34, "Nr": 72 },
+        "PG_rear": { "Ns": 34, "Nr": 72 }
+      },
+      "strict_geometry": false
+    }
+  },
+
+  "notes": "Universal topology spec for Ford C4-style 3-speed Simpson automatic transmission with common sun, Simpson output tie between front_carrier and rear_ring, and rear-carrier sprag support.",
+
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from three_speed.py universal-core topology."
+  }
+}

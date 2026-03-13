@@ -1,6 +1,58 @@
 #### Ford C4 - 3 Speed Transmission
 
+### Solves a transmission spec - all states
 
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --schedule in/shift_schedule_ford_c4.json
+```
+
+### Solves a transmission spec - all states - show speeds
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --schedule in/shift_schedule_ford_c4.json \
+  --show-speeds
+```
+
+### Solves a transmission spec - 8th gear - shows speeds
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --schedule in/shift_schedule_ford_c4.json \
+  --state 3rd \
+  --show-speeds
+```
+
+### Solves a transmission spec - shows ratios only - ford_c4_reference
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --schedule in/shift_schedule_ford_c4.json \
+  --preset ford_c4_reference \
+  --ratios-only
+```
+
+### Solves a transmission spec - overrides teeth count
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --schedule in/shift_schedule_ford_c4.json \
+  --set PG_front.Ns=23 PG_front.Nr=85
+```
+
+### List presets
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_ford_c4.json \
+  --list-presets
+```
 
 #### Mercedes Benz W5A-580 - 5 Speed Transmission
 
