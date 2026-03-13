@@ -1,0 +1,109 @@
+{
+  "name": "Allison 2K 6-Speed",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+  "members": [
+    "input",
+    "ring1",
+    "node12",
+    "sun23",
+    "node23",
+    "output"
+  ],
+  "speed_display_order": [
+    "input",
+    "ring1",
+    "node12",
+    "sun23",
+    "node23",
+    "output"
+  ],
+  "speed_display_labels": {
+    "input": "Input",
+    "ring1": "ring1",
+    "node12": "node12",
+    "sun23": "sun23",
+    "node23": "node23",
+    "output": "Output"
+  },
+  "gearsets": [
+    {
+      "name": "PG1",
+      "Ns": 67,
+      "Nr": 109,
+      "sun": "input",
+      "ring": "ring1",
+      "carrier": "node12"
+    },
+    {
+      "name": "PG2",
+      "Ns": 49,
+      "Nr": 91,
+      "sun": "sun23",
+      "ring": "node12",
+      "carrier": "node23"
+    },
+    {
+      "name": "PG3",
+      "Ns": 39,
+      "Nr": 97,
+      "sun": "sun23",
+      "ring": "node23",
+      "carrier": "output"
+    }
+  ],
+  "clutches": [
+    { "name": "C1", "a": "input", "b": "sun23" },
+    { "name": "C2", "a": "input", "b": "node23" }
+  ],
+  "brakes": [
+    { "name": "C3", "member": "ring1" },
+    { "name": "C4", "member": "node12" },
+    { "name": "C5", "member": "node23" }
+  ],
+  "permanent_ties": [],
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "Rev"],
+  "state_aliases": {
+    "1": "1st",
+    "2": "2nd",
+    "3": "3rd",
+    "4": "4th",
+    "5": "5th",
+    "6": "6th",
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+  "presets": {
+    "allison_3000": {
+      "gearsets": {
+        "PG1": { "Ns": 67, "Nr": 109 },
+        "PG2": { "Ns": 49, "Nr": 91 },
+        "PG3": { "Ns": 39, "Nr": 97 }
+      },
+      "strict_geometry": false
+    },
+    "allison_1000_candidate": {
+      "gearsets": {
+        "PG1": { "Ns": 61, "Nr": 100 },
+        "PG2": { "Ns": 41, "Nr": 79 },
+        "PG3": { "Ns": 41, "Nr": 79 }
+      },
+      "strict_geometry": false
+    },
+    "allison_2k": {
+      "gearsets": {
+        "PG1": { "Ns": 67, "Nr": 109 },
+        "PG2": { "Ns": 49, "Nr": 91 },
+        "PG3": { "Ns": 39, "Nr": 97 }
+      },
+      "strict_geometry": false
+    }
+  },
+  "notes": "Universal topology spec for Allison-style 3-planetary 6-speed transmission using explicit shared nodes node12, sun23, and node23.",
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from six_speed.py universal-core topology."
+  }
+}
