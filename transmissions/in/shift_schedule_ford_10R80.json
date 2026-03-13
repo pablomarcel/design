@@ -1,0 +1,72 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": ["A", "B", "D", "E"],
+      "display_elements": ["A", "B", "D", "E"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "2nd": {
+      "active_constraints": ["A", "B", "C", "D"],
+      "display_elements": ["A", "B", "C", "D"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "3rd": {
+      "active_constraints": ["A", "C", "D", "E"],
+      "display_elements": ["A", "C", "D", "E"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "4th": {
+      "active_constraints": ["A", "C", "D", "F"],
+      "display_elements": ["A", "C", "D", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "5th": {
+      "active_constraints": ["A", "C", "E", "F"],
+      "display_elements": ["A", "C", "E", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "6th": {
+      "active_constraints": ["A", "D", "E", "F"],
+      "display_elements": ["A", "D", "E", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "7th": {
+      "active_constraints": ["C", "D", "E", "F"],
+      "display_elements": ["C", "D", "E", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "8th": {
+      "active_constraints": ["B", "D", "E", "F"],
+      "display_elements": ["B", "D", "E", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "9th": {
+      "active_constraints": ["B", "C", "E", "F"],
+      "display_elements": ["B", "C", "E", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "10th": {
+      "active_constraints": ["B", "C", "D", "F"],
+      "display_elements": ["B", "C", "D", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    },
+    "Rev": {
+      "active_constraints": ["A", "B", "D", "F"],
+      "display_elements": ["A", "B", "D", "F"],
+      "manual_neutral": false,
+      "notes": ""
+    }
+  },
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "Rev"],
+  "notes": "Shift schedule for Ford 10R80 / 10R family 10-speed transmission."
+}

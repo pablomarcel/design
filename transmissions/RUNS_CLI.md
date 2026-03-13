@@ -321,23 +321,13 @@ python -m cli \
   --show-speeds
 ```
 
-### Solves a transmission spec - shows ratios only - legacy
+### Solves a transmission spec - shows ratios only - ford_10r80_estimated
 
 ```bash
 python -m cli \
   --spec in/transmission_spec_ford_10R80.json \
   --schedule in/shift_schedule_ford_10R80.json \
-  --preset legacy \
-  --ratios-only
-```
-
-### Solves a transmission spec - shows ratios only - base
-
-```bash
-python -m cli \
-  --spec in/transmission_spec_ford_10R80.json \
-  --schedule in/shift_schedule_ford_10R80.json \
-  --preset base \
+  --preset ford_10r80_estimated \
   --ratios-only
 ```
 

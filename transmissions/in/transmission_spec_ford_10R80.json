@@ -1,0 +1,158 @@
+{
+  "name": "Ford 10R80 / 10R 10-Speed",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+
+  "members": [
+    "input",
+    "r1",
+    "s12",
+    "r4c1",
+    "r2s3",
+    "r3s4",
+    "interm",
+    "p3c",
+    "output"
+  ],
+
+  "speed_display_order": [
+    "input",
+    "r1",
+    "s12",
+    "r4c1",
+    "r2s3",
+    "r3s4",
+    "interm",
+    "p3c",
+    "output"
+  ],
+
+  "speed_display_labels": {
+    "input": "Input",
+    "r1": "r1",
+    "s12": "s12",
+    "r4c1": "r4c1",
+    "r2s3": "r2s3",
+    "r3s4": "r3s4",
+    "interm": "interm",
+    "p3c": "p3c",
+    "output": "Output"
+  },
+
+  "gearsets": [
+    {
+      "name": "P1",
+      "Ns": 45,
+      "Nr": 99,
+      "sun": "s12",
+      "ring": "r1",
+      "carrier": "r4c1"
+    },
+    {
+      "name": "P2",
+      "Ns": 51,
+      "Nr": 89,
+      "sun": "s12",
+      "ring": "r2s3",
+      "carrier": "input"
+    },
+    {
+      "name": "P3",
+      "Ns": 63,
+      "Nr": 101,
+      "sun": "r2s3",
+      "ring": "r3s4",
+      "carrier": "p3c"
+    },
+    {
+      "name": "P4",
+      "Ns": 23,
+      "Nr": 85,
+      "sun": "r3s4",
+      "ring": "r4c1",
+      "carrier": "output"
+    }
+  ],
+
+  "clutches": [
+    { "name": "C", "a": "r2s3", "b": "interm" },
+    { "name": "D", "a": "p3c", "b": "interm" },
+    { "name": "E", "a": "input", "b": "r3s4" },
+    { "name": "F", "a": "r4c1", "b": "interm" }
+  ],
+
+  "brakes": [
+    { "name": "A", "member": "r1" },
+    { "name": "B", "member": "s12" }
+  ],
+
+  "sprags": [],
+  "permanent_ties": [],
+
+  "display_order": ["1st", "2nd", "3rd", "4th", "5th", "6th", "7th", "8th", "9th", "10th", "Rev"],
+
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+
+    "6": "6th",
+    "6th": "6th",
+    "sixth": "6th",
+
+    "7": "7th",
+    "7th": "7th",
+    "seventh": "7th",
+
+    "8": "8th",
+    "8th": "8th",
+    "eighth": "8th",
+
+    "9": "9th",
+    "9th": "9th",
+    "ninth": "9th",
+
+    "10": "10th",
+    "10th": "10th",
+    "tenth": "10th",
+
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+
+  "presets": {
+    "ford_10r80_estimated": {
+      "gearsets": {
+        "P1": { "Ns": 45, "Nr": 99 },
+        "P2": { "Ns": 51, "Nr": 89 },
+        "P3": { "Ns": 63, "Nr": 101 },
+        "P4": { "Ns": 23, "Nr": 85 }
+      },
+      "strict_geometry": false
+    }
+  },
+
+  "notes": "Universal topology spec for Ford 10R80 / 10R family 10-speed transmission. E drives the P3-ring/P4-sun node from input, and F ties the intermediate shaft to the P1-carrier/P4-ring node, matching the dedicated ten_speed.py interpretation.",
+  "meta": {
+    "author": "Pablo",
+    "source": "Derived from ten_speed.py universal-core topology."
+  }
+}
