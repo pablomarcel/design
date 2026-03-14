@@ -1,4 +1,4 @@
-##### RUNS Cookbook
+##### RUNS Cookbook - sympy
 
 ```bash
 python -m sandbox.double_pendulum
