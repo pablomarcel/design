@@ -37,6 +37,10 @@ except Exception as e:  # pragma: no cover
 
 try:
     from .app import RunRequest, TransmissionApplication, render_text_report
+    try:
+        from .app import _render_plain_report as _app_render_plain_report
+    except Exception:
+        _app_render_plain_report = None  # type: ignore[assignment]
     from .gui_log_trans import LogPanel, DpgLogHandler
     from .gui_utils_trans import (
         TaskResult,
@@ -57,6 +61,10 @@ try:
     from .transmission_spec_builder import build_spec_payload, spec_payload_to_editors
 except Exception:  # pragma: no cover
     from app import RunRequest, TransmissionApplication, render_text_report  # type: ignore
+    try:
+        from app import _render_plain_report as _app_render_plain_report  # type: ignore
+    except Exception:
+        _app_render_plain_report = None  # type: ignore[assignment]
     from gui_log_trans import LogPanel, DpgLogHandler  # type: ignore
     from gui_utils_trans import (  # type: ignore
         TaskResult,
@@ -77,7 +85,7 @@ except Exception:  # pragma: no cover
     from transmission_spec_builder import build_spec_payload, spec_payload_to_editors  # type: ignore
 
 
-LEFT_PANEL_WIDTH = 760
+LEFT_PANEL_WIDTH = 640
 DEFAULT_UI_SCALE = 1.08
 
 
@@ -465,6 +473,31 @@ def _set_log_level(level_name: str) -> None:
             pass
 
 
+# ------------------------------ text rendering ------------------------------
+
+def _strip_ansi(text: str) -> str:
+    import re
+    return re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", str(text or ""))
+
+
+def _gui_render_report(payload: dict[str, Any], *, show_speeds: bool = False, ratios_only: bool = False) -> str:
+    """Render a GUI-safe plain-text report.
+
+    The CLI intentionally uses Rich with forced terminal output, which emits
+    ANSI color/control sequences and box-drawing glyphs. Dear PyGui input_text
+    widgets do not render that reliably, so the GUI must use the plain renderer.
+    """
+    try:
+        if _app_render_plain_report is not None:
+            return str(_app_render_plain_report(payload, show_speeds=show_speeds, ratios_only=ratios_only))
+    except Exception:
+        pass
+    try:
+        return _strip_ansi(render_text_report(payload, show_speeds=show_speeds, ratios_only=ratios_only))
+    except Exception:
+        return pretty_json(payload)
+
+
 # ------------------------------ dialogs ------------------------------
 
 def _pick_spec_cb(sender, app_data, user_data) -> None:
@@ -719,7 +752,7 @@ def _run_analysis(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]) -> N
                 log.set_status("Run failed")
                 return
             payload = res.value
-            report_txt = render_text_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
+            report_txt = _gui_render_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
             dpg.set_value(t("tr", "results_text"), report_txt)
             dpg.set_value(t("tr", "payload_text"), pretty_json(payload))
             topo = payload.get("topology", {}) if isinstance(payload, dict) else {}
