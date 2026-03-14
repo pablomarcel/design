@@ -455,3 +455,9 @@ python -m cli \
   --spec in/transmission_spec_ford_10R80.json \
   --list-presets
 ```
+
+#### GUI
+
+```bash
+python -m gui_core_trans
+```
