@@ -90,8 +90,10 @@ class AppState:
     repo_root: Path
     in_root: Path
     out_root: Path
+    ui_font_default: int | None = None
+    ui_font_macos: int | None = None
+    ui_font_labview: int | None = None
     mono_font: int | None = None
-    ui_font: int | None = None
     log_handler: logging.Handler | None = None
     last_spec_path: str = ""
     last_schedule_path: str = ""
@@ -125,21 +127,38 @@ def _make_theme_light() -> int:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (240, 242, 245, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (236, 240, 245, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (255, 255, 255, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Text, (17, 24, 39, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (107, 114, 128, 255))
             dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (255, 255, 255, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (249, 250, 251, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (243, 244, 246, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Border, (203, 213, 225, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Separator, (226, 232, 240, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Button, (59, 130, 246, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (37, 99, 235, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (29, 78, 216, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Tab, (229, 231, 235, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (191, 219, 254, 255))
             dpg.add_theme_color(dpg.mvThemeCol_TabActive, (59, 130, 246, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Header, (219, 234, 254, 255))
             dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (191, 219, 254, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (147, 197, 253, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, (241, 245, 249, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrab, (148, 163, 184, 255))
+
             dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 12)
             dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 12)
             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 10)
+            dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_ScrollbarRounding, 10)
+            dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, 10)
+
             dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 16, 14)
             dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 7)
             dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 8)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 6)
+
         with dpg.theme_component(dpg.mvButton):
             dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
     return theme
@@ -150,51 +169,154 @@ def _make_theme_dark() -> int:
         with dpg.theme_component(dpg.mvAll):
             dpg.add_theme_color(dpg.mvThemeCol_WindowBg, (24, 26, 31, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ChildBg, (31, 34, 39, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, (31, 34, 39, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Text, (233, 236, 239, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (156, 163, 175, 255))
             dpg.add_theme_color(dpg.mvThemeCol_FrameBg, (41, 45, 52, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (55, 60, 69, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (70, 76, 87, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Border, (55, 60, 69, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Button, (99, 102, 241, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (79, 70, 229, 255))
             dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (67, 56, 202, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Tab, (41, 45, 52, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (70, 76, 87, 255))
             dpg.add_theme_color(dpg.mvThemeCol_TabActive, (99, 102, 241, 255))
             dpg.add_theme_color(dpg.mvThemeCol_Header, (55, 60, 69, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (70, 76, 87, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (99, 102, 241, 255))
+
             dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 12)
             dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 12)
             dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 10)
             dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 16, 14)
             dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 7)
             dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 8)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 6)
     return theme
 
 
-def _load_fonts(state: AppState) -> None:
-    mono_candidates = []
-    ui_candidates = []
-    if sys.platform.startswith("darwin"):
-        ui_candidates += [
-            "/System/Library/Fonts/SFNS.ttf",
-            "/System/Library/Fonts/SFNSText.ttf",
-            "/System/Library/Fonts/Helvetica.ttc",
-        ]
-        mono_candidates += [
-            "/System/Library/Fonts/Menlo.ttc",
-            "/System/Library/Fonts/Monaco.ttf",
-        ]
-    elif os.name == "nt":
-        windir = os.environ.get("WINDIR", "C:\\Windows")
-        ui_candidates += [str(Path(windir) / "Fonts" / "segoeui.ttf")]
-        mono_candidates += [str(Path(windir) / "Fonts" / "consola.ttf")]
-    else:
-        ui_candidates += [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
-        ]
-        mono_candidates += [
-            "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
-            "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
-        ]
+def _make_theme_macos() -> int:
+    window_bg = (245, 245, 247, 255)
+    control_bg = (255, 255, 255, 255)
+    subtle_border = (214, 214, 214, 255)
+    graphite = (28, 28, 30, 255)
+    accent = (0, 122, 255, 255)
 
-    def _try_add(path: str, size: int) -> int | None:
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, window_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, window_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, control_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_Text, graphite)
+            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (120, 120, 125, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBg, control_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (248, 248, 250, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (240, 240, 243, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Border, subtle_border)
+            dpg.add_theme_color(dpg.mvThemeCol_Separator, subtle_border)
+
+            dpg.add_theme_color(dpg.mvThemeCol_Button, accent)
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (22, 118, 255, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, (10, 97, 223, 255))
+
+            dpg.add_theme_color(dpg.mvThemeCol_Tab, (230, 230, 233, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (210, 225, 255, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabActive, accent)
+
+            dpg.add_theme_color(dpg.mvThemeCol_Header, (219, 234, 254, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (191, 219, 254, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (147, 197, 253, 255))
+
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, (241, 245, 249, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrab, (148, 163, 184, 255))
+
+            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 10)
+            dpg.add_theme_style(dpg.mvStyleVar_PopupRounding, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_ScrollbarRounding, 10)
+            dpg.add_theme_style(dpg.mvStyleVar_GrabRounding, 10)
+
+            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 16, 14)
+            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 7)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 8)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 6)
+
+        with dpg.theme_component(dpg.mvButton):
+            dpg.add_theme_color(dpg.mvThemeCol_Text, (255, 255, 255, 255))
+    return theme
+
+
+def _make_theme_labview() -> int:
+    window_bg = (223, 225, 229, 255)
+    panel_bg = (208, 210, 214, 255)
+    control_bg = (242, 243, 245, 255)
+    graphite = (30, 31, 34, 255)
+    border = (139, 143, 148, 255)
+    accent = (242, 194, 0, 255)
+
+    with dpg.theme() as theme:
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_WindowBg, window_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_ChildBg, panel_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_PopupBg, control_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_Text, graphite)
+            dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, (110, 115, 120, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBg, control_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgHovered, (233, 235, 238, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_FrameBgActive, (224, 226, 230, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_Border, border)
+            dpg.add_theme_color(dpg.mvThemeCol_Separator, border)
+
+            dpg.add_theme_color(dpg.mvThemeCol_Button, (230, 232, 235, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonHovered, (255, 213, 77, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_ButtonActive, accent)
+
+            dpg.add_theme_color(dpg.mvThemeCol_Tab, (215, 217, 221, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabHovered, (245, 224, 140, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_TabActive, accent)
+
+            dpg.add_theme_color(dpg.mvThemeCol_Header, (220, 222, 226, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderHovered, (245, 224, 140, 255))
+            dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, (255, 213, 77, 255))
+
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarBg, panel_bg)
+            dpg.add_theme_color(dpg.mvThemeCol_ScrollbarGrab, (160, 165, 170, 255))
+
+            dpg.add_theme_style(dpg.mvStyleVar_WindowRounding, 8)
+            dpg.add_theme_style(dpg.mvStyleVar_ChildRounding, 8)
+            dpg.add_theme_style(dpg.mvStyleVar_FrameRounding, 3)
+            dpg.add_theme_style(dpg.mvStyleVar_WindowPadding, 14, 12)
+            dpg.add_theme_style(dpg.mvStyleVar_FramePadding, 10, 6)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemSpacing, 10, 7)
+            dpg.add_theme_style(dpg.mvStyleVar_ItemInnerSpacing, 8, 5)
+    return theme
+
+
+@dataclass(frozen=True)
+class ThemeSpec:
+    label: str
+    key: str
+    theme_id: int
+    font_id: int | None
+
+
+def _norm_theme_key(s: str) -> str:
+    s = (s or "").strip().lower().replace(" ", "")
+    if s in ("lab", "labview", "lv", "ni", "lab-view"):
+        return "labview"
+    if s in ("mac", "macos", "osx", "macosx"):
+        return "macos"
+    if s in ("dark", "night"):
+        return "dark"
+    if s in ("light", "day"):
+        return "light"
+    return s
+
+
+def _load_fonts(state: AppState, *, ui_point_size: int = 14, mono_point_size: int = 13) -> None:
+    def _try_add_font(path: str, size: int) -> int | None:
         fp = Path(path)
         if not fp.exists():
             return None
@@ -203,22 +325,104 @@ def _load_fonts(state: AppState) -> None:
         except Exception:
             return None
 
+    ui_default_candidates: list[str] = []
+    ui_macos_candidates: list[str] = []
+    ui_labview_candidates: list[str] = []
+    mono_candidates: list[str] = []
+
+    if sys.platform.startswith("darwin"):
+        ui_default_candidates += [
+            "/System/Library/Fonts/SFNS.ttf",
+            "/System/Library/Fonts/SFNSText.ttf",
+            "/System/Library/Fonts/SFNSDisplay.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+            "/System/Library/Fonts/HelveticaNeue.ttc",
+        ]
+        ui_macos_candidates += [
+            "/System/Library/Fonts/SFNSText.ttf",
+            "/System/Library/Fonts/SFNS.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
+        ]
+        ui_labview_candidates += [
+            "/System/Library/Fonts/Supplemental/Verdana.ttf",
+            "/System/Library/Fonts/Supplemental/Tahoma.ttf",
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+        ]
+        mono_candidates += [
+            "/System/Library/Fonts/Monaco.ttf",
+            "/System/Library/Fonts/Menlo.ttc",
+            "/Library/Fonts/Menlo.ttc",
+        ]
+
+    if os.name == "nt":
+        windir = os.environ.get("WINDIR", r"C:\Windows")
+        ui_default_candidates += [
+            str(Path(windir) / "Fonts" / "segoeui.ttf"),
+            str(Path(windir) / "Fonts" / "arial.ttf"),
+        ]
+        ui_macos_candidates += [
+            str(Path(windir) / "Fonts" / "segoeui.ttf"),
+            str(Path(windir) / "Fonts" / "arial.ttf"),
+        ]
+        ui_labview_candidates += [
+            str(Path(windir) / "Fonts" / "verdana.ttf"),
+            str(Path(windir) / "Fonts" / "tahoma.ttf"),
+            str(Path(windir) / "Fonts" / "arial.ttf"),
+        ]
+        mono_candidates += [
+            str(Path(windir) / "Fonts" / "consola.ttf"),
+            str(Path(windir) / "Fonts" / "lucon.ttf"),
+            str(Path(windir) / "Fonts" / "cour.ttf"),
+        ]
+
+    ui_default_candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/Ubuntu-R.ttf",
+    ]
+    ui_macos_candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ]
+    ui_labview_candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+    ]
+    mono_candidates += [
+        "/usr/share/fonts/truetype/dejavu/DejaVuSansMono.ttf",
+        "/usr/share/fonts/truetype/liberation/LiberationMono-Regular.ttf",
+        "/usr/share/fonts/truetype/ubuntu/UbuntuMono-R.ttf",
+    ]
+
     try:
         with dpg.font_registry():
-            state.ui_font = next((fid for fid in (_try_add(p, 14) for p in ui_candidates) if fid), None)
-            state.mono_font = next((fid for fid in (_try_add(p, 13) for p in mono_candidates) if fid), None)
+            state.ui_font_default = next((fid for fid in (_try_add_font(p, ui_point_size) for p in ui_default_candidates) if fid), None)
+            state.ui_font_macos = next((fid for fid in (_try_add_font(p, ui_point_size) for p in ui_macos_candidates) if fid), None)
+            state.ui_font_labview = next((fid for fid in (_try_add_font(p, ui_point_size) for p in ui_labview_candidates) if fid), None)
+            state.mono_font = next((fid for fid in (_try_add_font(p, mono_point_size) for p in mono_candidates) if fid), None)
     except Exception:
-        pass
+        return
+
+    if state.ui_font_default is None:
+        state.ui_font_default = state.ui_font_macos or state.ui_font_labview
+    if state.ui_font_macos is None:
+        state.ui_font_macos = state.ui_font_default
+    if state.ui_font_labview is None:
+        state.ui_font_labview = state.ui_font_default
 
 
-def _apply_theme(theme_id: int, font_id: int | None) -> None:
+def _apply_theme(mode: str, themes: dict[str, ThemeSpec]) -> None:
+    key = _norm_theme_key(mode)
+    spec = themes.get(key) or themes.get("light")
+    if spec is None:
+        return
     try:
-        dpg.bind_theme(theme_id)
+        dpg.bind_theme(spec.theme_id)
     except Exception:
         pass
-    if font_id is not None:
+    if spec.font_id is not None:
         try:
-            dpg.bind_font(font_id)
+            dpg.bind_font(spec.font_id)
         except Exception:
             pass
 
@@ -691,7 +895,15 @@ def main() -> int:
 
     theme_light = _make_theme_light()
     theme_dark = _make_theme_dark()
-    _apply_theme(theme_light, state.ui_font)
+    theme_macos = _make_theme_macos()
+    theme_labview = _make_theme_labview()
+    themes: dict[str, ThemeSpec] = {
+        "light": ThemeSpec("Light", "light", theme_light, state.ui_font_default),
+        "dark": ThemeSpec("Dark", "dark", theme_dark, state.ui_font_default),
+        "macos": ThemeSpec("macOS", "macos", theme_macos, state.ui_font_macos),
+        "labview": ThemeSpec("LabVIEW", "labview", theme_labview, state.ui_font_labview),
+    }
+    _apply_theme("Light", themes)
     _set_ui_scale(DEFAULT_UI_SCALE)
 
     log = LogPanel(tag_level=t("tr", "log_level"), tag_box=t("tr", "log_box"), tag_status=t("tr", "log_status"), tag_clear_btn=t("tr", "log_clear"))
@@ -704,7 +916,7 @@ def main() -> int:
             dpg.add_text("Transmissions • Universal Analyzer GUI ✨")
             dpg.add_spacer(width=18)
             dpg.add_text("Theme:")
-            dpg.add_combo(items=["Light", "Dark"], default_value="Light", width=110, callback=lambda s, a, u: _apply_theme(theme_dark if str(a) == "Dark" else theme_light, state.ui_font))
+            dpg.add_combo(items=["Light", "Dark", "macOS", "LabVIEW"], default_value="Light", width=120, callback=lambda s, a, u: _apply_theme(str(a), themes))
             dpg.add_spacer(width=14)
             dpg.add_text("UI scale:")
             dpg.add_slider_float(default_value=DEFAULT_UI_SCALE, min_value=0.85, max_value=1.60, width=180, callback=lambda s, a, u: _set_ui_scale(a))
