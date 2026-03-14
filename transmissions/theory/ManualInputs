@@ -1,0 +1,93 @@
+Shift Schedule
+
+1st, A, B, C
+2nd, A, B, E
+3rd, B, C, E
+4th, B, D, E
+5th, B, C, D
+6th, C, D, E
+7th, A, C, D
+8th, A, D, E
+Rev, A, B, D
+
+---
+
+Members
+
+input
+sun12
+p1r
+p1c_p4r
+p23
+c_out
+p3c
+output
+
+---
+
+Speed Display Order
+
+input
+sun12
+p1r
+p23
+c_out
+p1c_p4r
+p3c
+output
+
+---
+
+Speed Display Labels
+
+input,Input
+sun12,sun12
+p1r,p1r
+p23,p23
+c_out,c_out
+p1c_p4r,p1c_p4r
+p3c,p3c
+output,Output
+
+---
+
+Display Order
+
+1st
+2nd
+3rd
+4th
+5th
+6th
+7th
+8th
+Rev
+
+---
+
+Gearsets
+
+P1,48,96,sun12,p1r,p1c_p4r
+P2,54,96,sun12,p23,input
+P3,60,108,p23,c_out,p3c
+P4,24,96,c_out,p1c_p4r,output
+
+---
+
+Clutches
+
+C,input,c_out
+D,p3c,output
+E,p23,c_out
+
+---
+
+Brakes
+
+A,sun12
+B,p1r
+
+---
+
+
+
