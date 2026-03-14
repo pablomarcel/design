@@ -795,6 +795,122 @@ def _run_analysis(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]) -> N
     run_task_async(_work, on_done=_done)
 
 
+def _clear_spec_selection(state: AppState, log: LogPanel) -> None:
+    for tag, val in (
+        (t("tr", "spec_pick"), ""),
+        (t("tr", "spec_path"), ""),
+    ):
+        if dpg.does_item_exist(tag):
+            try:
+                dpg.set_value(tag, val)
+            except Exception:
+                pass
+    state.last_spec_path = ""
+    log.info("Cleared selected spec file.")
+
+
+def _clear_schedule_selection(state: AppState, log: LogPanel) -> None:
+    for tag, val in (
+        (t("tr", "schedule_pick"), ""),
+        (t("tr", "schedule_path"), ""),
+    ):
+        if dpg.does_item_exist(tag):
+            try:
+                dpg.set_value(tag, val)
+            except Exception:
+                pass
+    state.last_schedule_path = ""
+    _refresh_run_state_combo(state, log)
+    log.info("Cleared selected schedule file.")
+
+
+def _clear_output_views(state: AppState, log: LogPanel) -> None:
+    for tag in (t("tr", "results_text"), t("tr", "payload_text"), t("tr", "topology_text")):
+        if dpg.does_item_exist(tag):
+            try:
+                dpg.set_value(tag, "")
+                dpg.configure_item(tag, width=1600)
+            except Exception:
+                pass
+    state.last_output_json = ""
+    log.info("Cleared analyzer output panes.")
+
+
+def _clear_left_inputs(state: AppState, log: LogPanel) -> None:
+    _clear_spec_selection(state, log)
+    _clear_schedule_selection(state, log)
+
+    defaults: dict[str, Any] = {
+        t("tr", "schedule_filename"): "shift_schedule_gui.json",
+        t("tr", "schedule_rich_mode"): False,
+        t("tr", "schedule_csv"): "",
+        t("tr", "schedule_notes"): "",
+        t("tr", "schedule_json_preview"): "",
+        t("tr", "spec_filename"): "transmission_spec_gui.json",
+        t("tr", "strict_geometry"): False,
+        t("tr", "spec_name"): "",
+        t("tr", "input_member"): "",
+        t("tr", "output_member"): "",
+        t("tr", "members_text"): "",
+        t("tr", "speed_display_order_text"): "",
+        t("tr", "speed_display_labels_text"): "",
+        t("tr", "gearsets_text"): "",
+        t("tr", "clutches_text"): "",
+        t("tr", "brakes_text"): "",
+        t("tr", "sprags_text"): "",
+        t("tr", "permanent_ties_text"): "",
+        t("tr", "display_order_text"): "",
+        t("tr", "state_aliases_text"): "",
+        t("tr", "presets_text"): "{}",
+        t("tr", "meta_text"): "{}",
+        t("tr", "spec_notes"): "",
+        t("tr", "spec_json_preview"): "",
+        t("tr", "state"): "all",
+        t("tr", "preset"): "",
+        t("tr", "input_speed"): 1.0,
+        t("tr", "show_speeds"): True,
+        t("tr", "ratios_only"): False,
+        t("tr", "show_topology"): True,
+        t("tr", "overrides"): "",
+        t("tr", "output_json_name"): "transmission_gui_run.json",
+    }
+
+    for tag, val in defaults.items():
+        if dpg.does_item_exist(tag):
+            try:
+                dpg.set_value(tag, val)
+            except Exception:
+                pass
+
+    _refresh_run_state_combo(state, log)
+    log.info("Cleared left-panel inputs for a fresh analysis.")
+
+
+def _clear_all_for_new_analysis(state: AppState, log: LogPanel) -> None:
+    _clear_left_inputs(state, log)
+    _clear_output_views(state, log)
+    log.set_status("Cleared ✅")
+
+
+def _on_spec_combo_changed(sender, app_data, user_data) -> None:
+    state, log = user_data["state"], user_data["log"]
+    val = str(app_data or "").strip()
+    dpg.set_value(t("tr", "spec_path"), val)
+    state.last_spec_path = val
+    if val:
+        log.info(f"Selected spec: {val}")
+
+
+def _on_schedule_combo_changed(sender, app_data, user_data) -> None:
+    state, log = user_data["state"], user_data["log"]
+    val = str(app_data or "").strip()
+    dpg.set_value(t("tr", "schedule_path"), val)
+    state.last_schedule_path = val
+    _refresh_run_state_combo(state, log)
+    if val:
+        log.info(f"Selected schedule: {val}")
+
+
 # ------------------------------ UI panes ------------------------------
 
 def _build_shift_schedule_builder() -> None:
@@ -876,14 +992,14 @@ def _build_inputs_panel(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]
         dpg.add_button(label="🗂 Open in/", callback=lambda: open_path(state.in_root))
     with dpg.group(horizontal=True):
         dpg.add_text("Spec")
-        dpg.add_combo(items=[""], tag=t("tr", "spec_pick"), width=280, callback=lambda s, a, u: dpg.set_value(t("tr", "spec_path"), a))
-        dpg.add_button(label="↺ Refresh", callback=lambda: _refresh_spec_combo(state))
+        dpg.add_combo(items=[""], tag=t("tr", "spec_pick"), width=280, callback=_on_spec_combo_changed, user_data={"state": state, "log": log})
+        dpg.add_button(label="↺ Refresh", callback=lambda: _clear_spec_selection(state, log))
         dpg.add_button(label="Load → builder", callback=lambda: _load_spec_into_builder(log))
     dpg.add_input_text(tag=t("tr", "spec_path"), width=-1, hint="Path to transmission spec JSON")
     with dpg.group(horizontal=True):
         dpg.add_text("Schedule")
-        dpg.add_combo(items=[""], tag=t("tr", "schedule_pick"), width=280, callback=lambda s, a, u: dpg.set_value(t("tr", "schedule_path"), a))
-        dpg.add_button(label="↺ Refresh", callback=lambda: _refresh_schedule_combo(state))
+        dpg.add_combo(items=[""], tag=t("tr", "schedule_pick"), width=280, callback=_on_schedule_combo_changed, user_data={"state": state, "log": log})
+        dpg.add_button(label="↺ Refresh", callback=lambda: _clear_schedule_selection(state, log))
         dpg.add_button(label="Load → builder", callback=lambda: _load_schedule_into_builder(log))
     dpg.add_input_text(tag=t("tr", "schedule_path"), width=-1, hint="Path to shift schedule JSON")
 
@@ -896,6 +1012,10 @@ def _build_inputs_panel(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]
     with dpg.group(horizontal=True):
         dpg.add_button(label="Create spec JSON", callback=lambda: _create_spec_from_builder(state, log))
         dpg.add_button(label="Open selected spec", callback=lambda: open_path(_selected_spec_path()))
+
+    with dpg.group(horizontal=True):
+        dpg.add_button(label="🧹 Clear left inputs", callback=lambda: _clear_left_inputs(state, log))
+        dpg.add_button(label="🧼 New analysis", callback=lambda: _clear_all_for_new_analysis(state, log))
 
     with dpg.collapsing_header(label="Analyzer controls", default_open=True):
         with dpg.group(horizontal=True):
@@ -922,6 +1042,9 @@ def _build_inputs_panel(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]
 def _build_outputs_panel(state: AppState, log: LogPanel) -> None:
     with dpg.tab_bar():
         with dpg.tab(label="Tables"):
+            with dpg.group(horizontal=True):
+                dpg.add_button(label="🧹 Clear table", callback=lambda: _clear_output_views(state, log))
+                dpg.add_text("Clear the current analyzer output before starting a new case.")
             with dpg.child_window(height=-1, width=-1, border=False, horizontal_scrollbar=True):
                 dpg.add_input_text(tag=t("tr", "results_text"), multiline=True, readonly=True, height=-1, width=1600)
                 if state.mono_font is not None:
