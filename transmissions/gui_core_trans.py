@@ -498,6 +498,31 @@ def _gui_render_report(payload: dict[str, Any], *, show_speeds: bool = False, ra
         return pretty_json(payload)
 
 
+def _estimate_scroll_text_width(text: str) -> int:
+    """Best-effort width for readonly mono report widgets.
+
+    Dear PyGui only shows a horizontal scrollbar when the child content is
+    wider than the child window. A width=-1 input_text always fits the parent,
+    so wide transmission tables get clipped. We therefore size the readonly
+    input_text wider than the parent based on the longest line.
+    """
+    lines = str(text or "").splitlines() or [""]
+    max_chars = max((len(line) for line in lines), default=0)
+    # Empirical mono-char width that works well with the current UI scale/fonts.
+    px = 40 + int(max_chars * 8.4)
+    return max(900, min(px, 20000))
+
+
+def _set_scrollable_report_text(tag: str, text: str) -> None:
+    value = str(text or "")
+    if dpg.does_item_exist(tag):
+        dpg.set_value(tag, value)
+        try:
+            dpg.configure_item(tag, width=_estimate_scroll_text_width(value))
+        except Exception:
+            pass
+
+
 # ------------------------------ dialogs ------------------------------
 
 def _pick_spec_cb(sender, app_data, user_data) -> None:
@@ -753,10 +778,10 @@ def _run_analysis(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]) -> N
                 return
             payload = res.value
             report_txt = _gui_render_report(payload, show_speeds=show_speeds, ratios_only=ratios_only)
-            dpg.set_value(t("tr", "results_text"), report_txt)
-            dpg.set_value(t("tr", "payload_text"), pretty_json(payload))
+            _set_scrollable_report_text(t("tr", "results_text"), report_txt)
+            _set_scrollable_report_text(t("tr", "payload_text"), pretty_json(payload))
             topo = payload.get("topology", {}) if isinstance(payload, dict) else {}
-            dpg.set_value(t("tr", "topology_text"), pretty_json(topo) if topo else "")
+            _set_scrollable_report_text(t("tr", "topology_text"), pretty_json(topo) if topo else "")
             if out_path:
                 state.last_output_json = out_path
             state.history = state.history or []
@@ -897,17 +922,20 @@ def _build_inputs_panel(state: AppState, log: LogPanel, uiq: SimpleQueue[UiTask]
 def _build_outputs_panel(state: AppState, log: LogPanel) -> None:
     with dpg.tab_bar():
         with dpg.tab(label="Tables"):
-            dpg.add_input_text(tag=t("tr", "results_text"), multiline=True, readonly=True, height=-1, width=-1)
-            if state.mono_font is not None:
-                dpg.bind_item_font(t("tr", "results_text"), state.mono_font)
+            with dpg.child_window(height=-1, width=-1, border=False, horizontal_scrollbar=True):
+                dpg.add_input_text(tag=t("tr", "results_text"), multiline=True, readonly=True, height=-1, width=1600)
+                if state.mono_font is not None:
+                    dpg.bind_item_font(t("tr", "results_text"), state.mono_font)
         with dpg.tab(label="Payload"):
-            dpg.add_input_text(tag=t("tr", "payload_text"), multiline=True, readonly=True, height=-1, width=-1)
-            if state.mono_font is not None:
-                dpg.bind_item_font(t("tr", "payload_text"), state.mono_font)
+            with dpg.child_window(height=-1, width=-1, border=False, horizontal_scrollbar=True):
+                dpg.add_input_text(tag=t("tr", "payload_text"), multiline=True, readonly=True, height=-1, width=1600)
+                if state.mono_font is not None:
+                    dpg.bind_item_font(t("tr", "payload_text"), state.mono_font)
         with dpg.tab(label="Topology"):
-            dpg.add_input_text(tag=t("tr", "topology_text"), multiline=True, readonly=True, height=-1, width=-1)
-            if state.mono_font is not None:
-                dpg.bind_item_font(t("tr", "topology_text"), state.mono_font)
+            with dpg.child_window(height=-1, width=-1, border=False, horizontal_scrollbar=True):
+                dpg.add_input_text(tag=t("tr", "topology_text"), multiline=True, readonly=True, height=-1, width=1600)
+                if state.mono_font is not None:
+                    dpg.bind_item_font(t("tr", "topology_text"), state.mono_font)
         with dpg.tab(label="Logs"):
             with dpg.child_window(height=-1, width=-1, border=False):
                 log.build(height=-1, mono_font=state.mono_font)
