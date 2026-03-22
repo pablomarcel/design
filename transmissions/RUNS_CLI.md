@@ -110,6 +110,18 @@ python -m cli \
   --list-presets
 ```
 
+#### ZF 4HP22 - 4 Speed Transmission
+
+### Solves a transmission spec - all states
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_zf_4hp.json \
+  --schedule in/shift_schedule_zf_4hp.json \
+  --state all \
+  --show-speeds
+```
+
 #### Mercedes Benz W5A-580 - 5 Speed Transmission
 
 ### Solves a transmission spec - all states

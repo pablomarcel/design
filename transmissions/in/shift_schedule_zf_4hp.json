@@ -1,0 +1,90 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": [
+        "A",
+        "E",
+        "D"
+      ],
+      "display_elements": [
+        "A",
+        "E",
+        "J",
+        "K"
+      ],
+      "manual_neutral": false,
+      "notes": "Display follows the chart. Active constraints are reduced for the monolithic generic solve."
+    },
+    "2nd": {
+      "active_constraints": [
+        "A",
+        "C",
+        "E"
+      ],
+      "display_elements": [
+        "A",
+        "Cprime",
+        "C",
+        "E",
+        "H",
+        "K"
+      ],
+      "manual_neutral": false,
+      "notes": "Chart-preserving display_elements with reduced active_constraints for the generic solve."
+    },
+    "3rd": {
+      "active_constraints": [
+        "A",
+        "B",
+        "E"
+      ],
+      "display_elements": [
+        "A",
+        "B",
+        "Cprime",
+        "E",
+        "K"
+      ],
+      "manual_neutral": false,
+      "notes": "Direct drive through the Simpson core with overdrive set locked in direct by E."
+    },
+    "4th": {
+      "active_constraints": [
+        "A",
+        "B",
+        "F"
+      ],
+      "display_elements": [
+        "A",
+        "B",
+        "Cprime",
+        "F"
+      ],
+      "manual_neutral": false,
+      "notes": "Overdrive set active through F brake; Simpson core in direct."
+    },
+    "Rev": {
+      "active_constraints": [
+        "B",
+        "D",
+        "E"
+      ],
+      "display_elements": [
+        "B",
+        "D",
+        "E",
+        "K"
+      ],
+      "manual_neutral": false,
+      "notes": "Reverse state preserving the chart display while using reduced active constraints."
+    }
+  },
+  "display_order": [
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "Rev"
+  ],
+  "notes": "Shift schedule for the ZF 4HP22/24 candidate universal-core model. display_elements preserve the ATSG chart names including sprags; active_constraints are the kinematically effective subset used by the generic solver."
+}

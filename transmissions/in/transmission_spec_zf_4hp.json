@@ -1,0 +1,171 @@
+{
+  "name": "ZF 4HP22/24 4-Speed",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+  "members": [
+    "input",
+    "od_sun",
+    "od_out",
+    "r1",
+    "simpson_sun",
+    "rear_carrier",
+    "output"
+  ],
+  "speed_display_order": [
+    "input",
+    "od_sun",
+    "od_out",
+    "r1",
+    "simpson_sun",
+    "rear_carrier",
+    "output"
+  ],
+  "speed_display_labels": {
+    "input": "Input",
+    "od_sun": "od_sun",
+    "od_out": "od_out",
+    "r1": "r1",
+    "simpson_sun": "simpson_sun",
+    "rear_carrier": "rear_carrier",
+    "output": "Output"
+  },
+  "gearsets": [
+    {
+      "name": "PG_overdrive",
+      "Ns": 31,
+      "Nr": 83,
+      "sun": "od_sun",
+      "ring": "od_out",
+      "carrier": "input"
+    },
+    {
+      "name": "PG_front",
+      "Ns": 35,
+      "Nr": 73,
+      "sun": "simpson_sun",
+      "ring": "r1",
+      "carrier": "output"
+    },
+    {
+      "name": "PG_rear",
+      "Ns": 35,
+      "Nr": 73,
+      "sun": "simpson_sun",
+      "ring": "output",
+      "carrier": "rear_carrier"
+    }
+  ],
+  "clutches": [
+    {
+      "name": "A",
+      "a": "od_out",
+      "b": "r1"
+    },
+    {
+      "name": "B",
+      "a": "od_out",
+      "b": "simpson_sun"
+    },
+    {
+      "name": "Cprime",
+      "a": "od_out",
+      "b": "r1"
+    },
+    {
+      "name": "E",
+      "a": "od_out",
+      "b": "input"
+    }
+  ],
+  "brakes": [
+    {
+      "name": "C",
+      "member": "simpson_sun"
+    },
+    {
+      "name": "D",
+      "member": "rear_carrier"
+    },
+    {
+      "name": "F",
+      "member": "od_sun"
+    }
+  ],
+  "sprags": [
+    {
+      "name": "H",
+      "member": "simpson_sun",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    },
+    {
+      "name": "J",
+      "member": "rear_carrier",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    },
+    {
+      "name": "K",
+      "member": "rear_carrier",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    }
+  ],
+  "permanent_ties": [],
+  "display_order": [
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "Rev"
+  ],
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+  "presets": {
+    "zf_4hp22_base": {
+      "gearsets": {
+        "PG_overdrive": {
+          "Ns": 31,
+          "Nr": 83
+        },
+        "PG_front": {
+          "Ns": 35,
+          "Nr": 73
+        },
+        "PG_rear": {
+          "Ns": 35,
+          "Nr": 73
+        }
+      },
+      "strict_geometry": false
+    }
+  },
+  "notes": "Universal-core candidate topology for the ZF 4HP22/24. Built as an overdrive simple planetary feeding a Simpson-style 3-speed core. The rich shift schedule preserves the ATSG display matrix while active_constraints contain only the kinematically necessary constraints for the generic solver.",
+  "meta": {
+    "author": "OpenAI",
+    "source": "Derived from the user-provided stick diagram, component application chart, and tooth counts.",
+    "target_ratios": {
+      "1st": 2.48,
+      "2nd": 1.48,
+      "3rd": 1.0,
+      "4th": 0.73,
+      "Rev": -2.09
+    }
+  }
+}
