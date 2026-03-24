@@ -1,0 +1,109 @@
+{
+  "states": {
+    "1st": {
+      "active_constraints": [
+        "A",
+        "LowSprag"
+      ],
+      "display_elements": [
+        "A",
+        "LowSprag"
+      ],
+      "manual_neutral": false
+    },
+    "2nd": {
+      "active_constraints": [
+        "A",
+        "E"
+      ],
+      "display_elements": [
+        "A",
+        "E"
+      ],
+      "manual_neutral": false
+    },
+    "3rd": {
+      "active_constraints": [
+        "A",
+        "D"
+      ],
+      "display_elements": [
+        "A",
+        "D"
+      ],
+      "manual_neutral": false
+    },
+    "4th": {
+      "active_constraints": [
+        "A",
+        "B"
+      ],
+      "display_elements": [
+        "A",
+        "B"
+      ],
+      "manual_neutral": false
+    },
+    "5th": {
+      "active_constraints": [
+        "B",
+        "D"
+      ],
+      "display_elements": [
+        "B",
+        "D"
+      ],
+      "manual_neutral": false
+    },
+    "Rev": {
+      "active_constraints": [
+        "C",
+        "F"
+      ],
+      "display_elements": [
+        "C",
+        "F"
+      ],
+      "manual_neutral": false
+    },
+    "Park": {
+      "active_constraints": [
+        "F"
+      ],
+      "display_elements": [
+        "F"
+      ],
+      "manual_neutral": true
+    },
+    "Neutral": {
+      "active_constraints": [
+        "F"
+      ],
+      "display_elements": [
+        "F"
+      ],
+      "manual_neutral": true
+    },
+    "M-1": {
+      "active_constraints": [
+        "A",
+        "F",
+        "LowSprag"
+      ],
+      "display_elements": [
+        "A",
+        "F",
+        "LowSprag"
+      ],
+      "manual_neutral": false
+    }
+  },
+  "display_order": [
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "5th",
+    "Rev"
+  ]
+}

@@ -1,0 +1,135 @@
+{
+  "name": "ZF 5HP24 / 5HP family candidate",
+  "input_member": "input",
+  "output_member": "output",
+  "strict_geometry": false,
+  "members": [
+    "input",
+    "s1",
+    "x",
+    "y",
+    "s23",
+    "output"
+  ],
+  "speed_display_order": [
+    "input",
+    "s1",
+    "x",
+    "y",
+    "s23",
+    "output"
+  ],
+  "speed_display_labels": {
+    "input": "Input",
+    "s1": "ps1_sun",
+    "x": "ps1_ring_ps2_carrier_ps3_ring",
+    "y": "ps1_carrier_ps2_ring",
+    "s23": "ps2_sun_ps3_sun",
+    "output": "Output"
+  },
+  "gearsets": [
+    {
+      "name": "PS1_front",
+      "Ns": 35,
+      "Nr": 89,
+      "sun": "s1",
+      "ring": "x",
+      "carrier": "y"
+    },
+    {
+      "name": "PS2_central",
+      "Ns": 32,
+      "Nr": 100,
+      "sun": "s23",
+      "ring": "y",
+      "carrier": "x"
+    },
+    {
+      "name": "PS3_rear",
+      "Ns": 35,
+      "Nr": 90,
+      "sun": "s23",
+      "ring": "x",
+      "carrier": "output"
+    }
+  ],
+  "clutches": [
+    {
+      "name": "A",
+      "a": "input",
+      "b": "s23"
+    },
+    {
+      "name": "B",
+      "a": "input",
+      "b": "x"
+    },
+    {
+      "name": "C",
+      "a": "input",
+      "b": "s1"
+    }
+  ],
+  "brakes": [
+    {
+      "name": "D",
+      "member": "s1"
+    },
+    {
+      "name": "E",
+      "member": "y"
+    },
+    {
+      "name": "F",
+      "member": "x"
+    }
+  ],
+  "sprags": [
+    {
+      "name": "LowSprag",
+      "member": "x",
+      "hold_direction": "negative",
+      "locked_when_engaged": true
+    }
+  ],
+  "permanent_ties": [],
+  "display_order": [
+    "1st",
+    "2nd",
+    "3rd",
+    "4th",
+    "5th",
+    "Rev"
+  ],
+  "state_aliases": {
+    "1": "1st",
+    "1st": "1st",
+    "first": "1st",
+    "2": "2nd",
+    "2nd": "2nd",
+    "second": "2nd",
+    "3": "3rd",
+    "3rd": "3rd",
+    "third": "3rd",
+    "4": "4th",
+    "4th": "4th",
+    "fourth": "4th",
+    "5": "5th",
+    "5th": "5th",
+    "fifth": "5th",
+    "r": "Rev",
+    "rev": "Rev",
+    "reverse": "Rev"
+  },
+  "notes": "Built directly from the user's explicit topology description: ps1 ring = ps2 carrier = ps3 ring = x; ps1 carrier = ps2 ring = y; ps2 sun = ps3 sun = s23; ps3 carrier = output. A=input->s23, B=input->x, C=input->s1, D brakes s1, E brakes y, F brakes x, LowSprag holds x. Candidate tooth counts selected so this topology reproduces the 5HP24 ratio family.",
+  "meta": {
+    "target_ratios": {
+      "1st": 3.57,
+      "2nd": 2.2,
+      "3rd": 1.51,
+      "4th": 1.0,
+      "5th": 0.8,
+      "Rev": -4.1
+    }
+  }
+}

@@ -122,6 +122,18 @@ python -m cli \
   --show-speeds
 ```
 
+#### ZF 5HP24 - 5 Speed Transmission
+
+### Solves a transmission spec - all states
+
+```bash
+python -m cli \
+  --spec in/transmission_spec_zf_5hp.json \
+  --schedule in/shift_schedule_zf_5hp.json \
+  --state all \
+  --show-speeds
+```
+
 #### Mercedes Benz W5A-580 - 5 Speed Transmission
 
 ### Solves a transmission spec - all states
