@@ -134,10 +134,13 @@ python -m cli yield \
   --Kf 1.58 \
   --Kfs 1.37 \
   --Sy 82 \
+  --strength-unit ksi \
   --Ma 1260 \
   --Tm 1100 \
   --d 1.1
 ```
+
+### Vector Sums
 
 ```bash
 python -m cli vector-sum \
@@ -150,6 +153,8 @@ python -m cli vector-sum \
   --units deg
 ```
 
+### Diameter Resize
+
 ```bash
 python -m cli diameter-resize \
   --d-old 1.0 \
@@ -157,6 +162,8 @@ python -m cli diameter-resize \
   --response-allow 0.0005 \
   --mode slope
 ```
+
+### Torsion Angle
 
 ```bash
 python -m cli torsion-angle \
@@ -168,6 +175,8 @@ python -m cli torsion-angle \
   --J 0.45
 ```
 
+### Torsional Stiffness
+
 ```bash
 python -m cli torsional-stiffness \
   --G 11500000 \
@@ -176,6 +185,8 @@ python -m cli torsional-stiffness \
   --length 10 \
   --J 0.45
 ```
+
+### JSON Problem Definition
 
 ```bash
 python -m cli run \
