@@ -190,23 +190,25 @@ python -m cli torsional-stiffness \
 
 ```bash
 python -m cli run \
-  --infile fatigue_goodman.json
+  --infile fatigue_goodman.json \
+  --outfile example_7_1_goodman.json
 ```
 
 ### Solve Diameter Resize Problem From File
 
 ```bash
 python -m cli run \
-  --infile resize_slope.json
+  --infile resize_slope.json \
+  --outfile example_7_4.json
 ```
 
 ### Solve Vector Sum Problem From File
 
 ```bash
 python -m cli run \
-  --infile vector_sum.json
+  --infile vector_sum.json \
+  --outfile example_7_3.json
 ```
-
 
 ## Notes
 
