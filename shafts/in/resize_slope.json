@@ -1,0 +1,10 @@
+{
+  "calculation": "diameter_resize",
+  "payload": {
+    "d_old": 1.0,
+    "response_old": 0.001095,
+    "response_allow": 0.0005,
+    "n_design": 1.0,
+    "mode": "slope"
+  }
+}

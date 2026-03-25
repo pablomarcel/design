@@ -1,0 +1,16 @@
+{
+  "calculation": "fatigue",
+  "payload": {
+    "criterion": "de_goodman",
+    "Kf": 1.58,
+    "Kfs": 1.37,
+    "Se": 35.44,
+    "Sut": 105.0,
+    "Sy": 82.0,
+    "Ma": 1260.0,
+    "Mm": 0.0,
+    "Ta": 0.0,
+    "Tm": 1100.0,
+    "d": 1.1
+  }
+}

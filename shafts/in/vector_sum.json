@@ -1,0 +1,10 @@
+{
+  "calculation": "vector_sum",
+  "payload": {
+    "pairs": [
+      {"label": "left_bearing_slope", "xz": 0.02263, "xy": 0.01770, "units": "deg"},
+      {"label": "right_bearing_slope", "xz": 0.05711, "xy": 0.02599, "units": "deg"},
+      {"label": "left_gear_deflection", "xz": 0.0007568, "xy": 0.0005153, "units": "in"}
+    ]
+  }
+}
