@@ -186,12 +186,27 @@ python -m cli torsional-stiffness \
   --J 0.45
 ```
 
-### JSON Problem Definition
+### Solve Fatigue Problem From File
 
 ```bash
 python -m cli run \
   --infile fatigue_goodman.json
 ```
+
+### Solve Diameter Resize Problem From File
+
+```bash
+python -m cli run \
+  --infile resize_slope.json
+```
+
+### Solve Vector Sum Problem From File
+
+```bash
+python -m cli run \
+  --infile vector_sum.json
+```
+
 
 ## Notes
 

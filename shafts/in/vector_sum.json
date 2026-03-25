@@ -1,6 +1,6 @@
 {
   "calculation": "vector_sum",
-  "payload": {
+  "inputs": {
     "pairs": [
       {"label": "left_bearing_slope", "xz": 0.02263, "xy": 0.01770, "units": "deg"},
       {"label": "right_bearing_slope", "xz": 0.05711, "xy": 0.02599, "units": "deg"},

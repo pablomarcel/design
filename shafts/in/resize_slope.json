@@ -1,6 +1,6 @@
 {
   "calculation": "diameter_resize",
-  "payload": {
+  "inputs": {
     "d_old": 1.0,
     "response_old": 0.001095,
     "response_allow": 0.0005,
