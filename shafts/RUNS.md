@@ -42,6 +42,8 @@ That second mode is the reason the import shim exists.
 
 From **inside** the `shafts` directory:
 
+#### Example 7-1
+
 ### Endurance
 
 ```bash
@@ -109,7 +111,7 @@ python -m cli fatigue \
   --d 1.1
 ```
 
-### DE-ASME-Elliptic
+### DE-Soderberg
 
 ```bash
 python -m cli fatigue \
@@ -140,6 +142,8 @@ python -m cli yield \
   --d 1.1
 ```
 
+#### Example 7-3
+
 ### Vector Sums
 
 ```bash
@@ -152,6 +156,8 @@ python -m cli vector-sum \
   --xy 0.02599 \
   --units deg
 ```
+
+#### Example 7-4
 
 ### Diameter Resize
 
@@ -185,6 +191,8 @@ python -m cli torsional-stiffness \
   --length 10 \
   --J 0.45
 ```
+
+#### Example 7-1 - Solve from File
 
 ### Solve Fatigue Problem From File - DE-Goodman
 
@@ -232,6 +240,16 @@ python -m cli run \
 python -m cli run \
   --infile vector_sum.json \
   --outfile example_7_3.json
+```
+
+#### Example 7-2 - Solve from File
+
+### DE-Goodman
+
+```bash
+python -m cli run \
+  --infile example_7_2_initial_goodman.json \
+  --outfile example_7_2_initial_goodman_out.json
 ```
 
 ## Notes

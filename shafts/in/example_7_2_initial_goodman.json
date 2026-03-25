@@ -1,0 +1,17 @@
+{
+  "calculation": "fatigue",
+  "inputs": {
+    "criterion": "de_goodman",
+    "Kf": 1.7,
+    "Kfs": 1.5,
+    "Se": 27.0,
+    "Sut": 68.0,
+    "Sy": 57.0,
+    "strength_unit": "ksi",
+    "Ma": 3651.0,
+    "Mm": 0.0,
+    "Ta": 0.0,
+    "Tm": 3240.0,
+    "n": 1.5
+  }
+}
