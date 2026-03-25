@@ -42,26 +42,92 @@ That second mode is the reason the import shim exists.
 
 From **inside** the `shafts` directory:
 
+### Endurance
+
 ```bash
 python -m cli endurance \
   --se-prime 52.5 \
   --ka 0.787 \
   --kb 0.87 \
-  --ke 0.99
+  --kc 1.0 \
+  --kd 1.0 \
+  --ke 0.814 \
+  --kf-misc 1.0
 ```
+
+### DE-Goodman
 
 ```bash
 python -m cli fatigue \
   --criterion de_goodman \
   --Kf 1.58 \
   --Kfs 1.37 \
-  --Se 35.44 \
+  --Se 29.3 \
   --Sut 105 \
   --Sy 82 \
+  --strength-unit ksi \
   --Ma 1260 \
+  --Mm 0 \
+  --Ta 0 \
   --Tm 1100 \
   --d 1.1
 ```
+
+### DE-Gerber
+
+```bash
+python -m cli fatigue \
+  --criterion de_gerber \
+  --Kf 1.58 \
+  --Kfs 1.37 \
+  --Se 29.3 \
+  --Sut 105 \
+  --Sy 82 \
+  --strength-unit ksi \
+  --Ma 1260 \
+  --Mm 0 \
+  --Ta 0 \
+  --Tm 1100 \
+  --d 1.1
+```
+
+### DE-ASME-Elliptic
+
+```bash
+python -m cli fatigue \
+  --criterion de_asme_elliptic \
+  --Kf 1.58 \
+  --Kfs 1.37 \
+  --Se 29.3 \
+  --Sut 105 \
+  --Sy 82 \
+  --strength-unit ksi \
+  --Ma 1260 \
+  --Mm 0 \
+  --Ta 0 \
+  --Tm 1100 \
+  --d 1.1
+```
+
+### DE-ASME-Elliptic
+
+```bash
+python -m cli fatigue \
+  --criterion de_soderberg \
+  --Kf 1.58 \
+  --Kfs 1.37 \
+  --Se 29.3 \
+  --Sut 105 \
+  --Sy 82 \
+  --strength-unit ksi \
+  --Ma 1260 \
+  --Mm 0 \
+  --Ta 0 \
+  --Tm 1100 \
+  --d 1.1
+```
+
+### Yield Factor of Safety
 
 ```bash
 python -m cli yield \
