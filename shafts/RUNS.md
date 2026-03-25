@@ -186,12 +186,36 @@ python -m cli torsional-stiffness \
   --J 0.45
 ```
 
-### Solve Fatigue Problem From File
+### Solve Fatigue Problem From File - DE-Goodman
 
 ```bash
 python -m cli run \
   --infile fatigue_goodman.json \
   --outfile example_7_1_goodman.json
+```
+
+### Solve Fatigue Problem From File - DE-Gerber
+
+```bash
+python -m cli run \
+  --infile fatigue_gerber.json \
+  --outfile example_7_1_gerber.json
+```
+
+### Solve Fatigue Problem From File - DE-ASME-Elliptic
+
+```bash
+python -m cli run \
+  --infile fatigue_asme_elliptic.json \
+  --outfile example_7_1_asme_elliptic.json
+```
+
+### Solve Fatigue Problem From File - DE-Soderberg
+
+```bash
+python -m cli run \
+  --infile fatigue_soderberg.json \
+  --outfile example_7_1_soderberg.json
 ```
 
 ### Solve Diameter Resize Problem From File
