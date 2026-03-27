@@ -63,7 +63,7 @@ class LifeModel:
 
 class BallFactorTable:
     def __init__(self) -> None:
-        rows = load_csv_dicts("table_11_1_ball_equivalent_factors.csv")
+        rows = load_csv_dicts("equivalent_radial_load.csv")
         self.rows = []
         for r in rows:
             self.rows.append({
@@ -139,7 +139,7 @@ class CatalogTable:
 class BallBearingCatalog(CatalogTable):
     def __init__(self) -> None:
         super().__init__(
-            "table_11_2_ball_bearings.csv",
+            "ball_bearings.csv",
             required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C0_N", "C10_N"],
         )
 
@@ -147,7 +147,7 @@ class BallBearingCatalog(CatalogTable):
 class CylindricalRollerCatalog(CatalogTable):
     def __init__(self) -> None:
         super().__init__(
-            "table_11_3_cylindrical_roller.csv",
+            "cylindrical_roller_bearings.csv",
             required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C10_N", "C0_N"],
         )
 
@@ -155,7 +155,7 @@ class CylindricalRollerCatalog(CatalogTable):
 class TaperedRollerCatalog(CatalogTable):
     def __init__(self) -> None:
         super().__init__(
-            "figure_11_15_timken_straight_bore_partial.csv",
+            "timken_tapered_roller_bearings.csv",
             required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C10_N", "C0_thrust_N", "K"],
         )
 

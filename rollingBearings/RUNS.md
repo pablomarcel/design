@@ -21,32 +21,32 @@ python -m cli catalog_c10 \
 
 ```bash
 python -m cli run \
-  --infile example_11_4_ball_l10_life.json \
-  --outfile example_11_4_ball_l10_life.out.json
+  --infile ex_11_4.json \
+  --outfile ex_11_4.out.json
 ```
 
 ## Solve Example 11-7 cylindrical roller preselection
 
 ```bash
 python -m cli run \
-  --infile example_11_7_bearing_D.json \
-  --outfile example_11_7_bearing_D.out.json
+  --infile ex_11_7_bearing_D.json \
+  --outfile ex_11_7_bearing_D.out.json
 ```
 
 ## Solve Example 11-7 angular-contact selection
 
 ```bash
 python -m cli run \
-  --infile example_11_7_bearing_C.json \
-  --outfile example_11_7_bearing_C.out.json
+  --infile ex_11_7_bearing_C.json \
+  --outfile ex_11_7_bearing_C.out.json
 ```
 
 ## Solve Example 11-8 tapered pair (direct mount)
 
 ```bash
 python -m cli run \
-  --infile example_11_8_tapered_direct.json \
-  --outfile example_11_8_tapered_direct.out.json
+  --infile ex_11_8.json \
+  --outfile ex_11_8.out.json
 ```
 
 ## Solve Example 11-10 tapered pair reliability
@@ -64,6 +64,14 @@ python -m cli tapered_reliability \
 
 ```bash
 python -m cli run \
-  --infile example_11_11_tapered_thrust_only.json \
-  --outfile example_11_11_tapered_thrust_only.out.json
+  --infile ex_11_11.json \
+  --outfile ex_11_11.out.json
 ```
+
+## RipGrep
+
+rg "figure_11_15_timken_straight_bore_partial.csv" rollingBearings
+rg "figure_11_15_timken_straight_bore_partial" rollingBearings
+rg "table_11_3_cylindrical_roller" rollingBearings
+rg "table_11_2_ball_bearings" rollingBearings
+rg "table_11_1_ball_equivalent_factors" rollingBearings
