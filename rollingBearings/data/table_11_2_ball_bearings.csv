@@ -1,10 +1,41 @@
-bearing_family,series,part_no,bore_mm,OD_mm,width_mm,C0_N,C10_N,source_note
-deep_groove,02,6204,20,47,14,6650,12800,Table 11-2 partial digitization
-deep_groove,02,6205,25,52,15,7850,14000,Table 11-2 partial digitization
-deep_groove,02,6206,30,62,16,11200,19500,Table 11-2 partial digitization
-deep_groove,02,6207,35,72,17,15300,25500,Table 11-2 partial digitization
-angular_contact,02,7204,20,47,14,5100,9600,Table 11-2 partial digitization
-angular_contact,02,7205,25,52,15,6200,10800,Table 11-2 partial digitization
-angular_contact,02,7206,30,62,16,8350,15100,Table 11-2 partial digitization
-angular_contact,02,7207,35,72,17,11400,20100,Table 11-2 partial digitization
-angular_contact,02,7208,40,80,18,14600,27400,Table 11-2 partial digitization
+bearing_family,series,part_no,bore_mm,OD_mm,width_mm,fillet_radius_mm,d_s_mm,d_H_mm,C10_N,C0_N,source_note
+deep_groove,02,6200,10,30,9,0.6,12.5,27,5070,2240,Table 11-2 full digitization from user exhibit
+angular_contact,02,7200,10,30,9,0.6,12.5,27,4940,2120,Table 11-2 full digitization from user exhibit
+deep_groove,02,6201,12,32,10,0.6,14.5,28,6890,3100,Table 11-2 full digitization from user exhibit
+angular_contact,02,7201,12,32,10,0.6,14.5,28,7020,3050,Table 11-2 full digitization from user exhibit
+deep_groove,02,6202,15,35,11,0.6,17.5,31,7800,3550,Table 11-2 full digitization from user exhibit
+angular_contact,02,7202,15,35,11,0.6,17.5,31,8060,3650,Table 11-2 full digitization from user exhibit
+deep_groove,02,6203,17,40,12,0.6,19.5,34,9560,4500,Table 11-2 full digitization from user exhibit
+angular_contact,02,7203,17,40,12,0.6,19.5,34,9950,4750,Table 11-2 full digitization from user exhibit
+deep_groove,02,6204,20,47,14,1.0,25,41,12700,6200,Table 11-2 full digitization from user exhibit
+angular_contact,02,7204,20,47,14,1.0,25,41,13300,6550,Table 11-2 full digitization from user exhibit
+deep_groove,02,6205,25,52,15,1.0,30,47,14000,6950,Table 11-2 full digitization from user exhibit
+angular_contact,02,7205,25,52,15,1.0,30,47,14800,7650,Table 11-2 full digitization from user exhibit
+deep_groove,02,6206,30,62,16,1.0,35,55,19500,10000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7206,30,62,16,1.0,35,55,20300,11000,Table 11-2 full digitization from user exhibit
+deep_groove,02,6207,35,72,17,1.0,41,65,25500,13700,Table 11-2 full digitization from user exhibit
+angular_contact,02,7207,35,72,17,1.0,41,65,27000,15000,Table 11-2 full digitization from user exhibit
+deep_groove,02,6208,40,80,18,1.0,46,72,30700,16600,Table 11-2 full digitization from user exhibit
+angular_contact,02,7208,40,80,18,1.0,46,72,31900,18600,Table 11-2 full digitization from user exhibit
+deep_groove,02,6209,45,85,19,1.0,52,77,33200,18600,Table 11-2 full digitization from user exhibit
+angular_contact,02,7209,45,85,19,1.0,52,77,35800,21200,Table 11-2 full digitization from user exhibit
+deep_groove,02,6210,50,90,20,1.0,56,82,35100,19600,Table 11-2 full digitization from user exhibit
+angular_contact,02,7210,50,90,20,1.0,56,82,37700,22800,Table 11-2 full digitization from user exhibit
+deep_groove,02,6211,55,100,21,1.5,63,90,43600,25000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7211,55,100,21,1.5,63,90,46200,28500,Table 11-2 full digitization from user exhibit
+deep_groove,02,6212,60,110,22,1.5,70,99,47500,28000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7212,60,110,22,1.5,70,99,55900,35500,Table 11-2 full digitization from user exhibit
+deep_groove,02,6213,65,120,23,1.5,74,109,55900,34000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7213,65,120,23,1.5,74,109,63700,41500,Table 11-2 full digitization from user exhibit
+deep_groove,02,6214,70,125,24,1.5,79,114,61800,37500,Table 11-2 full digitization from user exhibit
+angular_contact,02,7214,70,125,24,1.5,79,114,68900,45500,Table 11-2 full digitization from user exhibit
+deep_groove,02,6215,75,130,25,1.5,86,119,66300,40500,Table 11-2 full digitization from user exhibit
+angular_contact,02,7215,75,130,25,1.5,86,119,71500,49000,Table 11-2 full digitization from user exhibit
+deep_groove,02,6216,80,140,26,2.0,93,127,70200,45000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7216,80,140,26,2.0,93,127,80600,55000,Table 11-2 full digitization from user exhibit
+deep_groove,02,6217,85,150,28,2.0,99,136,83200,53000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7217,85,150,28,2.0,99,136,90400,63000,Table 11-2 full digitization from user exhibit
+deep_groove,02,6218,90,160,30,2.0,104,146,95600,62000,Table 11-2 full digitization from user exhibit
+angular_contact,02,7218,90,160,30,2.0,104,146,106000,73500,Table 11-2 full digitization from user exhibit
+deep_groove,02,6219,95,170,32,2.0,110,156,108000,69500,Table 11-2 full digitization from user exhibit
+angular_contact,02,7219,95,170,32,2.0,110,156,121000,85000,Table 11-2 full digitization from user exhibit

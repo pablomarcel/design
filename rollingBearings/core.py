@@ -4,9 +4,6 @@ from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 import math
 
-# Import shim:
-# - supports package execution
-# - supports local module execution from inside rollingBearings/
 try:
     from .in_out import load_csv_dicts
     from .utils import WeibullParams, ensure_positive, ensure_nonnegative, interp_piecewise
@@ -97,8 +94,11 @@ class BallFactorTable:
 
 
 class CatalogTable:
-    def __init__(self, filename: str) -> None:
+    def __init__(self, filename: str, required_numeric_fields: Optional[List[str]] = None) -> None:
+        self.filename = filename
         self.rows = load_csv_dicts(filename)
+        self.required_numeric_fields = required_numeric_fields or []
+        self._validate_rows()
 
     @staticmethod
     def _to_float(value: str) -> float:
@@ -106,6 +106,17 @@ class CatalogTable:
         if value == "":
             return float("nan")
         return float(value)
+
+    def _validate_rows(self) -> None:
+        for i, row in enumerate(self.rows, start=2):
+            for field in self.required_numeric_fields:
+                try:
+                    self._to_float(row[field])
+                except Exception as exc:
+                    raise RollingBearingError(
+                        f"Malformed catalog row in {self.filename} at CSV line {i}: "
+                        f"field {field!r} has value {row.get(field)!r}"
+                    ) from exc
 
     def select_first_by_c10(self, c10_required: float, allowed_families: Optional[List[str]] = None) -> Dict[str, Any]:
         ensure_positive("c10_required", c10_required)
@@ -127,17 +138,26 @@ class CatalogTable:
 
 class BallBearingCatalog(CatalogTable):
     def __init__(self) -> None:
-        super().__init__("table_11_2_ball_bearings.csv")
+        super().__init__(
+            "table_11_2_ball_bearings.csv",
+            required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C0_N", "C10_N"],
+        )
 
 
 class CylindricalRollerCatalog(CatalogTable):
     def __init__(self) -> None:
-        super().__init__("table_11_3_cylindrical_roller.csv")
+        super().__init__(
+            "table_11_3_cylindrical_roller.csv",
+            required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C10_N", "C0_N"],
+        )
 
 
 class TaperedRollerCatalog(CatalogTable):
     def __init__(self) -> None:
-        super().__init__("figure_11_15_timken_straight_bore_partial.csv")
+        super().__init__(
+            "figure_11_15_timken_straight_bore_partial.csv",
+            required_numeric_fields=["bore_mm", "OD_mm", "width_mm", "C10_N", "C0_thrust_N", "K"],
+        )
 
     def select_first_by_c10_and_bore(self, c10_required: float, bore_mm: Optional[float] = None, bore_tol_mm: float = 1.0) -> Dict[str, Any]:
         ensure_positive("c10_required", c10_required)
@@ -338,20 +358,8 @@ class TaperedBearingPairSelector:
             )
 
             weibull = WeibullParams(a=10.0 / 3.0, x0=0.0, theta_minus_x0=4.48, b=1.5)
-            c10_A_req = LifeModel.c10_required(
-                FD=eq["FeA"],
-                af=af,
-                xD=xD,
-                weibull=weibull,
-                reliability=RD_guess,
-            )
-            c10_B_req = LifeModel.c10_required(
-                FD=eq["FeB"],
-                af=af,
-                xD=xD,
-                weibull=weibull,
-                reliability=RD_guess,
-            )
+            c10_A_req = LifeModel.c10_required(FD=eq["FeA"], af=af, xD=xD, weibull=weibull, reliability=RD_guess)
+            c10_B_req = LifeModel.c10_required(FD=eq["FeB"], af=af, xD=xD, weibull=weibull, reliability=RD_guess)
             sel_A = self.catalog.select_first_by_c10_and_bore(c10_required=c10_A_req, bore_mm=shaft_bore_mm)
             sel_B = self.catalog.select_first_by_c10_and_bore(c10_required=c10_B_req, bore_mm=shaft_bore_mm)
             pair = sel_A if float(sel_A["C10_N"]) >= float(sel_B["C10_N"]) else sel_B
@@ -359,7 +367,6 @@ class TaperedBearingPairSelector:
             KA = float(pair["K"])
             KB = float(pair["K"])
             C10_pair = float(pair["C10_N"])
-
             RA = LifeModel.tapered_reliability_approx(FD=eq["FeA"], af=af, xD=xD, C10=C10_pair)
             RB = LifeModel.tapered_reliability_approx(FD=eq["FeB"], af=af, xD=xD, C10=C10_pair)
             R_total = RA * RB
@@ -387,29 +394,12 @@ class TaperedBearingPairSelector:
             chosen = pair
 
             if R_total >= reliability_goal and same_as_before:
-                return {
-                    "status": "converged",
-                    "xD": xD,
-                    "iterations": history,
-                    "selected_pair": pair,
-                }
-
+                return {"status": "converged", "xD": xD, "iterations": history, "selected_pair": pair}
             if R_total >= reliability_goal and it >= 2:
-                return {
-                    "status": "accepted_on_reliability",
-                    "xD": xD,
-                    "iterations": history,
-                    "selected_pair": pair,
-                }
-
+                return {"status": "accepted_on_reliability", "xD": xD, "iterations": history, "selected_pair": pair}
             RD_guess = math.sqrt(max(reliability_goal, R_total))
 
-        return {
-            "status": "max_iter_reached",
-            "xD": xD,
-            "iterations": history,
-            "selected_pair": chosen,
-        }
+        return {"status": "max_iter_reached", "xD": xD, "iterations": history, "selected_pair": chosen}
 
     def solve_external_thrust_only(
         self,
@@ -424,22 +414,9 @@ class TaperedBearingPairSelector:
     ) -> Dict[str, Any]:
         xD = LifeModel.rating_life_multiple(hours=hours, speed_rpm=speed_rpm, LR_rev=LR_rev)
         weibull = WeibullParams(a=10.0 / 3.0, x0=0.0, theta_minus_x0=4.48, b=1.5)
-        req = LifeModel.c10_required(
-            FD=Fae,
-            af=af,
-            xD=xD,
-            weibull=weibull,
-            reliability=reliability_goal,
-        )
+        req = LifeModel.c10_required(FD=Fae, af=af, xD=xD, weibull=weibull, reliability=reliability_goal)
         sel = self.catalog.select_first_by_c10_and_bore(c10_required=req, bore_mm=shaft_bore_mm)
         C10 = float(sel["C10_N"])
         RA = LifeModel.tapered_reliability_approx(FD=Fae, af=af, xD=xD, C10=C10)
         RB = 1.0
-        return {
-            "xD": xD,
-            "required_C10": req,
-            "selected_pair": sel,
-            "RA": RA,
-            "RB": RB,
-            "R_total": RA * RB,
-        }
+        return {"xD": xD, "required_C10": req, "selected_pair": sel, "RA": RA, "RB": RB, "R_total": RA * RB}

@@ -1,6 +1,43 @@
-bearing_family,series,part_no,bore_mm,OD_mm,width_mm,C10_N,source_note
-cylindrical_roller,NJ204,20,47,14,15000,Table 11-3 partial digitization
-cylindrical_roller,NJ205,25,52,15,18000,Table 11-3 partial digitization
-cylindrical_roller,NJ206,30,62,16,25500,Table 11-3 partial digitization
-cylindrical_roller,NJ207,35,72,17,34000,Table 11-3 partial digitization
-cylindrical_roller,NJ208,40,80,18,43000,Table 11-3 partial digitization
+bearing_family,series,part_no,bore_mm,OD_mm,width_mm,C10_N,C0_N,source_note
+cylindrical_roller,02,NJ205,25,52,15,16800,8800,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ206,30,62,16,22400,12000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ207,35,72,17,31900,17600,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ208,40,80,18,41800,24000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ209,45,85,19,44000,25500,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ210,50,90,20,45700,27500,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ211,55,100,21,56100,34000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ212,60,110,22,64400,43100,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ213,65,120,23,76500,51200,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ214,70,125,24,79200,51200,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ215,75,130,25,93100,63200,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ216,80,140,26,106000,69400,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ217,85,150,28,119000,78300,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ218,90,160,30,142000,100000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ219,95,170,32,165000,112000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ220,100,180,34,183000,125000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ222,110,200,38,229000,167000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ224,120,215,40,260000,183000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ226,130,230,40,270000,193000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ228,140,250,42,319000,240000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,02,NJ230,150,270,45,446000,260000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ305,25,62,17,28600,15000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ306,30,72,19,36900,20000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ307,35,80,21,44600,27100,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ308,40,90,23,56100,32500,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ309,45,100,25,72100,45400,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ310,50,110,27,88000,52000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ311,55,120,29,102000,67200,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ312,60,130,31,123000,76500,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ313,65,140,33,138000,85000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ314,70,150,35,151000,102000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ315,75,160,37,183000,125000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ316,80,170,39,190000,125000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ317,85,180,41,212000,149000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ318,90,190,43,242000,160000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ319,95,200,45,264000,189000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ320,100,215,47,303000,220000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ322,110,240,50,391000,304000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ324,120,260,55,457000,340000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ326,130,280,58,539000,408000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ328,140,300,62,682000,454000,Table 11-3 full digitization from user exhibit
+cylindrical_roller,03,NJ330,150,320,65,781000,502000,Table 11-3 full digitization from user exhibit
