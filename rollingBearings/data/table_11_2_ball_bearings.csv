@@ -1,0 +1,10 @@
+bearing_family,series,part_no,bore_mm,OD_mm,width_mm,C0_N,C10_N,source_note
+deep_groove,02,6204,20,47,14,6650,12800,Table 11-2 partial digitization
+deep_groove,02,6205,25,52,15,7850,14000,Table 11-2 partial digitization
+deep_groove,02,6206,30,62,16,11200,19500,Table 11-2 partial digitization
+deep_groove,02,6207,35,72,17,15300,25500,Table 11-2 partial digitization
+angular_contact,02,7204,20,47,14,5100,9600,Table 11-2 partial digitization
+angular_contact,02,7205,25,52,15,6200,10800,Table 11-2 partial digitization
+angular_contact,02,7206,30,62,16,8350,15100,Table 11-2 partial digitization
+angular_contact,02,7207,35,72,17,11400,20100,Table 11-2 partial digitization
+angular_contact,02,7208,40,80,18,14600,27400,Table 11-2 partial digitization

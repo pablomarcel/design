@@ -1,0 +1,13 @@
+{
+  "problem_type": "select_tapered_direct_pair",
+  "FrA": 2170,
+  "FrB": 2654,
+  "Fae": 1690,
+  "speed_rpm": 800,
+  "hours": 5000,
+  "reliability_goal": 0.99,
+  "af": 1.0,
+  "shaft_bore_mm": 25.4,
+  "K_initial": 1.5,
+  "LR_rev": 90000000.0
+}

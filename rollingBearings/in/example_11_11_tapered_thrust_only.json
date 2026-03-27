@@ -1,0 +1,10 @@
+{
+  "problem_type": "select_tapered_thrust_only",
+  "Fae": 8000,
+  "speed_rpm": 950,
+  "hours": 10000,
+  "reliability_goal": 0.95,
+  "af": 1.0,
+  "shaft_bore_mm": 25.4,
+  "LR_rev": 90000000.0
+}

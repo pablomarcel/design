@@ -1,0 +1,9 @@
+{
+  "problem_type": "select_cylindrical_roller",
+  "Fr": 6200,
+  "af": 1.2,
+  "speed_rpm": 720,
+  "hours": 4000,
+  "target_reliability": 0.95,
+  "LR_rev": 1000000.0
+}

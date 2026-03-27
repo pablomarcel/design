@@ -1,0 +1,12 @@
+{
+  "problem_type": "select_angular_contact",
+  "Fr": 4100,
+  "Fa": 2200,
+  "V": 1.0,
+  "speed_rpm": 720,
+  "hours": 4000,
+  "target_reliability": 0.95,
+  "af": 1.2,
+  "LR_rev": 1000000.0,
+  "initial_C0_guess": 12000.0
+}

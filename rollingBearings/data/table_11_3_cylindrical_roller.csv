@@ -1,0 +1,6 @@
+bearing_family,series,part_no,bore_mm,OD_mm,width_mm,C10_N,source_note
+cylindrical_roller,NJ204,20,47,14,15000,Table 11-3 partial digitization
+cylindrical_roller,NJ205,25,52,15,18000,Table 11-3 partial digitization
+cylindrical_roller,NJ206,30,62,16,25500,Table 11-3 partial digitization
+cylindrical_roller,NJ207,35,72,17,34000,Table 11-3 partial digitization
+cylindrical_roller,NJ208,40,80,18,43000,Table 11-3 partial digitization

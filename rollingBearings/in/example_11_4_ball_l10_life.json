@@ -1,0 +1,12 @@
+{
+  "problem_type": "ball_l10_life",
+  "bearing_family": "angular_contact",
+  "C0": 14600,
+  "C10": 27400,
+  "Fa": 2500,
+  "Fr": 3100,
+  "V": 1.0,
+  "speed_rpm": 900,
+  "a": 3.0,
+  "LR_rev": 1000000.0
+}
