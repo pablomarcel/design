@@ -1,0 +1,131 @@
+Yes — the **90 × 10^6** is real in that tapered-roller-bearing section, but it is **not** because tapered rollers magically have a different fundamental “L10” definition than ball bearings.
+
+What is happening is this:
+
+For the tapered roller bearings in Shigley pages **583–596**, the book is following the **Timken catalog rating basis** shown in **Fig. 11–15**. That table is labeled:
+
+**“rating at 500 rpm for 3000 hours L10”**
+
+And that is exactly:
+
+[
+500 ,\text{rev/min} \times 60 ,\text{min/h} \times 3000 ,\text{h}
+= 90{,}000{,}000 ,\text{rev}
+= 90 \times 10^6 ,\text{rev}
+]
+
+So the mysterious **90 factor** comes from:
+
+* **500 rpm**
+* **3000 hours**
+* catalog life basis = **90 million revolutions**
+
+Not from some hidden magic formula.
+
+## What tripped you
+
+You are used to ball bearings being referenced to:
+
+[
+L_{10} = 10^6 \text{ rev}
+]
+
+That is the classic basic rating life basis.
+
+But in this tapered-roller-bearing section, Shigley is not normalizing life to **1 million rev**. He is normalizing to the **catalog rating life used for those Timken tapered bearings**, which is **90 million rev**.
+
+So in **Example 11-8** and **Example 11-11**, when Shigley computes the dimensionless life factor (x_D), he uses:
+
+[
+x_D = \frac{L_D}{L_R}
+]
+
+with
+
+[
+L_R = 90 \times 10^6 \text{ rev}
+]
+
+because that is the rating-life basis of the catalog table he is using.
+
+## Proof straight from the pages
+
+On **p. 586–587**, Fig. 11–15 gives the tapered bearing table with the header:
+
+* **rating at 500 rpm for 3000 hours (L_{10})**
+
+That is the smoking gun.
+
+Then on **p. 591**, Example 11-8 says:
+
+[
+x_D=\frac{L_D}{L_R}
+=\frac{\mathcal{L}_D n_D 60}{L_R}
+=\frac{(5000)(800)(60)}{90(10^6)}=2.67
+]
+
+So the book is explicitly using **(L_R = 90\times10^6)** there.
+
+Then on **p. 594**, Example 11-10 again says:
+
+[
+x_D = \frac{5000(800)60}{90(10^6)} = 2.67
+]
+
+And on **p. 595**, Example 11-11 says:
+
+[
+x_D = \frac{(10{,}000)(950)(60)}{90(10^6)} = 6.333
+]
+
+Same basis again.
+
+## So is this “90” a reliability thing?
+
+No. That is the easy confusion.
+
+There are **two different 90s** floating around:
+
+* **(L_{10})** means **90% reliability**
+* **(90\times10^6)** rev is the **catalog reference life basis**
+
+Those are not the same thing.
+
+In this section, Shigley is still working with **90% reliability life terminology**, but the **catalog load ratings for these Timken tapered bearings are tabulated at a reference life of 3000 h at 500 rpm**, which equals **90 million rev**.
+
+That is why the life multiple is based on 90 million rev.
+
+## Why Shigley feels confusing here
+
+Because the book does **not stop and loudly say**:
+
+> “Warning: for these tapered Timken tables, the catalog rating basis is 90 million revolutions instead of the usual 1 million.”
+
+Instead, it sort of expects you to notice the header in **Fig. 11–15** and then accept the later formulas.
+
+So your confusion is justified.
+
+## The clean interpretation
+
+For this part of Shigley:
+
+* **Ball-bearing style thinking:**
+  normalize life to **(10^6)** rev
+
+* **These Timken tapered-bearing examples:**
+  normalize life to the **catalog rating life**, which for Fig. 11–15 is
+  **(500 \times 60 \times 3000 = 90\times10^6)** rev
+
+So the **90 factor is a catalog-reference-life conversion**, not a new universal law of tapered bearings.
+
+## In one line
+
+Shigley uses **(90\times10^6)** in Examples 11-8 and 11-11 because the Timken tapered-roller-bearing table he is using rates bearings at **500 rpm for 3000 hours (L_{10})**, and that equals **90 million revolutions**.
+
+If you want, I can also give you a side-by-side comparison of:
+
+* ball bearings in Shigley
+* roller bearings in Shigley
+* Timken tapered catalog basis
+
+so the whole life-rating framework becomes crystal clear.
