@@ -1,9 +1,17 @@
 {
   "problem_type": "select_cylindrical_roller",
-  "Fr": 6200,
+  "Fr": 316.0,
   "af": 1.2,
-  "speed_rpm": 720,
-  "hours": 4000,
-  "target_reliability": 0.95,
-  "LR_rev": 1000000.0
+  "speed_rpm": 655.4,
+  "hours": 10000,
+  "system_reliability": 0.96,
+  "bearing_count": 4,
+  "derived_reliability_digits": 2,
+  "LR_rev": 1000000.0,
+  "weibull": {
+    "a": 3.3333333333333335,
+    "x0": 0.02,
+    "theta_minus_x0": 4.439,
+    "b": 1.483
+  }
 }

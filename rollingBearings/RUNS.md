@@ -34,7 +34,7 @@ python -m cli run \
   --outfile ex_11_4.out.json
 ```
 
-## Solve Example 11-7 cylindrical roller preselection - needs review
+## Solve Example 11-7 cylindrical roller preselection
 
 ```bash
 python -m cli run \
@@ -42,7 +42,7 @@ python -m cli run \
   --outfile ex_11_7_bearing_D.out.json
 ```
 
-## Solve Example 11-7 angular-contact selection - needs review
+## Solve Example 11-7 angular-contact selection
 
 ```bash
 python -m cli run \

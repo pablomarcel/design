@@ -41,7 +41,7 @@ def save_json(payload: Dict[str, Any], name_or_path: str) -> Path:
     path = resolve_outfile(name_or_path)
     with path.open("w", encoding="utf-8") as f:
         json.dump(payload, f, indent=2)
-        f.write("\\n")
+        f.write("\n")
     return path
 
 

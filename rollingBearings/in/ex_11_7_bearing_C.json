@@ -1,12 +1,23 @@
 {
   "problem_type": "select_angular_contact",
-  "Fr": 4100,
-  "Fa": 2200,
+  "Fr": 464.4,
+  "Fa": 344.0,
   "V": 1.0,
-  "speed_rpm": 720,
-  "hours": 4000,
-  "target_reliability": 0.95,
+  "speed_rpm": 655.4,
+  "hours": 10000,
+  "system_reliability": 0.96,
+  "bearing_count": 4,
+  "derived_reliability_digits": 2,
   "af": 1.2,
   "LR_rev": 1000000.0,
-  "initial_C0_guess": 12000.0
+  "weibull": {
+    "a": 3.0,
+    "x0": 0.02,
+    "theta_minus_x0": 4.439,
+    "b": 1.483
+  },
+  "initial_C0_guess": 35500.0,
+  "initial_guess_mode": "table_midpoint",
+  "initial_X2_guess": 0.56,
+  "initial_Y2_guess": 1.63
 }
