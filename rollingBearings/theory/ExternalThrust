@@ -1,0 +1,40 @@
+It is a **one-shot calculation** in the current pure-thrust path.
+
+Why:
+
+* for Example 11-11 type loading, `FrA = FrB = 0`
+* that means there are **no induced thrust loads**
+* so there is no `K`-driven feedback loop like in Example 11-8
+* the equivalent load is just the external thrust load on bearing A
+* then the solver computes `xD`, computes the required thrust-column rating, and picks the first catalog entry that meets it
+
+So the logic is basically:
+
+1. compute
+   `xD = hours * speed_rpm * 60 / LR_rev`
+
+2. compute required catalog rating from the reliability goal
+
+3. search the **thrust column** for the first bearing meeting that requirement
+
+4. compute resulting reliability from the selected thrust rating
+
+That is why when you changed the reliability goal, the selected bearing simply jumped from the `16400 N` thrust option to the `17200 N` thrust option. There is no iteration because nothing in the pure-thrust case updates the load state after the selection.
+
+In contrast, Example 11-8 is iterative because:
+
+* `FiA` and `FiB` depend on `K`
+* `FeA` and `FeB` depend on those induced loads
+* and `K` changes when you change the selected bearing
+
+So:
+
+* **Example 11-11 path:** one-shot
+* **Example 11-8 path:** iterative
+
+From an engineering standpoint, your results make sense:
+
+* with reliability goal `0.95`, the `16400 N` thrust option is enough and gives `R ≈ 0.9536`
+* if you tighten the goal, the solver moves up to the `17200 N` option and you get more margin
+
+That is exactly the sort of discrete catalog jump you expect in a one-shot bearing selection.
