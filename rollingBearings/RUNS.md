@@ -2,14 +2,23 @@
 
 Run these commands from inside the `rollingBearings` package directory.
 
-## Example 11-1 / 11-3 style: required catalog C10
+## Example 11-1 style: required catalog C10
 
 ```bash
 python -m cli catalog_c10 \
+  --FD 400 \
+  --hours 5000 \
+  --speed-rpm 1725
+````
+
+## Example 11-3 style: required catalog C10
+
+```bash
+python -m cli catalog_c10_reliable \
   --FD 413 \
   --af 1.2 \
-  --hours 500 \
-  --speed-rpm 600 \
+  --hours 30000 \
+  --speed-rpm 300 \
   --reliability 0.99 \
   --a 3 \
   --x0 0.02 \
@@ -25,7 +34,7 @@ python -m cli run \
   --outfile ex_11_4.out.json
 ```
 
-## Solve Example 11-7 cylindrical roller preselection
+## Solve Example 11-7 cylindrical roller preselection - needs review
 
 ```bash
 python -m cli run \
@@ -33,7 +42,7 @@ python -m cli run \
   --outfile ex_11_7_bearing_D.out.json
 ```
 
-## Solve Example 11-7 angular-contact selection
+## Solve Example 11-7 angular-contact selection - needs review
 
 ```bash
 python -m cli run \
@@ -41,7 +50,7 @@ python -m cli run \
   --outfile ex_11_7_bearing_C.out.json
 ```
 
-## Solve Example 11-8 tapered pair (direct mount)
+## Solve Example 11-8 tapered pair (direct mount) - needs review
 
 ```bash
 python -m cli run \
