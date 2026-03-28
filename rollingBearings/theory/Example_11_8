@@ -1,0 +1,83 @@
+I checked the 1986/1932 row in your digitized Timken table, and I do **not** see an obvious catalog disqualifier.
+
+From the row itself, it looks like a perfectly legitimate candidate for this shaft:
+
+* bore = 25.4 mm
+* `C10 = 11600 N`
+* `K = 1.77`
+* no `note_flags`
+* nothing in the digitized geometry screams “cannot mount” or “special restriction”
+
+So I do **not** think it was disqualified by bore, width, or some hidden catalog flag.
+
+What is happening is more subtle, and it is exactly the kind of engineering judgment call you are talking about.
+
+For this problem, once Eq. (11-19) applies, bearing A’s equivalent load is
+
+`FeA = 0.4 FrA + K (FiB + Fae)`
+
+and because `FiB = 0.47 FrB / K`, that becomes
+
+`FeA = 0.4 FrA + 0.47 FrB + K Fae`
+
+So for fixed `FrA`, `FrB`, and `Fae`, **bearing A gets more heavily loaded as K increases**.
+
+That is the key.
+
+So:
+
+* the 1986/1932 candidate has the **higher** `K = 1.77`
+* the 15100/15245 candidate has `K = 1.67`
+* your M86643/M86610 candidate has `K = 1.07`
+
+That means the 1986/1932 set helps induced-load terms, but it penalizes the external-thrust term enough that the final self-consistent `FeA` gets worse.
+
+That is exactly what your iteration shows:
+
+* Trial 1 with the initial `K = 1.5` gives `c10_A_required = 11478 N`, so `11600 N` looks acceptable.
+* But once you iterate using the selected bearing’s own `K = 1.77`, bearing A jumps to `FeA = 5106.68 N`, and then `c10_A_required = 14458 N`, which is **well above 11600 N**.
+
+So under a strict “final corrected `C10` must meet or exceed requirement” rule, **1986/1932 fails**.
+
+Now the interesting part: it still is not crazy.
+
+If you keep 1986/1932 anyway and evaluate the pair on reliability, the pair still comes out above the overall 0.99 target:
+
+* with `C10 = 11600 N`, `FeA = 5106.68 N`, and `FeB = 2654 N`, I get about `RA = 0.99241`, `RB = 0.99971`, and `Rpair ≈ 0.99212`.
+
+So the real engineering answer is:
+
+**1986/1932 was not obviously catalog-disqualified.**
+It was likely rejected because Shigley was following a more conservative selection philosophy:
+
+* iterate to the bearing’s own `K`
+* require the **final corrected `C10`** to be met, not just the overall pair reliability target
+* and then choose a cleaner, more robust standard solution
+
+That is why the textbook moves to 15100/15245:
+
+* it is only slightly larger,
+* it satisfies the corrected `C10` logic better,
+* and it keeps both bearings identical, which is nice for spares, assembly, and documentation.
+
+So I would frame it like this:
+
+* If the criterion is **minimum pair reliability only**, your smaller 1986/1932 option is defensible.
+* If the criterion is **self-consistent corrected catalog capacity after iteration**, then 1986/1932 is too small and Shigley’s move upward is defensible.
+* If the criterion is **robust production design**, identical bearings and a little extra margin are often worth it.
+
+That is a very real engineering conversation, not a math mistake.
+
+Also, your current problem input is indeed the Example 11-8 setup you uploaded, with `FrA = 2170`, `FrB = 2654`, `Fae = 1690`, `speed = 800 rpm`, `hours = 5000`, and `reliability_goal = 0.99`.
+
+And the current app architecture you uploaded is already solving this through the generic tapered direct-pair path in `app.py`, which is exactly the right direction for a universal bearing app.
+
+The next worthwhile upgrade would be to let the tapered selector support **selection policies**, for example:
+
+* `policy = "min_pair_reliability"`
+* `policy = "meet_corrected_c10"`
+* `policy = "prefer_identical_pair"`
+* `policy = "minimize_od"`
+* `policy = "minimize_cost_proxy"`
+
+That would let the app explain *why* it picked 1986/1932, 15100/15245, or M86643/M86610 instead of making it look like there is only one “correct” answer.

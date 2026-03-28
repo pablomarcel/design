@@ -50,7 +50,7 @@ python -m cli run \
   --outfile ex_11_7_bearing_C.out.json
 ```
 
-## Solve Example 11-8 tapered pair (direct mount) - needs review
+## Solve Example 11-8 tapered pair (direct mount)
 
 ```bash
 python -m cli run \

@@ -1,0 +1,21 @@
+Nice. The selector path is finally behaving like a real universal app instead of a one-off textbook hack.
+
+What now looks solid:
+
+* Example 11-1 and 11-3 are separated correctly
+* Example 11-4 equivalent-load logic is sane
+* the Example 11-7 class now handles:
+
+  * system reliability to individual reliability
+  * angular-contact iteration
+  * unit conversion between input loads and catalog ratings
+  * payload-driven solver controls instead of buried assumptions
+
+The next logical upgrade is to make the JSON schema explicit for manufacturer-specific behavior, so SKF, NTN, Timken, and others can each supply their own:
+
+* Weibull parameters
+* catalog rating units
+* equivalent-load factor tables when applicable
+* any family-specific decision logic
+
+That would take it from “universal textbook selector” to a genuinely extensible bearing-selection framework.

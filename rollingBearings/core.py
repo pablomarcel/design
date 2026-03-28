@@ -342,6 +342,24 @@ class TaperedRollerCatalog(CatalogTable):
             ],
         )
 
+    @staticmethod
+    def _thrust_rating_field(row: Dict[str, Any]) -> str:
+        """
+        Backward-compatible thrust-column resolver.
+
+        The current CSV uses C0_thrust_N for the thrust column from Fig. 11-15.
+        If the CSV is later cleaned up to C10_thrust_N, this method will keep the
+        app working without further code changes.
+        """
+        if "C10_thrust_N" in row:
+            return "C10_thrust_N"
+        if "C0_thrust_N" in row:
+            return "C0_thrust_N"
+        raise RollingBearingError(
+            "Tapered roller CSV is missing the thrust column "
+            "(expected C10_thrust_N or legacy C0_thrust_N)."
+        )
+
     def select_first_by_c10_and_bore(
         self,
         c10_required: float,
@@ -361,7 +379,63 @@ class TaperedRollerCatalog(CatalogTable):
             candidates.append((c10, r))
         if not candidates:
             raise RollingBearingError(
-                f"No tapered roller entry found with C10 >= {c10_required} and bore filter {bore_mm}"
+                f"No tapered roller entry found with radial C10 >= {c10_required} and bore filter {bore_mm}"
+            )
+        candidates.sort(key=lambda item: item[0])
+        return candidates[0][1]
+
+    def select_first_by_thrust_rating_and_bore(
+        self,
+        thrust_rating_required: float,
+        bore_mm: Optional[float] = None,
+        bore_tol_mm: float = 1.0,
+    ) -> Dict[str, Any]:
+        ensure_positive("thrust_rating_required", thrust_rating_required)
+        candidates = []
+        for r in self.rows:
+            field = self._thrust_rating_field(r)
+            thrust_rating = float(r[field])
+            if thrust_rating < thrust_rating_required:
+                continue
+            if bore_mm is not None:
+                d = float(r["bore_mm"])
+                if abs(d - bore_mm) > bore_tol_mm:
+                    continue
+            candidates.append((thrust_rating, r))
+        if not candidates:
+            raise RollingBearingError(
+                f"No tapered roller entry found with thrust rating >= {thrust_rating_required} and bore filter {bore_mm}"
+            )
+        candidates.sort(key=lambda item: item[0])
+        return candidates[0][1]
+
+    def select_first_by_thrust_rating_and_bore(
+        self,
+        thrust_rating_required: float,
+        bore_mm: Optional[float] = None,
+        bore_tol_mm: float = 1.0,
+    ) -> Dict[str, Any]:
+        """
+        Select for pure external thrust cases using the thrust column from Fig. 11-15.
+
+        The CSV field name is kept as C0_thrust_N for backward compatibility with the
+        current dataset, but for Example 11-11 style selection this column is treated as
+        the catalog thrust rating used in the textbook selection step.
+        """
+        ensure_positive("thrust_rating_required", thrust_rating_required)
+        candidates = []
+        for r in self.rows:
+            thrust_rating = float(r["C0_thrust_N"])
+            if thrust_rating < thrust_rating_required:
+                continue
+            if bore_mm is not None:
+                d = float(r["bore_mm"])
+                if abs(d - bore_mm) > bore_tol_mm:
+                    continue
+            candidates.append((thrust_rating, r))
+        if not candidates:
+            raise RollingBearingError(
+                f"No tapered roller entry found with thrust rating >= {thrust_rating_required} and bore filter {bore_mm}"
             )
         candidates.sort(key=lambda item: item[0])
         return candidates[0][1]
@@ -927,6 +1001,14 @@ class TaperedBearingPairSelector:
         shaft_bore_mm: Optional[float] = None,
         LR_rev: float = 90_000_000.0,
     ) -> Dict[str, Any]:
+        """
+        Pure external thrust case for direct-mount tapered roller bearings.
+
+        Example 11-11 uses the thrust column in Fig. 11-15 for the bearing
+        selection step. In the current CSV that thrust column is stored under
+        the legacy field name C0_thrust_N. If the CSV is later renamed to the
+        clearer C10_thrust_N, the catalog helper will still resolve it.
+        """
         xD = LifeModel.rating_life_multiple(
             hours=hours,
             speed_rpm=speed_rpm,
@@ -940,16 +1022,30 @@ class TaperedBearingPairSelector:
             weibull=weibull,
             reliability=reliability_goal,
         )
-        sel = self.catalog.select_first_by_c10_and_bore(
-            c10_required=req,
+
+        # Select using the THRUST column, not the radial C10 column.
+        sel = self.catalog.select_first_by_thrust_rating_and_bore(
+            thrust_rating_required=req,
             bore_mm=shaft_bore_mm,
         )
-        C10 = float(sel["C10_N"])
-        RA = LifeModel.tapered_reliability_approx(FD=Fae, af=af, xD=xD, C10=C10)
+
+        thrust_field = self.catalog._thrust_rating_field(sel)
+        thrust_rating = float(sel[thrust_field])
+
+        # Reliability for this pure-thrust path is assessed against the selected
+        # thrust-column rating used for the selection decision.
+        RA = LifeModel.tapered_reliability_approx(
+            FD=Fae,
+            af=af,
+            xD=xD,
+            C10=thrust_rating,
+        )
         return {
             "xD": xD,
             "required_C10": req,
             "selected_pair": sel,
+            "selected_thrust_rating": thrust_rating,
+            "selected_thrust_rating_field": thrust_field,
             "RA": RA,
             "RB": 1.0,
             "R_total": RA,
