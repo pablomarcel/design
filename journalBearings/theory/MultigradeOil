@@ -1,0 +1,107 @@
+The **plain names** and the **dashed names** are two different oil-labeling conventions shown on two different charts.
+
+In your images:
+
+* **Plain names** like `10, 20, 30, 40, 50, 60, 70` are the **older straight SAE viscosity grades**.
+* **Dashed names** like `5W-30, 10W-30, 20W-40, 20W-50` are **multiviscosity grades**.
+
+What they mean:
+
+### Plain names: straight-grade oils
+
+A label like:
+
+* `SAE 10`
+* `SAE 20`
+* `SAE 30`
+* `SAE 40`
+
+means the oil is a **single-grade** oil.
+
+It does **not** mean the viscosity is constant. The viscosity still changes a lot with temperature. It only means the oil is classified as one SAE grade, traditionally based on standard viscosity requirements.
+
+So on the chart, each plain line is one straight-grade oil’s viscosity-temperature trend.
+
+### Dashed or hyphenated names: multiviscosity oils
+
+A label like:
+
+* `5W-30`
+* `10W-30`
+* `20W-40`
+* `20W-50`
+
+means the oil behaves like:
+
+* a **winter-grade oil** at low temperature, and
+* a **higher-grade oil** at high temperature.
+
+So:
+
+* `5W-30` acts like a **5W** oil in cold conditions and like a **30-grade** oil at hot conditions.
+* `10W-40` acts like a **10W** oil when cold and like a **40-grade** oil when hot.
+
+That is why these multigrade oils are attractive: they are **less brutally sensitive to temperature** than a simple straight-grade oil.
+
+### What the `W` means
+
+`W` means **winter**, not weight.
+
+So:
+
+* `10W` is a winter/cold-temperature classification
+* `30` is the hot-temperature classification
+
+### Why the dashed names have two numbers
+
+Because a multigrade oil is designed to satisfy **two viscosity behaviors**:
+
+* one at low temperature
+* one at high temperature
+
+That is why `10W-30` has two numbers, while `SAE 30` has one.
+
+### Why Figure 12-14 says “known viscosities at 100 and 210°F”
+
+That chart is basically saying:
+
+* for multiviscosity oils, if you know the viscosity at two reference temperatures,
+* you can estimate the viscosity-temperature line across the range.
+
+So those `5W-30`, `10W-30`, etc. lines are not just arbitrary labels. They are constructed from the expected viscosity behavior of those multigrade oils.
+
+### In journal-bearing work, what matters
+
+For your bearing calculations, the label itself is not the real physics variable. The real variable is:
+
+* **actual dynamic viscosity** at the **operating temperature**
+
+So whether the can says:
+
+* `SAE 30`
+* `10W-30`
+* `20W-50`
+
+you still need the viscosity at the bearing temperature.
+
+That is why these charts exist in the first place: they help convert the oil name into an approximate viscosity at operating temperature.
+
+### Blunt summary
+
+* `30`, `40`, `50` = **straight-grade SAE oils**
+* `10W-30`, `20W-50` = **multiviscosity oils**
+* `W` = **winter**
+* straight grade = one SAE classification
+* multigrade = cold-grade + hot-grade behavior
+
+And for your app, the key takeaway is:
+
+**you should not program around the oil name. You should program around viscosity as a function of temperature.**
+
+That way, the oil label becomes just an input convenience layer.
+
+If you want, I can next show how to convert this into a clean app design, where the user can specify either:
+
+* oil grade name, or
+* viscosity at two temperatures,
+  and the backend always reduces everything to a viscosity-temperature model.

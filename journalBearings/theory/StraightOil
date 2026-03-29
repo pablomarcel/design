@@ -1,0 +1,24 @@
+Usually, yes.
+
+A **straight SAE oil** tends to get **much thicker in cold weather**, so in winter it can:
+
+* flow poorly at startup
+* take longer to reach tight clearances
+* increase drag and pumping losses
+* make cold starts harder
+* reduce effective lubrication during the first moments after startup
+
+That is exactly why **multigrade oils** became so important. A `10W-30` is formulated so it is not as brutally thick when cold, while still behaving like a 30-grade oil when hot.
+
+So compared with a multigrade, a straight SAE oil will generally **suck more in winter**.
+
+But there is one nuance: “suck” depends on the application.
+
+* In a machine that runs in a controlled warm environment, a straight-grade oil may be perfectly fine.
+* In outdoor cold-weather service, it is usually a worse choice.
+
+For journal bearings, the key issue is startup and operating temperature. If the machine starts cold, a straight-grade oil can be a problem because the viscosity may be far above the value you actually wanted for the bearing once it warms up.
+
+So the engineering summary is:
+
+**straight-grade oil is usually worse in winter because cold viscosity gets too high.**

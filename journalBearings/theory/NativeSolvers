@@ -1,0 +1,66 @@
+Agreed. Drop ROSS.
+
+For what you want, the best alternatives are not “find another giant Python package.” They are:
+
+**1) Build your own journal-bearing core around the Reynolds equation.**
+This is the most durable path. Finite-difference and finite-volume Reynolds-equation solvers for journal bearings are standard, and there are public code examples you can mine for structure even if they are in MATLAB rather than Python. One public GitHub repo explicitly includes hydrodynamic journal-bearing Reynolds-equation examples and numerical solution techniques, and recent papers keep using the same approach as the workhorse method. ([GitHub][1])
+
+**2) Use Someya instead of Raimondi–Boyd as your “data layer.”**
+If your pain is chart reading, Someya’s *Journal-Bearing Databook* is much closer to what you need because it is organized around calculated data, tables, and dynamic coefficients for journal bearings, not just classic plotted charts. Texas A&M’s XLTRC2 materials even describe one module as a computer implementation of Someya’s databook on a “table look-up basis,” which is basically proof that this is a practical engineering route. ([Springer][2])
+
+**3) Use a lighter external reference implementation, but not as your production dependency.**
+There are public Reynolds-equation solvers and lubrication codes in MATLAB/Julia that are easier to inspect than a large rotordynamics package. Examples include the public MATLAB Reynolds-equation repository and a Julia finite-element Reynolds-equation solver with cavitation. These are better treated as reference algorithms and validation oracles than as install-and-forget dependencies. ([GitHub][1])
+
+**4) Use a web/commercial tool only as a benchmark, not as your engine.**
+There are live tools for journal-bearing simulation today, including the Tribology Universe journal-bearing web app, and Texas A&M’s XLTRC2 remains a serious rotordynamics/bearing software suite. Those are useful to sanity-check results, but they are not ideal foundations for your own iterative, scriptable design app. ([About Tribology][3])
+
+My blunt recommendation is this:
+
+**Do not chase another dependency-heavy package. Build your own `journalBearings` package in three layers.**
+
+* **Layer A: engineering correlations**
+
+  * short bearing
+  * long bearing
+  * interpolation bridge
+  * Sommerfeld-based sizing loops
+
+* **Layer B: finite journal-bearing solver**
+
+  * 2D Reynolds equation on `(theta, z)`
+  * finite differences
+  * cavitation as a later upgrade
+  * outputs: load, attitude angle, flow, friction, minimum film thickness
+
+* **Layer C: dynamic coefficients**
+
+  * stiffness and damping via perturbation about equilibrium
+  * this is where Someya-style tables or later validation cases become valuable
+
+That path matches how the field actually works today: Reynolds-equation numerics and databook/table-based engineering approximations, not OCR of legacy charts. ([Springer][2])
+
+So the realistic alternatives, ranked for your use case, are:
+
+**Best:** your own Python solver
+**Second best:** digitize/use Someya-style tabular data
+**Third:** borrow MATLAB/Julia reference code and port the math
+**Last resort:** depend on a large external package again
+
+My judgment: **Someya + your own Python solver** is the winning combination.
+
+A clean first version of the app would support:
+
+* fixed-arc full journal bearing
+* isoviscous, incompressible oil
+* steady state
+* finite length
+* load-controlled solve for eccentricity ratio and attitude angle
+* then compute friction, side leakage, and flow
+
+That is already enough to kill the “inspect charts by hand” problem.
+
+I can sketch the package architecture and the exact equations/modules for a minimal first working solver next.
+
+[1]: https://github.com/sandeepbanik/Solution-Reynolds-equation?utm_source=chatgpt.com "sandeepbanik/Solution-Reynolds-equation"
+[2]: https://link.springer.com/content/pdf/10.1007/978-3-642-52509-4.pdf?utm_source=chatgpt.com "Journal-Bearing Databook - Springer Nature"
+[3]: https://www.tribonet.org/news/computational-tribology/explore-a-powerful-web-app-for-journal-bearing-simulations/?utm_source=chatgpt.com "Explore a Powerful Web App for Journal Bearing Simulations"
