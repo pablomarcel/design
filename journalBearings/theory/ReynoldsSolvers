@@ -1,0 +1,38 @@
+You are not crazy. Programmatically scraping Raimondi–Boyd charts is the wrong level of attack.
+
+Raimondi and Boyd’s 1958 work was already a **computer-based numerical solution** of the finite journal-bearing problem; the charts were published as a convenient human interface, not because charts are the natural computational form. The original paper explicitly frames the work as using computer techniques to solve the finite bearing and then present the results for design use. ([Taylor & Francis Online][1])
+
+So yes: researchers have already gone beyond “read the damn chart by hand.” There are at least three workable paths today:
+
+1. **Use a modern numerical solver of the Reynolds equation.**
+   ROSS is a live Python library for rotordynamics with a fluid-flow subpackage for hydrodynamic bearings. Its docs show a `FluidFlow` class for journal-bearing pressure, eccentricity, and stiffness/damping calculations, and the project says its newer THD bearing models use Reynolds and energy equations with finite-difference methods. ([ROSS][2])
+
+2. **Use newer analytical or semi-analytical papers that reproduce bearing characteristics without chart reading.**
+   Tribology International papers by Sfyris/Chasalevris and Vignolo et al. report exact or approximate analytical solutions for finite journal bearings, specifically aimed at evaluating journal-bearing characteristics from Reynolds-equation solutions rather than chart lookup. ([ScienceDirect][3])
+
+3. **Use interpolation/correlation-based calculators when you only need engineering estimates.**
+   Engineering-ABC’s hydrodynamic journal bearing calculator says it uses interpolation functions from Andres (1989) between short-bearing and infinitely long-bearing limits, instead of direct Raimondi–Boyd chart digitization. That is a practical shortcut, but it is not the same as having the original Raimondi–Boyd dataset. ([Werktuigbouw][4])
+
+There is also evidence that people have built software around this exact pain point. A 2015 paper describes a “computer aided design” program for full hydrodynamic journal bearings explicitly because chart/table reading is time-consuming and less accurate; it says the program was based on Raimondi–Boyd charts and tables. Another paper describes a software tool for iterating on operating temperature in journal-bearing design.
+
+My honest take: **do not build your app around OCR of charts** unless you are forced to replicate a textbook workflow exactly. OCR/chart digitization would be brittle, annoying to validate, and inferior to solving the governing model directly. That is especially true because the literature after Raimondi–Boyd includes exact, approximate, numerical, and now even semi-analytical/cavitation-capable methods for finite journal bearings. ([ScienceDirect][3])
+
+A sane implementation strategy for your app would be:
+
+* **Tier 1:** implement a fast engineering mode using short-bearing / long-bearing / interpolation correlations.
+* **Tier 2:** implement a real Reynolds-equation solver for the finite bearing.
+* **Tier 3:** add thermal effects and dynamic coefficients later.
+
+That mirrors what modern tools do: simple formulas for quick sizing, then numerical fluid-film analysis for the serious stuff. ROSS already demonstrates this split with short-bearing discussions, fluid-flow theory, and full hydrodynamic journal-bearing examples. ([ROSS][5])
+
+So the answer to your core question is: **yes, people already implemented what you want**—just usually not as “digitized Raimondi–Boyd charts.” They implement the underlying lubrication model, or later analytical surrogates, which is the better way anyway. ([Taylor & Francis Online][1])
+
+The most practical next move for your project is to stop thinking “how do I extract numbers from stupid charts?” and start thinking “which computational layer do I want: correlation, Reynolds solver, or exact/approximate analytical surrogate?”
+
+I can map out a Python architecture for a journal-bearing package that avoids chart scraping entirely.
+
+[1]: https://www.tandfonline.com/doi/abs/10.1080/05698195808972328?utm_source=chatgpt.com "A Solution for the Finite Journal Bearing and its Application ..."
+[2]: https://ross.readthedocs.io/en/latest/user_guide/example_9.html "Example 9 - Hydrodynamic Journal Bearings (using Fluid Flow methods) — ROSS"
+[3]: https://www.sciencedirect.com/science/article/pii/S0301679X12001661?utm_source=chatgpt.com "An exact analytical solution of the Reynolds equation for ..."
+[4]: https://www.werktuigbouw.nl/engineering-abc/calculators/e9_2.htm?utm_source=chatgpt.com "Hydrodynamic journal bearing."
+[5]: https://ross.readthedocs.io/en/latest/user_guide/user_guide.html "User Guide — ROSS"
