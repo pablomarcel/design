@@ -88,3 +88,35 @@ python -m cli run \
 ```
 
 The JSON supplies only the real bearing givens. No manual chart-entry block remains in this version.
+
+## Example 8.2 minimum film thickness
+
+```bash
+python -m cli run \
+  --infile in/ex_8_2_h.json \
+  --outfile out/ex_8_2_h_out.json
+```
+
+## Example 8.2 coefficient of friction
+
+```bash
+python -m cli run \
+  --infile in/ex_8_2_f.json \
+  --outfile out/ex_8_2_f_out.json
+```
+
+## Example 8.2 volumetric flow rate
+
+```bash
+python -m cli run \
+  --infile in/ex_8_2_q.json \
+  --outfile out/ex_8_2_q_out.json
+```
+
+## Example 8.2 maximum film pressure
+
+```bash
+python -m cli run \
+  --infile in/ex_8_2_p.json \
+  --outfile out/ex_8_2_p_out.json
+```

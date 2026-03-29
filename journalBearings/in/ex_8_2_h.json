@@ -1,0 +1,19 @@
+{
+  "problem": "minimum_film_thickness",
+  "inputs": {
+    "mu": 0.0000013,
+    "N": 30.0,
+    "W": 1600.0,
+    "r": 2.0,
+    "c": 0.002,
+    "l": 4.0,
+    "Ps": 0.0,
+    "unit_system": "ips",
+    "notes": [
+      "Khonsari Applied Tribology Example 8.2",
+      "Load per bearing is 1600 lbf because the 3200 lbf rotor is supported by two bearings.",
+      "This file uses the current app schema.",
+      "Current app routes are separate, so this file is set to minimum_film_thickness as a starting point for Example 8.2."
+    ]
+  }
+}
