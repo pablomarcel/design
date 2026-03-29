@@ -1,0 +1,299 @@
+The solver settled at **effective temperature = 193.11 °F** and **effective viscosity = 8.779e-7 reyn**. Those are the final converged values in `outputs`:
+
+* `T_effective_F = 193.1135`
+* `mu_effective = 8.7789e-07`【turn11file8†L452-L487】
+
+The stopping criterion is exactly this:
+
+* compute a new effective temperature from Eq. 8.44
+* compare it against the effective temperature used at the start of that iteration
+* stop when the absolute difference is less than or equal to `temp_tol_F`
+
+In your input, `temp_tol_F = 2.0`, so the code stops when
+
+`abs(updated_effective_temp_F - current_effective_temp_F) <= 2.0`
+
+That logic is implemented here in `TemperatureRiseProblem.solve()`【turn11file8†L422-L451】.
+
+So in your run:
+
+* iteration 6 ended at `191.7995 °F`
+* iteration 7 updated it to `193.1135 °F`
+* change = `+1.3140 °F`
+
+Since `1.3140 < 2.0`, the solver declared convergence and stopped on iteration 7.
+
+How to read the JSON:
+
+`inputs`
+
+* your original givens, plus oil and iteration settings
+
+`derived`
+
+* values computed from the **final converged viscosity**, not the initial one
+* that is why final `S = 0.26337`, not the initial `0.39` from the first pass
+
+`table_lookup`
+
+* says how the table was used at the final converged point
+* `L/D = 1.0` was exact
+* epsilon was found between `0.35` and `0.40`
+* the internal epsilon bisection for the final pass took 31 iterations
+
+`interpolated_dimensionless`
+
+* the final interpolated table values at the converged operating point
+* most important one is `epsilon = 0.39735`
+
+`outputs`
+
+* these are the final physical results after the temperature-viscosity loop converged
+* `delta_T_F = 27.1135`
+* `T_effective_F = 166 + 27.1135 = 193.1135 °F`
+* all other quantities, like `h_min`, `Q_leakage`, `f`, and `pmax`, are based on that final converged viscosity
+
+`checks`
+
+* `converged = true`
+* `temperature_tolerance_F = 2.0`
+* `final_effective_temp_change_F = 1.3140`
+* that last value is the one that satisfied the stop rule
+
+`iteration_history`
+
+* this is the trail of the solver so you can see there was no funky business
+* it started at the inlet temperature 166 °F with your supplied `mu = 1.3e-6`
+* first update jumped to `214.94 °F`
+* then the viscosity dropped hard, so the next temperature dropped to `183.71 °F`
+* after that it oscillated and damped in toward about `193 °F`
+
+So the sequence of effective temperatures was roughly:
+
+* 166.00 used initially
+* 214.94
+* 183.71
+* 198.33
+* 189.75
+* 194.28
+* 191.80
+* 193.11 and stop
+
+That is normal fixed-point iteration behavior. It overshoots, then comes back, then settles.
+
+One subtle but important point: the final `derived.S` is **not** the original Sommerfeld number from the input viscosity. It is the Sommerfeld number corresponding to the **final updated viscosity**. That is why your final `S = 0.26337`, while iteration 1 started with `S = 0.39`.
+
+Also, the code currently uses the convergence criterion on **temperature**, not viscosity. That matches the way Khonsari describes the stopping rule: repeat until the difference in updated mean temperature between successive iterations is small, around 2–3 °F【turn11file8†L422-L451】.
+
+One more thing worth noticing: your provided initial `mu = 1.3e-6` is slightly different from the correlation value at 166 °F:
+
+* `mu_initial = 1.3000e-6`
+* `mu_initial_from_correlation = 1.3326e-6`
+
+The JSON reports that difference as `initial_mu_minus_correlation_mu = -3.258e-08`. So the run begins from your supplied viscosity, not from the correlation value. That is why the very first pass reproduces Khonsari’s starting point more closely.
+
+So the short mechanical interpretation is:
+
+* **final settled temperature:** `193.11 °F`
+* **stop reason:** last temperature update changed by only `1.314 °F`, which is below the `2.0 °F` tolerance
+* **final viscosity used for the converged answer:** `8.779e-7 reyn`
+
+If you want, next I can help you decide whether the app should also report a compact convergence summary like “start temp / final temp / number of outer iterations / oscillatory convergence detected.”
+
+---
+
+Yes — you **do recalculate stuff**, and that is exactly the point of the iteration.
+
+The `193.11 °F` is not just a random extra result. It is the app’s estimate of the **effective operating oil temperature** for that bearing under load. Once you have that temperature, you use it to get a **better viscosity**, and then all the bearing performance quantities should be based on that updated viscosity, not the original inlet-viscosity guess. That is why the solver iterates until the temperature stops moving much from one pass to the next.
+
+So the logic of Example 8.2 is:
+
+1. Start with inlet oil temperature `166 °F`.
+2. Use that to get an initial viscosity.
+3. Compute bearing performance:
+
+   * `epsilon`
+   * `h_min`
+   * `f`
+   * `Q_L`
+   * `pmax`
+   * power loss
+4. Use power loss and leakage flow to compute `ΔT`.
+5. Update the effective oil temperature.
+6. From that new temperature, update viscosity.
+7. Repeat until the effective temperature stops changing much.
+
+Your run converged to:
+
+* `T_effective_F = 193.11 °F`
+* `mu_effective = 8.779e-7 reyn`【turn11file0†L1-L104】
+
+And then the app **already did recalculate the performance quantities using that converged viscosity**. That is why the final outputs are different from the first-iteration Khonsari numbers. The first pass looked like Khonsari’s initial estimate, but the final pass reflects the hotter, thinner oil.
+
+So the real conclusion of the solved problem is not just “the temperature rise is 27.11 °F.” The conclusion is the **converged operating state** of the bearing:
+
+* effective oil temperature: `193.11 °F`
+* temperature rise: `27.11 °F`
+* effective viscosity: `8.779e-7 reyn`
+* minimum film thickness: `0.001205 in`
+* eccentricity: `0.000795 in`
+* attitude angle `phi`: `62.71°`
+* cavitation angle: `207.16°`
+* leakage flow: `0.94566 in^3/s`
+* inlet flow: `1.91211 in^3/s`
+* friction coefficient: `0.005845`
+* friction force: `9.352 lbf`
+* torque: `18.704 lbf·in`
+* power loss: `3525.67 in·lbf/s = 0.534 hp`
+* maximum pressure: `207.45 psi`【turn11file0†L1-L104】
+
+That is the engineering answer.
+
+So compared with the **first pass**:
+
+* first pass used `mu = 1.3e-6`
+* first pass predicted about `214.94 °F`
+* first pass gave roughly `h_min ≈ 0.00140 in`, `f ≈ 0.00821`, `pmax ≈ 196.8 psi`, `power ≈ 0.750 hp`【turn11file0†L1-L104】
+
+But after iterating to consistency, the bearing actually settles at a different state:
+
+* hotter than inlet, but not as hot as the first-pass estimate
+* lower viscosity
+* thinner film
+* lower friction and power loss than the first-pass estimate
+* somewhat higher maximum pressure【turn11file0†L1-L104】
+
+So the practical interpretation is:
+
+* the inlet condition `166 °F` is **not** the final operating condition
+* the converged temperature `193.11 °F` is the temperature you should associate with the bearing’s actual running state
+* therefore the **final design checks** should use the converged outputs, not the first-pass outputs
+
+In plain English, Example 8.2 is telling you:
+
+“Once the bearing warms up and the oil thins out, this is the self-consistent operating point.”
+
+And then you judge the design from that point.
+
+For this case, the important conclusions are:
+
+* the film thickness is still fairly healthy: `0.001205 in = 1205 μin`
+* the bearing runs hotter than inlet by about `27 °F`
+* the operating viscosity drops substantially from the initial guess
+* the power loss is about `0.53 hp`
+* the maximum pressure is about `207 psi`
+
+That is the actual outcome of the example as solved iteratively.
+
+Khonsari’s own narrative says this kind of result may suggest revisiting the geometry because the oil heats up enough to materially change viscosity. Your app is now doing exactly that consistency check automatically.
+
+The one-sentence answer is:
+
+**The 193.11 °F temperature is the converged effective operating temperature, and yes, you use it to recompute everything until the bearing performance and oil temperature are mutually consistent.**
+
+---
+
+Yes — and that is exactly the kind of insight this iterative solve is supposed to reveal.
+
+In plain English, here is what happened.
+
+The first-pass solution assumes the oil stays at the inlet-condition viscosity. That makes the oil look **thicker than it really is once the bearing is actually running hot**. With that thicker oil, the model predicts more shear drag, so it predicts **higher friction and higher power loss**. In your first iteration, that showed up as about `0.75 hp` and a big temperature jump to about `214.94 °F`.
+
+But that first pass contains its own correction: if the bearing really heats up that much, then the oil gets thinner. Once the oil gets thinner, several things happen together:
+
+* viscosity drops
+* friction coefficient drops
+* friction force drops
+* power loss drops
+* heat generation drops
+
+That is why the iteration backed away from the original `0.75 hp` estimate and settled closer to `0.534 hp`. The first pass was too pessimistic on drag because it used a viscosity that was too high for the actual running temperature.
+
+So the big lesson is:
+
+**the non-iterated solution overestimated losses because it froze viscosity at the inlet condition.**
+
+What else changed?
+
+The oil getting thinner did **not** improve everything. It reduced drag, but it also reduced film support. So compared with the first guess, the converged solution showed:
+
+* **lower viscosity**
+* **lower power loss**
+* **lower friction coefficient**
+* **thinner minimum film**
+* **slightly higher peak pressure**
+* **different eccentricity / attitude state**
+
+From your run:
+
+First pass, roughly:
+
+* `mu = 1.3e-6`
+* `T ≈ 214.94 °F`
+* `h_min ≈ 0.00140 in`
+* `f ≈ 0.00821`
+* `power ≈ 0.750 hp`
+* `pmax ≈ 196.8 psi`
+
+Converged result:
+
+* `mu ≈ 8.779e-7`
+* `T ≈ 193.11 °F`
+* `h_min ≈ 0.001205 in`
+* `f ≈ 0.005845`
+* `power ≈ 0.534 hp`
+* `pmax ≈ 207.45 psi`
+
+So the design tradeoff becomes very clear:
+
+* **hotter oil helps efficiency**
+* **hotter oil hurts film robustness**
+
+That is probably the most useful engineering insight here.
+
+Another way to say it:
+
+The first-pass solution makes the bearing look “lossy but well cushioned.”
+The converged solution makes it look “less lossy, but carrying load on a thinner film.”
+
+That is why iteration matters. If you only looked at the initial guess, you might think:
+“This bearing burns 0.75 hp, but film thickness looks comfortable.”
+
+After iterating, the more realistic message is:
+“It actually burns less power than that, but the film margin is smaller than the first-pass estimate suggested.”
+
+There is another subtle insight in the temperature path itself. The sequence went:
+
+* 166
+* 214.94
+* 183.71
+* 198.33
+* 189.75
+* 194.28
+* 191.80
+* 193.11 °F
+
+That oscillation tells you the problem is strongly coupled:
+
+* viscosity affects Sommerfeld number
+* Sommerfeld number affects eccentricity and flow
+* flow and friction affect temperature rise
+* temperature rise affects viscosity again
+
+So a one-shot answer is inherently shaky. The oscillation damping into a stable value is evidence that the solver is finding a self-consistent operating state, not just forcing a number.
+
+The practical lessons from this example are:
+
+1. **Do not trust inlet-temperature viscosity for final bearing performance.** It is only a starting guess.
+
+2. **Power loss can go down after iteration**, because the hotter oil is thinner and shears more easily.
+
+3. **Lower power loss does not mean the bearing is “better” overall**, because thinner oil also means less film thickness and somewhat higher peak pressure.
+
+4. **The converged solution is the one to use for design judgment**, because it reflects the mutually consistent temperature-viscosity operating point.
+
+So the clean plain-English takeaway is:
+
+**The initial guess made the bearing look too viscous, too draggy, and too power-hungry. After iteration, the bearing runs at a hotter but self-consistent condition with lower losses, thinner film, and slightly higher peak pressure.**
+
+That is a very sensible result physically.
