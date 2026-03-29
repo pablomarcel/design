@@ -71,6 +71,36 @@ python -m cli maximum_film_pressure \
 
 This route reports `pmax` from `Pbar_max` and the Khonsari angle outputs available in the dataset.
 
+## Temperature rise — Khonsari Example 8.2 style
+
+```bash
+python -m cli temperature_rise \
+  --mu 1.3e-6 \
+  --N 30 \
+  --W 1600 \
+  --r 2.0 \
+  --c 0.002 \
+  --l 4.0 \
+  --oil-grade 10 \
+  --inlet-temp-f 166 \
+  --rho 0.0315 \
+  --cp 0.48 \
+  --J 9336 \
+  --temp-tol-f 2.0 \
+  --max-iter 50 \
+  --outfile out/ex_8_2_temperature_rise.json
+```
+
+This route:
+
+- computes `S`
+- solves for `epsilon`
+- interpolates `Qbar_L`, `Qbar_i`, `(R/C)f`, `Pbar_max`, and angles
+- computes `E_p` from Khonsari Eq. (8.43)
+- computes `delta_T` from Khonsari Eq. (8.44)
+- updates viscosity using the SAE oil correlation
+- repeats until successive effective temperatures differ by at most `temp_tol_F`
+
 ## Menu mode
 
 ```bash

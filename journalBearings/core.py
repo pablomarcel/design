@@ -2,11 +2,21 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Tuple, Optional
 import csv
 import math
 
-from utils import safe_float
+from utils import normalize_oil_grade, safe_float
+
+
+SAE_OIL_CORRELATIONS: Dict[str, Dict[str, float]] = {
+    "10": {"mu0": 0.0158e-6, "b": 1157.5},
+    "20": {"mu0": 0.0136e-6, "b": 1271.6},
+    "30": {"mu0": 0.0141e-6, "b": 1360.0},
+    "40": {"mu0": 0.0121e-6, "b": 1474.4},
+    "50": {"mu0": 0.0170e-6, "b": 1509.6},
+    "60": {"mu0": 0.0187e-6, "b": 1564.0},
+}
 
 
 @dataclass
@@ -21,6 +31,15 @@ class BearingInputs:
     Ps: float = 0.0
     notes: List[str] = field(default_factory=list)
 
+    # Optional temperature-rise / oil-model inputs
+    oil_grade: Optional[str] = None
+    inlet_temp_F: Optional[float] = None
+    rho: float = 0.0315
+    cp: float = 0.48
+    J: float = 778.0 * 12.0
+    temp_tol_F: float = 2.0
+    max_iter: int = 50
+
     @property
     def d(self) -> float:
         return 2.0 * self.r
@@ -29,9 +48,12 @@ class BearingInputs:
     def pressure(self) -> float:
         return self.W / (self.d * self.l)
 
+    def sommerfeld_for_mu(self, mu: float) -> float:
+        return (self.r / self.c) ** 2 * (mu * self.N / self.pressure)
+
     @property
     def sommerfeld(self) -> float:
-        return (self.r / self.c) ** 2 * (self.mu * self.N / self.pressure)
+        return self.sommerfeld_for_mu(self.mu)
 
     @property
     def l_over_d(self) -> float:
@@ -39,6 +61,9 @@ class BearingInputs:
 
     @classmethod
     def from_mapping(cls, data: Dict[str, object]) -> "BearingInputs":
+        oil_grade_raw = data.get("oil_grade")
+        oil_grade = None if oil_grade_raw in (None, "") else normalize_oil_grade(str(oil_grade_raw))
+        inlet_temp_raw = data.get("inlet_temp_F", data.get("Tin_F", None))
         return cls(
             mu=safe_float(data.get("mu"), "mu"),
             N=safe_float(data.get("N"), "N"),
@@ -49,6 +74,13 @@ class BearingInputs:
             unit_system=str(data.get("unit_system", "ips")).strip().lower() or "ips",
             Ps=float(data.get("Ps", 0.0) or 0.0),
             notes=list(data.get("notes", [])) if isinstance(data.get("notes", []), list) else [],
+            oil_grade=oil_grade,
+            inlet_temp_F=float(inlet_temp_raw) if inlet_temp_raw not in (None, "") else None,
+            rho=float(data.get("rho", 0.0315) or 0.0315),
+            cp=float(data.get("cp", 0.48) or 0.48),
+            J=float(data.get("J", 778.0 * 12.0) or (778.0 * 12.0)),
+            temp_tol_F=float(data.get("temp_tol_F", data.get("temperature_tolerance_F", 2.0)) or 2.0),
+            max_iter=int(data.get("max_iter", 50) or 50),
         )
 
     def validate(self) -> None:
@@ -60,6 +92,25 @@ class BearingInputs:
             raise ValueError("Supported unit_system values are 'ips' and 'custom'.")
         if self.Ps < 0.0:
             raise ValueError("Input 'Ps' must be >= 0.")
+        if self.rho <= 0.0:
+            raise ValueError("Input 'rho' must be > 0.")
+        if self.cp <= 0.0:
+            raise ValueError("Input 'cp' must be > 0.")
+        if self.J <= 0.0:
+            raise ValueError("Input 'J' must be > 0.")
+        if self.temp_tol_F <= 0.0:
+            raise ValueError("Input 'temp_tol_F' must be > 0.")
+        if self.max_iter <= 0:
+            raise ValueError("Input 'max_iter' must be > 0.")
+        if self.oil_grade is not None and self.oil_grade not in SAE_OIL_CORRELATIONS:
+            supported = ", ".join(sorted(SAE_OIL_CORRELATIONS))
+            raise ValueError(f"Unsupported oil_grade '{self.oil_grade}'. Supported SAE grades: {supported}")
+
+    def viscosity_from_temperature(self, temp_F: float) -> float:
+        if self.oil_grade is None:
+            raise ValueError("Oil viscosity correlation requires oil_grade.")
+        params = SAE_OIL_CORRELATIONS[self.oil_grade]
+        return params["mu0"] * math.exp(params["b"] / (temp_F + 95.0))
 
 
 @dataclass
@@ -91,8 +142,9 @@ class SolveResult:
     table_lookup: Dict[str, object]
     interpolated_dimensionless: Dict[str, float]
     outputs: Dict[str, float]
-    checks: Dict[str, float | str]
+    checks: Dict[str, float | str | bool]
     notes: List[str]
+    iteration_history: List[Dict[str, Any]] = field(default_factory=list)
 
 
 class FiniteJournalBearingTable:
@@ -240,16 +292,54 @@ class BaseProblem:
         self.inputs = inputs
         self.inputs.validate()
         self.table = table
-        self.state = DerivedState(
+        self.state, self.lookup = self._state_lookup_for_mu(self.inputs.mu)
+
+    def _state_lookup_for_mu(self, mu: float) -> Tuple[DerivedState, InterpolationResult]:
+        state = DerivedState(
             P=self.inputs.pressure,
-            S=self.inputs.sommerfeld,
+            S=self.inputs.sommerfeld_for_mu(mu),
             l_over_d=self.inputs.l_over_d,
             r_over_c=self.inputs.r / self.inputs.c,
         )
-        self.lookup = self.table.epsilon_from_sommerfeld(self.state.l_over_d, self.state.S)
+        lookup = self.table.epsilon_from_sommerfeld(state.l_over_d, state.S)
+        return state, lookup
+
+    def _performance_from_lookup(self, mu: float, state: DerivedState, lookup: InterpolationResult) -> Dict[str, float]:
+        qbar_l = lookup.properties["Qbar_L"]
+        qbar_i = lookup.properties["Qbar_i"]
+        scale = (math.pi / 2.0) * self.inputs.N * self.inputs.d * self.inputs.l * self.inputs.c
+        q_leakage = qbar_l * scale
+        q_inlet = qbar_i * scale
+        rcf = lookup.properties["RC_over_C_times_f"]
+        f = rcf * self.inputs.c / self.inputs.r
+        friction_force_lbf = f * self.inputs.W
+        torque_lbf_in = friction_force_lbf * self.inputs.r
+        power_in_lbf_s = friction_force_lbf * (2.0 * math.pi * self.inputs.r * self.inputs.N)
+        pbar_max = lookup.properties["Pbar_max"]
+        pmax = mu * self.inputs.N * (self.inputs.r / self.inputs.c) ** 2 * pbar_max + self.inputs.Ps
+        h_min = self.inputs.c * (1.0 - lookup.epsilon)
+        e = self.inputs.c * lookup.epsilon
+        return {
+            "h_min": h_min,
+            "e": e,
+            "phi_deg": lookup.properties["phi_deg"],
+            "theta_cav_deg": lookup.properties["theta_cav_deg"],
+            "f": f,
+            "friction_force_lbf": friction_force_lbf,
+            "torque_lbf_in": torque_lbf_in,
+            "power_in_lbf_s": power_in_lbf_s,
+            "power_loss_hp": power_in_lbf_s / 6600.0 if self.inputs.unit_system == "ips" else float("nan"),
+            "heat_loss_btu_s": power_in_lbf_s / (778.0 * 12.0) if self.inputs.unit_system == "ips" else float("nan"),
+            "Q_leakage": q_leakage,
+            "Q_inlet": q_inlet,
+            "Q_recirculated": q_inlet - q_leakage,
+            "pmax": pmax,
+            "theta_max_deg": lookup.properties["theta_max_deg"],
+            "Pbar_max": pbar_max,
+        }
 
     def base_inputs(self) -> Dict[str, object]:
-        return {
+        data: Dict[str, object] = {
             "mu": self.inputs.mu,
             "N": self.inputs.N,
             "W": self.inputs.W,
@@ -260,32 +350,56 @@ class BaseProblem:
             "Ps": self.inputs.Ps,
             "unit_system": self.inputs.unit_system,
         }
+        if self.inputs.oil_grade is not None:
+            data["oil_grade"] = self.inputs.oil_grade
+        if self.inputs.inlet_temp_F is not None:
+            data["inlet_temp_F"] = self.inputs.inlet_temp_F
+        if self.inputs.rho != 0.0315:
+            data["rho"] = self.inputs.rho
+        if self.inputs.cp != 0.48:
+            data["cp"] = self.inputs.cp
+        if self.inputs.J != 778.0 * 12.0:
+            data["J"] = self.inputs.J
+        if self.inputs.temp_tol_F != 2.0:
+            data["temp_tol_F"] = self.inputs.temp_tol_F
+        if self.inputs.max_iter != 50:
+            data["max_iter"] = self.inputs.max_iter
+        return data
+
+    def _derived_from_state(self, state: DerivedState) -> Dict[str, float]:
+        return {
+            "P": state.P,
+            "S": state.S,
+            "l_over_d": state.l_over_d,
+            "r_over_c": state.r_over_c,
+        }
 
     def base_derived(self) -> Dict[str, float]:
+        return self._derived_from_state(self.state)
+
+    def _lookup_metadata_from_lookup(self, lookup: InterpolationResult) -> Dict[str, object]:
         return {
-            "P": self.state.P,
-            "S": self.state.S,
-            "l_over_d": self.state.l_over_d,
-            "r_over_c": self.state.r_over_c,
+            "table_source": str(self.table.csv_path),
+            "l_over_d_lower": lookup.l_over_d_bounds[0],
+            "l_over_d_upper": lookup.l_over_d_bounds[1],
+            "epsilon_lower": lookup.epsilon_bounds[0],
+            "epsilon_upper": lookup.epsilon_bounds[1],
+            "l_over_d_exact": lookup.l_over_d_exact,
+            "epsilon_exact": lookup.epsilon_exact,
+            "solver": "bilinear interpolation in (L/D, epsilon) + bisection on epsilon from Sommerfeld number",
+            "iterations": lookup.iterations,
         }
 
     def lookup_metadata(self) -> Dict[str, object]:
-        return {
-            "table_source": str(self.table.csv_path),
-            "l_over_d_lower": self.lookup.l_over_d_bounds[0],
-            "l_over_d_upper": self.lookup.l_over_d_bounds[1],
-            "epsilon_lower": self.lookup.epsilon_bounds[0],
-            "epsilon_upper": self.lookup.epsilon_bounds[1],
-            "l_over_d_exact": self.lookup.l_over_d_exact,
-            "epsilon_exact": self.lookup.epsilon_exact,
-            "solver": "bilinear interpolation in (L/D, epsilon) + bisection on epsilon from Sommerfeld number",
-            "iterations": self.lookup.iterations,
-        }
+        return self._lookup_metadata_from_lookup(self.lookup)
+
+    def _interpolated_dimensionless_from_lookup(self, lookup: InterpolationResult) -> Dict[str, float]:
+        props = dict(lookup.properties)
+        props["epsilon"] = lookup.epsilon
+        return props
 
     def interpolated_dimensionless(self) -> Dict[str, float]:
-        props = dict(self.lookup.properties)
-        props["epsilon"] = self.lookup.epsilon
-        return props
+        return self._interpolated_dimensionless_from_lookup(self.lookup)
 
     def solve(self) -> SolveResult:
         raise NotImplementedError
@@ -318,10 +432,10 @@ class MinimumFilmThicknessProblem(BaseProblem):
                 "sommerfeld_residual": self.lookup.s_residual,
             },
             notes=[
-                "This route now uses the finite_journal_bearing.csv dataset instead of manual chart entry.",
+                "This route uses finite_journal_bearing.csv instead of manual chart entry.",
                 "Minimum film thickness is computed with Khonsari Eq. (8.41): h_min = C(1 - epsilon).",
                 "Attitude angle phi is taken directly from the interpolated table values.",
-                "theta_cav_deg is included as an extra dataset output, even though Shigley Example 12-1 does not use it.",
+                "theta_cav_deg is included as an extra dataset output.",
             ],
         )
 
@@ -331,32 +445,16 @@ class CoefficientOfFrictionProblem(BaseProblem):
     title = "Coefficient of Friction: automated table lookup via finite journal-bearing dataset"
 
     def solve(self) -> SolveResult:
-        rcf = self.lookup.properties["RC_over_C_times_f"]
-        f = rcf * self.inputs.c / self.inputs.r
-        friction_force_lbf = f * self.inputs.W
-        torque_lbf_in = friction_force_lbf * self.inputs.r
-        power_in_lbf_s = friction_force_lbf * (2.0 * math.pi * self.inputs.r * self.inputs.N)
+        perf = self._performance_from_lookup(self.inputs.mu, self.state, self.lookup)
         outputs: Dict[str, float] = {
-            "f": f,
-            "friction_force_lbf": friction_force_lbf,
-            "torque_lbf_in": torque_lbf_in,
-            "power_in_lbf_s": power_in_lbf_s,
+            "f": perf["f"],
+            "friction_force_lbf": perf["friction_force_lbf"],
+            "torque_lbf_in": perf["torque_lbf_in"],
+            "power_in_lbf_s": perf["power_in_lbf_s"],
         }
-        checks: Dict[str, float | str] = {
-            "torque_minus_fWr": torque_lbf_in - (f * self.inputs.W * self.inputs.r),
-            "sommerfeld_residual": self.lookup.s_residual,
-        }
-        notes = [
-            "The table column RC_over_C_times_f is interpreted as (R/C)f.",
-            "Friction coefficient is recovered from f = [(R/C)f] * (C/R).",
-            "Power loss is computed from Khonsari Eq. (8.43): E_p = F 2 pi R N_s.",
-        ]
         if self.inputs.unit_system == "ips":
-            outputs["power_loss_hp"] = power_in_lbf_s / 6600.0
-            outputs["heat_loss_btu_s"] = power_in_lbf_s / (778.0 * 12.0)
-            notes.append("ips conversions: 1 hp = 6600 in·lbf/s and 1 Btu = 778 ft·lbf.")
-        else:
-            checks["power_conversion"] = "Skipped because unit_system != 'ips'."
+            outputs["power_loss_hp"] = perf["power_loss_hp"]
+            outputs["heat_loss_btu_s"] = perf["heat_loss_btu_s"]
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
@@ -365,8 +463,15 @@ class CoefficientOfFrictionProblem(BaseProblem):
             table_lookup=self.lookup_metadata(),
             interpolated_dimensionless=self.interpolated_dimensionless(),
             outputs=outputs,
-            checks=checks,
-            notes=notes,
+            checks={
+                "torque_minus_fWr": perf["torque_lbf_in"] - (perf["f"] * self.inputs.W * self.inputs.r),
+                "sommerfeld_residual": self.lookup.s_residual,
+            },
+            notes=[
+                "The table column RC_over_C_times_f is interpreted as (R/C)f.",
+                "Friction coefficient is recovered from f = [(R/C)f] * (C/R).",
+                "Power loss is computed from Khonsari Eq. (8.43): E_p = F 2 pi R N_s.",
+            ],
         )
 
 
@@ -375,11 +480,7 @@ class VolumetricFlowRateProblem(BaseProblem):
     title = "Volumetric Flow Rate: automated table lookup via finite journal-bearing dataset"
 
     def solve(self) -> SolveResult:
-        qbar_l = self.lookup.properties["Qbar_L"]
-        qbar_i = self.lookup.properties["Qbar_i"]
-        scale = (math.pi / 2.0) * self.inputs.N * self.inputs.d * self.inputs.l * self.inputs.c
-        q_leakage = qbar_l * scale
-        q_inlet = qbar_i * scale
+        perf = self._performance_from_lookup(self.inputs.mu, self.state, self.lookup)
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
@@ -388,11 +489,11 @@ class VolumetricFlowRateProblem(BaseProblem):
             table_lookup=self.lookup_metadata(),
             interpolated_dimensionless=self.interpolated_dimensionless(),
             outputs={
-                "Q_leakage": q_leakage,
-                "Q_inlet": q_inlet,
-                "Q_total_shigley_equivalent": q_inlet,
-                "Q_side_shigley_equivalent": q_leakage,
-                "Q_recirculated": q_inlet - q_leakage,
+                "Q_leakage": perf["Q_leakage"],
+                "Q_inlet": perf["Q_inlet"],
+                "Q_total_shigley_equivalent": perf["Q_inlet"],
+                "Q_side_shigley_equivalent": perf["Q_leakage"],
+                "Q_recirculated": perf["Q_recirculated"],
             },
             checks={
                 "sommerfeld_residual": self.lookup.s_residual,
@@ -400,7 +501,7 @@ class VolumetricFlowRateProblem(BaseProblem):
             notes=[
                 "Leakage flow is computed with Khonsari Eq. (8.39): Q_L = Qbar_L * (pi/2) * N_s D L C.",
                 "Inlet flow is computed with Khonsari Eq. (8.40): Q_i = Qbar_i * (pi/2) * N_s D L C.",
-                "For the Shigley-style Example 12-3 comparison, Q_i matches the total flow and Q_L matches the side flow.",
+                "Shigley side flow aligns with Khonsari leakage flow for the 360-degree bearing formulation.",
             ],
         )
 
@@ -410,8 +511,7 @@ class MaximumFilmPressureProblem(BaseProblem):
     title = "Maximum Film Pressure: automated table lookup via finite journal-bearing dataset"
 
     def solve(self) -> SolveResult:
-        pbar_max = self.lookup.properties["Pbar_max"]
-        pmax = self.inputs.mu * self.inputs.N * (self.inputs.r / self.inputs.c) ** 2 * pbar_max + self.inputs.Ps
+        perf = self._performance_from_lookup(self.inputs.mu, self.state, self.lookup)
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
@@ -420,8 +520,8 @@ class MaximumFilmPressureProblem(BaseProblem):
             table_lookup=self.lookup_metadata(),
             interpolated_dimensionless=self.interpolated_dimensionless(),
             outputs={
-                "pmax": pmax,
-                "theta_max_deg": self.lookup.properties["theta_max_deg"],
+                "pmax": perf["pmax"],
+                "theta_max_deg": perf["theta_max_deg"],
                 "phi_deg": self.lookup.properties["phi_deg"],
                 "theta_cav_deg": self.lookup.properties["theta_cav_deg"],
             },
@@ -431,9 +531,118 @@ class MaximumFilmPressureProblem(BaseProblem):
             notes=[
                 "Maximum pressure is computed from the dimensionless pressure definition used with Khonsari Eq. (8.36).",
                 "For the current non-pressure-fed scope, supply pressure Ps is normally zero.",
-                "theta_p0 is not reported because the finite_journal_bearing.csv dataset does not provide Shigley's terminating-pressure angle directly.",
-                "The angle frame of reference follows the Khonsari table, so direct numerical comparison to Shigley's theta values may differ.",
+                "theta_p0 is not reported because the dataset does not provide Shigley's terminating-pressure angle directly.",
             ],
+        )
+
+
+class TemperatureRiseProblem(BaseProblem):
+    problem_name = "temperature_rise"
+    title = "Temperature Rise: iterative finite journal-bearing solution with SAE oil viscosity correlation"
+
+    def solve(self) -> SolveResult:
+        if self.inputs.oil_grade is None or self.inputs.inlet_temp_F is None:
+            raise ValueError(
+                "temperature_rise requires oil_grade and inlet_temp_F so viscosity can be iterated from temperature."
+            )
+
+        initial_mu_from_correlation = self.inputs.viscosity_from_temperature(self.inputs.inlet_temp_F)
+        current_mu = self.inputs.mu
+        current_effective_temp_F = self.inputs.inlet_temp_F
+        iteration_history: List[Dict[str, Any]] = []
+        converged = False
+
+        for idx in range(1, self.inputs.max_iter + 1):
+            state, lookup = self._state_lookup_for_mu(current_mu)
+            perf = self._performance_from_lookup(current_mu, state, lookup)
+
+            delta_T = perf["power_in_lbf_s"] / (self.inputs.J * self.inputs.rho * self.inputs.cp * perf["Q_leakage"])
+            updated_effective_temp_F = self.inputs.inlet_temp_F + delta_T
+            updated_mu = self.inputs.viscosity_from_temperature(updated_effective_temp_F)
+            temp_change_F = updated_effective_temp_F - current_effective_temp_F
+
+            iteration_history.append(
+                {
+                    "iteration": idx,
+                    "mu_used": current_mu,
+                    "effective_temp_used_F": current_effective_temp_F,
+                    "effective_temp_updated_F": updated_effective_temp_F,
+                    "delta_T_F": delta_T,
+                    "effective_temp_change_F": temp_change_F,
+                    "S": state.S,
+                    "epsilon": lookup.epsilon,
+                    "phi_deg": lookup.properties["phi_deg"],
+                    "theta_cav_deg": lookup.properties["theta_cav_deg"],
+                    "Q_leakage": perf["Q_leakage"],
+                    "Q_inlet": perf["Q_inlet"],
+                    "f": perf["f"],
+                    "friction_force_lbf": perf["friction_force_lbf"],
+                    "power_in_lbf_s": perf["power_in_lbf_s"],
+                    "power_loss_hp": perf["power_loss_hp"],
+                    "heat_loss_btu_s": perf["heat_loss_btu_s"],
+                    "pmax": perf["pmax"],
+                    "updated_mu": updated_mu,
+                    "sommerfeld_residual": lookup.s_residual,
+                }
+            )
+
+            if abs(temp_change_F) <= self.inputs.temp_tol_F:
+                converged = True
+                current_effective_temp_F = updated_effective_temp_F
+                current_mu = updated_mu
+                break
+
+            current_effective_temp_F = updated_effective_temp_F
+            current_mu = updated_mu
+
+        final_state, final_lookup = self._state_lookup_for_mu(current_mu)
+        final_perf = self._performance_from_lookup(current_mu, final_state, final_lookup)
+        final_delta_T = current_effective_temp_F - self.inputs.inlet_temp_F
+
+        return SolveResult(
+            problem=self.problem_name,
+            title=self.title,
+            inputs=self.base_inputs(),
+            derived=self._derived_from_state(final_state),
+            table_lookup=self._lookup_metadata_from_lookup(final_lookup),
+            interpolated_dimensionless=self._interpolated_dimensionless_from_lookup(final_lookup),
+            outputs={
+                "mu_initial": self.inputs.mu,
+                "mu_initial_from_correlation": initial_mu_from_correlation,
+                "mu_effective": current_mu,
+                "T_inlet_F": self.inputs.inlet_temp_F,
+                "T_effective_F": current_effective_temp_F,
+                "delta_T_F": final_delta_T,
+                "h_min": final_perf["h_min"],
+                "e": final_perf["e"],
+                "phi_deg": final_perf["phi_deg"],
+                "theta_cav_deg": final_perf["theta_cav_deg"],
+                "Q_leakage": final_perf["Q_leakage"],
+                "Q_inlet": final_perf["Q_inlet"],
+                "Q_recirculated": final_perf["Q_recirculated"],
+                "f": final_perf["f"],
+                "friction_force_lbf": final_perf["friction_force_lbf"],
+                "torque_lbf_in": final_perf["torque_lbf_in"],
+                "power_in_lbf_s": final_perf["power_in_lbf_s"],
+                "power_loss_hp": final_perf["power_loss_hp"],
+                "heat_loss_btu_s": final_perf["heat_loss_btu_s"],
+                "pmax": final_perf["pmax"],
+                "theta_max_deg": final_perf["theta_max_deg"],
+            },
+            checks={
+                "converged": converged,
+                "temperature_tolerance_F": self.inputs.temp_tol_F,
+                "final_effective_temp_change_F": abs(iteration_history[-1]["effective_temp_change_F"]) if iteration_history else float("nan"),
+                "initial_mu_minus_correlation_mu": self.inputs.mu - initial_mu_from_correlation,
+                "sommerfeld_residual": final_lookup.s_residual,
+            },
+            notes=[
+                "Temperature rise is computed with Khonsari Eq. (8.44): delta_T = E_p / (J rho c_p Q_L).",
+                "Viscosity is updated each iteration with the SAE oil correlation mu = mu0 exp[b / (T + 95)] using T in degrees F.",
+                "The loop converges when the change in effective temperature between successive iterations is within temp_tol_F.",
+                "Q_L is the Khonsari leakage flow, which aligns with the side-flow concept used in Shigley's energy-balance discussion.",
+            ],
+            iteration_history=iteration_history,
         )
 
 
@@ -442,4 +651,5 @@ PROBLEM_REGISTRY = {
     "coefficient_of_friction": CoefficientOfFrictionProblem,
     "volumetric_flow_rate": VolumetricFlowRateProblem,
     "maximum_film_pressure": MaximumFilmPressureProblem,
+    "temperature_rise": TemperatureRiseProblem,
 }

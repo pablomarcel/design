@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
 
 from utils import dump_json, fmt, load_json
 
@@ -40,6 +40,28 @@ class ConsoleRenderer:
         else:
             self._render_plain(result)
 
+    def _render_plain_iteration_history(self, history: List[Dict[str, Any]]) -> None:
+        print("\n[iteration_history]")
+        if not history:
+            print("  -")
+            return
+        keys = [
+            "iteration",
+            "mu_used",
+            "effective_temp_used_F",
+            "effective_temp_updated_F",
+            "effective_temp_change_F",
+            "delta_T_F",
+            "Q_leakage",
+            "power_in_lbf_s",
+            "updated_mu",
+        ]
+        header = "  " + " | ".join(f"{k:>24s}" for k in keys)
+        print(header)
+        print("  " + "-" * (len(header) - 2))
+        for row in history:
+            print("  " + " | ".join(f"{fmt(row.get(k)):>24s}" for k in keys))
+
     def _render_plain(self, result: Dict[str, Any]) -> None:
         print("=" * 92)
         print(result.get("title", result.get("problem", "journal bearing result")))
@@ -59,6 +81,9 @@ class ConsoleRenderer:
                 continue
             for key, value in section.items():
                 print(f"  {key:36s} {fmt(value)}")
+        history = result.get("iteration_history", [])
+        if history:
+            self._render_plain_iteration_history(history)
         notes = result.get("notes", [])
         if notes:
             print("\n[notes]")
@@ -69,7 +94,9 @@ class ConsoleRenderer:
         assert self._rich_console is not None
         Table = self._rich_table
         Panel = self._rich_panel
-        self._rich_console.print(Panel.fit(result.get("title", result.get("problem", "journal bearing result")), subtitle=result.get("problem", "")))
+        self._rich_console.print(
+            Panel.fit(result.get("title", result.get("problem", "journal bearing result")), subtitle=result.get("problem", ""))
+        )
         for section_name in (
             "inputs",
             "derived",
@@ -88,6 +115,27 @@ class ConsoleRenderer:
                 for key, value in section.items():
                     table.add_row(str(key), fmt(value))
             self._rich_console.print(table)
+
+        history = result.get("iteration_history", [])
+        if history:
+            hist_table = Table(title="iteration history", show_header=True)
+            keys = [
+                "iteration",
+                "mu_used",
+                "effective_temp_used_F",
+                "effective_temp_updated_F",
+                "effective_temp_change_F",
+                "delta_T_F",
+                "Q_leakage",
+                "power_in_lbf_s",
+                "updated_mu",
+            ]
+            for key in keys:
+                hist_table.add_column(key, style="white")
+            for row in history:
+                hist_table.add_row(*[fmt(row.get(key)) for key in keys])
+            self._rich_console.print(hist_table)
+
         notes = result.get("notes", [])
         if notes:
             note_table = Table(title="notes")

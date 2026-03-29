@@ -7,6 +7,7 @@ Current scope:
     - coefficient of friction
     - volumetric flow rate
     - maximum film pressure
+    - temperature rise with iterative viscosity update
 """
 
 __all__ = [
@@ -18,4 +19,4 @@ __all__ = [
     "utils",
 ]
 
-__version__ = "0.4.0"
+__version__ = "0.5.0"

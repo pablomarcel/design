@@ -1,0 +1,25 @@
+{
+  "problem": "temperature_rise",
+  "inputs": {
+    "mu": 1.3e-06,
+    "N": 30.0,
+    "W": 1600.0,
+    "r": 2.0,
+    "c": 0.002,
+    "l": 4.0,
+    "Ps": 0.0,
+    "unit_system": "ips",
+    "oil_grade": "10",
+    "inlet_temp_F": 166.0,
+    "rho": 0.0315,
+    "cp": 0.48,
+    "J": 9336.0,
+    "temp_tol_F": 2.0,
+    "max_iter": 50,
+    "notes": [
+      "Khonsari Applied Tribology Example 8.2",
+      "Load per bearing is 1600 lbf because the 3200 lbf rotor is supported by two bearings.",
+      "Initial viscosity corresponds to SAE 10 oil at the inlet temperature."
+    ]
+  }
+}

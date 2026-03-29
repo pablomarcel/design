@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any, Dict
 import json
 import math
+import re
 
 
 def to_plain_data(obj: Any) -> Any:
@@ -70,8 +71,18 @@ def normalize_problem_name(name: str) -> str:
         "coefficientoffriction": "coefficient_of_friction",
         "volumetricflowrate": "volumetric_flow_rate",
         "maximumfilmpressure": "maximum_film_pressure",
+        "temperaturerise": "temperature_rise",
+        "temp_rise": "temperature_rise",
+        "temperature": "temperature_rise",
         "friction": "coefficient_of_friction",
         "flow": "volumetric_flow_rate",
         "pressure": "maximum_film_pressure",
     }
     return aliases.get(key, key)
+
+
+def normalize_oil_grade(name: str) -> str:
+    raw = str(name).strip().lower()
+    raw = raw.replace("sae", "").strip()
+    raw = re.sub(r"\s+", "", raw)
+    return raw
