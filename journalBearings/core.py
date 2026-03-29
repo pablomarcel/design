@@ -219,9 +219,9 @@ class BaseProblem:
         raise NotImplementedError
 
 
-class Example12_1_MinFilm(BaseProblem):
-    problem_name = "ex12_1"
-    title = "Example 12-1: minimum film thickness, eccentricity, and phi"
+class MinimumFilmThicknessProblem(BaseProblem):
+    problem_name = "minimum_film_thickness"
+    title = "Minimum Film Thickness: minimum film thickness, eccentricity, and phi"
 
     def solve(self) -> SolveResult:
         h0_over_c = self.chart_provider.get_h0_over_c(self.state)
@@ -247,9 +247,9 @@ class Example12_1_MinFilm(BaseProblem):
         )
 
 
-class Example12_2_Friction(BaseProblem):
-    problem_name = "ex12_2"
-    title = "Example 12-2: coefficient of friction, torque, and power loss"
+class CoefficientOfFrictionProblem(BaseProblem):
+    problem_name = "coefficient_of_friction"
+    title = "Coefficient of Friction: coefficient of friction, torque, and power loss"
 
     def solve(self) -> SolveResult:
         rcf = self.chart_provider.get_rcf(self.state)
@@ -281,9 +281,9 @@ class Example12_2_Friction(BaseProblem):
         )
 
 
-class Example12_3_Flow(BaseProblem):
-    problem_name = "ex12_3"
-    title = "Example 12-3: total volumetric flow rate and side flow rate"
+class VolumetricFlowRateProblem(BaseProblem):
+    problem_name = "volumetric_flow_rate"
+    title = "Volumetric Flow Rate: total volumetric flow rate and side flow rate"
 
     def solve(self) -> SolveResult:
         q_over_rcNl = self.chart_provider.get_q_over_rcNl(self.state)
@@ -306,9 +306,9 @@ class Example12_3_Flow(BaseProblem):
         )
 
 
-class Example12_4_FilmPressure(BaseProblem):
-    problem_name = "ex12_4"
-    title = "Example 12-4: maximum film pressure and angular locations"
+class MaximumFilmPressureProblem(BaseProblem):
+    problem_name = "maximum_film_pressure"
+    title = "Maximum Film Pressure: maximum film pressure and angular locations"
 
     def solve(self) -> SolveResult:
         p_over_pmax = self.chart_provider.get_p_over_pmax(self.state)
@@ -336,8 +336,8 @@ class Example12_4_FilmPressure(BaseProblem):
 
 
 PROBLEM_REGISTRY = {
-    "ex12_1": Example12_1_MinFilm,
-    "ex12_2": Example12_2_Friction,
-    "ex12_3": Example12_3_Flow,
-    "ex12_4": Example12_4_FilmPressure,
+    "minimum_film_thickness": MinimumFilmThicknessProblem,
+    "coefficient_of_friction": CoefficientOfFrictionProblem,
+    "volumetric_flow_rate": VolumetricFlowRateProblem,
+    "maximum_film_pressure": MaximumFilmPressureProblem,
 }

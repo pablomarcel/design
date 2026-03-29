@@ -1,5 +1,5 @@
 {
-  "problem": "ex12_1",
+  "problem": "coefficient_of_friction",
   "inputs": {
     "mu": 0.000004,
     "N": 30,

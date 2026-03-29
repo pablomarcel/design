@@ -43,13 +43,13 @@ def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
 
 
 def _chart_inputs_for_command(command: str, args: argparse.Namespace) -> Dict[str, Any]:
-    if command == "ex12_1":
+    if command == "minimum_film_thickness":
         return {"h0_over_c": args.h0_over_c, "epsilon": args.epsilon, "phi_deg": args.phi_deg}
-    if command == "ex12_2":
+    if command == "coefficient_of_friction":
         return {"rcf": args.rcf}
-    if command == "ex12_3":
+    if command == "volumetric_flow_rate":
         return {"q_over_rcNl": args.q_over_rcNl, "qs_over_q": args.qs_over_q}
-    if command == "ex12_4":
+    if command == "maximum_film_pressure":
         return {
             "p_over_pmax": args.p_over_pmax,
             "theta_pmax_deg": args.theta_pmax_deg,
@@ -80,22 +80,22 @@ def build_parser() -> argparse.ArgumentParser:
     pmenu = sub.add_parser("menu", help="Launch an interactive menu workflow.")
     pmenu.add_argument("--outfile", help="Optional JSON output file.")
 
-    p1 = sub.add_parser("ex12_1", help="Example 12-1 workflow.")
+    p1 = sub.add_parser("minimum_film_thickness", help="Minimum film thickness workflow.")
     _add_common_bearing_args(p1)
     p1.add_argument("--h0-over-c", type=float, help="Optional pre-known chart value from Fig. 12-16.")
     p1.add_argument("--epsilon", type=float, help="Optional pre-known chart value from Fig. 12-16.")
     p1.add_argument("--phi-deg", type=float, help="Optional pre-known chart value from Fig. 12-17.")
 
-    p2 = sub.add_parser("ex12_2", help="Example 12-2 workflow.")
+    p2 = sub.add_parser("coefficient_of_friction", help="Coefficient of friction workflow.")
     _add_common_bearing_args(p2)
     p2.add_argument("--rcf", type=float, help="Optional pre-known chart value from Fig. 12-18.")
 
-    p3 = sub.add_parser("ex12_3", help="Example 12-3 workflow.")
+    p3 = sub.add_parser("volumetric_flow_rate", help="Volumetric flow rate workflow.")
     _add_common_bearing_args(p3)
     p3.add_argument("--q-over-rcNl", type=float, help="Optional pre-known chart value from Fig. 12-19.")
     p3.add_argument("--qs-over-q", type=float, help="Optional pre-known chart value from Fig. 12-20.")
 
-    p4 = sub.add_parser("ex12_4", help="Example 12-4 workflow.")
+    p4 = sub.add_parser("maximum_film_pressure", help="Maximum film pressure workflow.")
     _add_common_bearing_args(p4)
     p4.add_argument("--p-over-pmax", type=float, help="Optional pre-known chart value from Fig. 12-21.")
     p4.add_argument("--theta-pmax-deg", type=float, help="Optional pre-known chart value from Fig. 12-22.")
@@ -127,16 +127,16 @@ def _interactive_common_inputs() -> Dict[str, Any]:
 
 def _menu_problem_choice() -> str:
     options = {
-        "1": "ex12_1",
-        "2": "ex12_2",
-        "3": "ex12_3",
-        "4": "ex12_4",
+        "1": "minimum_film_thickness",
+        "2": "coefficient_of_friction",
+        "3": "volumetric_flow_rate",
+        "4": "maximum_film_pressure",
     }
     print("\nJournal Bearings Menu")
-    print("  1) Example 12-1  minimum film thickness, eccentricity, phi")
-    print("  2) Example 12-2  coefficient of friction, torque, power loss")
-    print("  3) Example 12-3  total flow and side flow")
-    print("  4) Example 12-4  maximum film pressure and angles")
+    print("  1) minimum film thickness")
+    print("  2) coefficient of friction")
+    print("  3) volumetric flow rate")
+    print("  4) maximum film pressure")
     while True:
         choice = input("Choose an option [1-4]: ").strip()
         if choice in options:

@@ -5,14 +5,14 @@ Run these commands from inside the `journalBearings` package directory.
 ## The intended lazy-student workflow: let the app stop at charts
 
 ```bash
-python -m cli ex12_1 \
+python -m cli minimum_film_thickness \
   --mu 4e-6 \
   --N 30 \
   --W 500 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --outfile out/example_12_1.json
+  --outfile out/minimum_film_thickness.json
 ```
 
 The app will compute `P`, `S`, `l/d`, and `r/c`, then pause and ask for:
@@ -21,32 +21,32 @@ The app will compute `P`, `S`, `l/d`, and `r/c`, then pause and ask for:
 - `epsilon`
 - `phi`
 
-## Example 12-2 with hold-at-chart behavior
+## Coefficient of friction with hold-at-chart behavior
 
 ```bash
-python -m cli ex12_2 \
+python -m cli coefficient_of_friction \
   --mu 4e-6 \
   --N 30 \
   --W 500 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --outfile out/example_12_2.json
+  --outfile out/coefficient_of_friction.json
 ```
 
 The app will pause and ask for `(r/c)f` from Figure 12-18.
 
-## Example 12-3 with hold-at-chart behavior
+## Volumetric flow rate with hold-at-chart behavior
 
 ```bash
-python -m cli ex12_3 \
+python -m cli volumetric_flow_rate \
   --mu 4e-6 \
   --N 30 \
   --W 500 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --outfile out/example_12_3.json
+  --outfile out/volumetric_flow_rate.json
 ```
 
 The app will pause and ask for:
@@ -54,17 +54,17 @@ The app will pause and ask for:
 - `Q/(rcNl)`
 - `Qs/Q`
 
-## Example 12-4 with hold-at-chart behavior
+## Maximum film pressure with hold-at-chart behavior
 
 ```bash
-python -m cli ex12_4 \
+python -m cli maximum_film_pressure \
   --mu 4e-6 \
   --N 30 \
   --W 500 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --outfile out/example_12_4.json
+  --outfile out/maximum_film_pressure.json
 ```
 
 The app will pause and ask for:
@@ -85,8 +85,8 @@ This launches a simple menu, asks for the givens, then pauses whenever a chart r
 
 ```bash
 python -m cli run \
-  --infile in/example_12_1_prompt.json \
-  --outfile out/example_12_1_prompt_result.json
+  --infile in/minimum_film_thickness_prompt.json \
+  --outfile out/minimum_film_thickness_prompt_result.json
 ```
 
 The JSON supplies the known givens only. The app will prompt for missing chart values.
@@ -95,8 +95,8 @@ The JSON supplies the known givens only. The app will prompt for missing chart v
 
 ```bash
 python -m cli run \
-  --infile in/example_12_1_prefilled.json \
-  --outfile out/example_12_1_prefilled_result.json \
+  --infile in/minimum_film_thickness_prefilled.json \
+  --outfile out/minimum_film_thickness_prefilled_result.json \
   --no-prompt
 ```
 

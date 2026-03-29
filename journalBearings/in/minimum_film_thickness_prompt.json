@@ -1,5 +1,5 @@
 {
-  "problem": "ex12_2",
+  "problem": "minimum_film_thickness",
   "inputs": {
     "mu": 0.000004,
     "N": 30,

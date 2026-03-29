@@ -56,14 +56,22 @@ def safe_float(value: Any, field_name: str) -> float:
 def normalize_problem_name(name: str) -> str:
     key = str(name).strip().lower().replace("-", "_").replace(" ", "_")
     aliases = {
-        "12_1": "ex12_1",
-        "12_2": "ex12_2",
-        "12_3": "ex12_3",
-        "12_4": "ex12_4",
-        "example_12_1": "ex12_1",
-        "example_12_2": "ex12_2",
-        "example_12_3": "ex12_3",
-        "example_12_4": "ex12_4",
+        "12_1": "minimum_film_thickness",
+        "12_2": "coefficient_of_friction",
+        "12_3": "volumetric_flow_rate",
+        "12_4": "maximum_film_pressure",
+        "example_12_1": "minimum_film_thickness",
+        "example_12_2": "coefficient_of_friction",
+        "example_12_3": "volumetric_flow_rate",
+        "example_12_4": "maximum_film_pressure",
+        "ex12_1": "minimum_film_thickness",
+        "ex12_2": "coefficient_of_friction",
+        "ex12_3": "volumetric_flow_rate",
+        "ex12_4": "maximum_film_pressure",
+        "minimumfilmthickness": "minimum_film_thickness",
+        "coefficientoffriction": "coefficient_of_friction",
+        "volumetricflowrate": "volumetric_flow_rate",
+        "maximumfilmpressure": "maximum_film_pressure",
         "menu": "menu",
     }
     return aliases.get(key, key)

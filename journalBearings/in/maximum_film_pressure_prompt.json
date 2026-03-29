@@ -1,5 +1,5 @@
 {
-  "problem": "ex12_1",
+  "problem": "maximum_film_pressure",
   "inputs": {
     "mu": 0.000004,
     "N": 30,
@@ -8,10 +8,5 @@
     "c": 0.0015,
     "l": 1.5,
     "unit_system": "ips"
-  },
-  "chart_inputs": {
-    "h0_over_c": 0.42,
-    "epsilon": 0.58,
-    "phi_deg": 53
   }
 }
