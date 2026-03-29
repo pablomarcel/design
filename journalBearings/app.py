@@ -13,7 +13,7 @@ class JournalBearingApp:
         problem: str,
         inputs: Dict[str, Any],
         chart_inputs: Optional[Dict[str, Any]] = None,
-        interactive: bool = False,
+        interactive: bool = True,
     ) -> Dict[str, Any]:
         key = normalize_problem_name(problem)
         if key not in PROBLEM_REGISTRY:
@@ -25,4 +25,9 @@ class JournalBearingApp:
         solver_cls = PROBLEM_REGISTRY[key]
         solver = solver_cls(input_obj, provider)
         result = solver.solve()
-        return asdict(result)
+        payload = asdict(result)
+        payload["session"] = {
+            "interactive": interactive,
+            "chart_prompt_history": provider.prompt_history,
+        }
+        return payload

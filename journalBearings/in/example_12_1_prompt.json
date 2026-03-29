@@ -1,5 +1,5 @@
 {
-  "problem": "ex12_3",
+  "problem": "ex12_1",
   "inputs": {
     "mu": 0.000004,
     "N": 30,
@@ -8,9 +8,5 @@
     "c": 0.0015,
     "l": 1.5,
     "unit_system": "ips"
-  },
-  "chart_inputs": {
-    "q_over_rcNl": 4.28,
-    "qs_over_q": 0.655
   }
 }

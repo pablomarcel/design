@@ -8,12 +8,12 @@ from utils import safe_float
 
 @dataclass
 class BearingInputs:
-    mu: float  # absolute viscosity, typically reyn in ips for current workflows
-    N: float   # shaft speed, rev/s
-    W: float   # load, lbf for ips workflows
-    r: float   # journal radius, in
-    c: float   # radial clearance, in
-    l: float   # bearing length, in
+    mu: float
+    N: float
+    W: float
+    r: float
+    c: float
+    l: float
     unit_system: str = "ips"
     notes: List[str] = field(default_factory=list)
 
@@ -71,10 +71,10 @@ class ManualChartInputs:
     h0_over_c: Optional[float] = None
     epsilon: Optional[float] = None
     phi_deg: Optional[float] = None
-    rcf: Optional[float] = None               # (r/c)f
-    q_over_rcNl: Optional[float] = None       # Q/(rcNl)
-    qs_over_q: Optional[float] = None         # Qs/Q
-    p_over_pmax: Optional[float] = None       # P/pmax
+    rcf: Optional[float] = None
+    q_over_rcNl: Optional[float] = None
+    qs_over_q: Optional[float] = None
+    p_over_pmax: Optional[float] = None
     theta_pmax_deg: Optional[float] = None
     theta_p0_deg: Optional[float] = None
 
@@ -99,9 +99,10 @@ class ManualChartInputs:
 
 
 class ManualChartProvider:
-    def __init__(self, chart_inputs: Optional[ManualChartInputs] = None, interactive: bool = False):
+    def __init__(self, chart_inputs: Optional[ManualChartInputs] = None, interactive: bool = True):
         self.chart_inputs = chart_inputs or ManualChartInputs()
         self.interactive = interactive
+        self.prompt_history: List[str] = []
 
     def _get_or_prompt(
         self,
@@ -117,95 +118,54 @@ class ManualChartProvider:
         if not self.interactive:
             raise ValueError(
                 f"Missing required manual chart input '{attr_name}'. "
-                f"Provide it via CLI flags, input JSON, or run with --interactive."
+                "This workflow pauses at charts. Provide a value in the JSON/CLI, or enable prompting."
             )
-        hint = (
-            f"\n{figure_label}\n"
-            f"  Sommerfeld number S = {state.S:.6f}\n"
-            f"  l/d = {state.l_over_d:.6f}\n"
-        )
+        print("\n" + "=" * 76)
+        print("CHART INPUT REQUIRED")
+        print("=" * 76)
+        print(figure_label)
+        print(f"  Sommerfeld number S = {state.S:.6f}")
+        print(f"  l/d = {state.l_over_d:.6f}")
+        print(f"  r/c = {state.r_over_c:.6f}")
         if extra_hint:
-            hint += f"  {extra_hint}\n"
-        print(hint)
-        raw = input(f"Enter {prompt_label}: ").strip()
-        try:
-            value = float(raw)
-        except ValueError as exc:
-            raise ValueError(f"Could not parse numeric input for {prompt_label!r}: {raw!r}") from exc
-        setattr(self.chart_inputs, attr_name, value)
-        return value
+            print(f"  {extra_hint}")
+        print("Read the chart, then enter the requested value.")
+        while True:
+            raw = input(f"Enter {prompt_label}: ").strip()
+            try:
+                value = float(raw)
+                setattr(self.chart_inputs, attr_name, value)
+                self.prompt_history.append(f"{attr_name}={value}")
+                return value
+            except ValueError:
+                print(f"Could not parse numeric input for {prompt_label!r}: {raw!r}")
 
     def get_h0_over_c(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "h0_over_c",
-            "h0/c",
-            "Figure 12-16: minimum film thickness variable",
-            state,
-        )
+        return self._get_or_prompt("h0_over_c", "h0/c", "Figure 12-16: minimum film thickness variable", state)
 
     def get_epsilon(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "epsilon",
-            "epsilon = e/c",
-            "Figure 12-16: eccentricity ratio",
-            state,
-        )
+        return self._get_or_prompt("epsilon", "epsilon = e/c", "Figure 12-16: eccentricity ratio", state)
 
     def get_phi_deg(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "phi_deg",
-            "phi in degrees",
-            "Figure 12-17: position of minimum film thickness",
-            state,
-        )
+        return self._get_or_prompt("phi_deg", "phi in degrees", "Figure 12-17: attitude angle / minimum-film location", state)
 
     def get_rcf(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "rcf",
-            "(r/c)f",
-            "Figure 12-18: coefficient-of-friction variable",
-            state,
-        )
+        return self._get_or_prompt("rcf", "(r/c)f", "Figure 12-18: coefficient-of-friction variable", state)
 
     def get_q_over_rcNl(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "q_over_rcNl",
-            "Q/(rcNl)",
-            "Figure 12-19: flow variable",
-            state,
-        )
+        return self._get_or_prompt("q_over_rcNl", "Q/(rcNl)", "Figure 12-19: flow variable", state)
 
     def get_qs_over_q(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "qs_over_q",
-            "Qs/Q",
-            "Figure 12-20: side-flow ratio",
-            state,
-        )
+        return self._get_or_prompt("qs_over_q", "Qs/Q", "Figure 12-20: side-flow ratio", state)
 
     def get_p_over_pmax(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "p_over_pmax",
-            "P/pmax",
-            "Figure 12-21: maximum-film-pressure ratio",
-            state,
-        )
+        return self._get_or_prompt("p_over_pmax", "P/pmax", "Figure 12-21: maximum-film-pressure ratio", state)
 
     def get_theta_pmax_deg(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "theta_pmax_deg",
-            "theta_pmax in degrees",
-            "Figure 12-22: position of maximum film pressure",
-            state,
-        )
+        return self._get_or_prompt("theta_pmax_deg", "theta_pmax in degrees", "Figure 12-22: position of maximum film pressure", state)
 
     def get_theta_p0_deg(self, state: DerivedState) -> float:
-        return self._get_or_prompt(
-            "theta_p0_deg",
-            "theta_p0 in degrees",
-            "Figure 12-22: terminating position of lubricant film",
-            state,
-        )
+        return self._get_or_prompt("theta_p0_deg", "theta_p0 in degrees", "Figure 12-22: terminating position of lubricant film", state)
 
 
 @dataclass
@@ -235,26 +195,24 @@ class BaseProblem:
             r_over_c=self.inputs.r / self.inputs.c,
         )
 
-    def _base_payload(self) -> Dict[str, object]:
+    def base_inputs(self) -> Dict[str, object]:
         return {
-            "problem": self.problem_name,
-            "title": self.title,
-            "inputs": {
-                "mu": self.inputs.mu,
-                "N": self.inputs.N,
-                "W": self.inputs.W,
-                "r": self.inputs.r,
-                "c": self.inputs.c,
-                "l": self.inputs.l,
-                "d": self.inputs.d,
-                "unit_system": self.inputs.unit_system,
-            },
-            "derived": {
-                "P": self.state.P,
-                "S": self.state.S,
-                "l_over_d": self.state.l_over_d,
-                "r_over_c": self.state.r_over_c,
-            },
+            "mu": self.inputs.mu,
+            "N": self.inputs.N,
+            "W": self.inputs.W,
+            "r": self.inputs.r,
+            "c": self.inputs.c,
+            "l": self.inputs.l,
+            "d": self.inputs.d,
+            "unit_system": self.inputs.unit_system,
+        }
+
+    def base_derived(self) -> Dict[str, float]:
+        return {
+            "P": self.state.P,
+            "S": self.state.S,
+            "l_over_d": self.state.l_over_d,
+            "r_over_c": self.state.r_over_c,
         }
 
     def solve(self) -> SolveResult:
@@ -275,24 +233,15 @@ class Example12_1_MinFilm(BaseProblem):
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
-            inputs=self._base_payload()["inputs"],
-            derived=self._base_payload()["derived"],
-            chart_inputs_used={
-                "h0_over_c": h0_over_c,
-                "epsilon": epsilon,
-                "phi_deg": phi_deg,
-            },
-            outputs={
-                "h0": h0,
-                "e": e,
-                "phi_deg": phi_deg,
-            },
-            checks={
-                "h0_over_c_minus_1_minus_epsilon": relation_residual,
-            },
+            inputs=self.base_inputs(),
+            derived=self.base_derived(),
+            chart_inputs_used={"h0_over_c": h0_over_c, "epsilon": epsilon, "phi_deg": phi_deg},
+            outputs={"h0": h0, "e": e, "phi_deg": phi_deg},
+            checks={"h0_over_c_minus_1_minus_epsilon": relation_residual},
             notes=[
-                "Figure 12-16 supplies h0/c and epsilon for the given S and l/d.",
-                "Figure 12-17 supplies phi for the given S and l/d.",
+                "The app computed P, S, l/d, and r/c first, then paused for manual chart reads.",
+                "Figure 12-16 supplies h0/c and epsilon.",
+                "Figure 12-17 supplies phi.",
                 "For ideal consistency, h0/c = 1 - epsilon.",
             ],
         )
@@ -306,11 +255,9 @@ class Example12_2_Friction(BaseProblem):
         rcf = self.chart_provider.get_rcf(self.state)
         f = rcf * self.inputs.c / self.inputs.r
         torque_lbf_in = f * self.inputs.W * self.inputs.r
-        outputs = {
-            "f": f,
-            "torque_lbf_in": torque_lbf_in,
-        }
+        outputs = {"f": f, "torque_lbf_in": torque_lbf_in}
         notes = [
+            "The app computed P, S, l/d, and r/c first, then paused for the friction chart read.",
             "Figure 12-18 supplies the friction variable (r/c)f.",
         ]
         checks: Dict[str, float | str] = {}
@@ -319,15 +266,14 @@ class Example12_2_Friction(BaseProblem):
             heat_btu_s = 2.0 * 3.141592653589793 * torque_lbf_in * self.inputs.N / (778.0 * 12.0)
             outputs["power_loss_hp"] = hp_loss
             outputs["heat_loss_btu_s"] = heat_btu_s
-            notes.append("Horsepower and Btu/s conversions are the ips textbook forms used in Example 12-2.")
+            notes.append("Horsepower and Btu/s conversions use the ips-style textbook form.")
         else:
             checks["power_conversion"] = "Skipped because unit_system != 'ips'."
-            notes.append("Current non-ips mode computes only f and torque from the supplied consistent units.")
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
-            inputs=self._base_payload()["inputs"],
-            derived=self._base_payload()["derived"],
+            inputs=self.base_inputs(),
+            derived=self.base_derived(),
             chart_inputs_used={"rcf": rcf},
             outputs=outputs,
             checks=checks,
@@ -347,19 +293,13 @@ class Example12_3_Flow(BaseProblem):
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
-            inputs=self._base_payload()["inputs"],
-            derived=self._base_payload()["derived"],
-            chart_inputs_used={
-                "q_over_rcNl": q_over_rcNl,
-                "qs_over_q": qs_over_q,
-            },
-            outputs={
-                "Q": Q,
-                "Qs": Qs,
-                "Q_minus_Qs": Q - Qs,
-            },
+            inputs=self.base_inputs(),
+            derived=self.base_derived(),
+            chart_inputs_used={"q_over_rcNl": q_over_rcNl, "qs_over_q": qs_over_q},
+            outputs={"Q": Q, "Qs": Qs, "Q_minus_Qs": Q - Qs},
             checks={},
             notes=[
+                "The app computed P, S, l/d, and r/c first, then paused for the two chart reads.",
                 "Figure 12-19 supplies Q/(rcNl).",
                 "Figure 12-20 supplies Qs/Q.",
             ],
@@ -378,20 +318,17 @@ class Example12_4_FilmPressure(BaseProblem):
         return SolveResult(
             problem=self.problem_name,
             title=self.title,
-            inputs=self._base_payload()["inputs"],
-            derived=self._base_payload()["derived"],
+            inputs=self.base_inputs(),
+            derived=self.base_derived(),
             chart_inputs_used={
                 "p_over_pmax": p_over_pmax,
                 "theta_pmax_deg": theta_pmax_deg,
                 "theta_p0_deg": theta_p0_deg,
             },
-            outputs={
-                "pmax": pmax,
-                "theta_pmax_deg": theta_pmax_deg,
-                "theta_p0_deg": theta_p0_deg,
-            },
+            outputs={"pmax": pmax, "theta_pmax_deg": theta_pmax_deg, "theta_p0_deg": theta_p0_deg},
             checks={},
             notes=[
+                "The app computed P, S, l/d, and r/c first, then paused for the pressure charts.",
                 "Figure 12-21 supplies P/pmax.",
                 "Figure 12-22 supplies theta_pmax and theta_p0.",
             ],

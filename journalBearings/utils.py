@@ -32,13 +32,6 @@ def load_json(path: str | Path) -> Dict[str, Any]:
         return json.load(f)
 
 
-def ensure_suffix(path: str | Path, suffix: str) -> Path:
-    p = Path(path)
-    if p.suffix.lower() != suffix.lower():
-        return p.with_suffix(suffix)
-    return p
-
-
 def fmt(x: Any, digits: int = 6) -> str:
     if x is None:
         return "-"
@@ -71,5 +64,25 @@ def normalize_problem_name(name: str) -> str:
         "example_12_2": "ex12_2",
         "example_12_3": "ex12_3",
         "example_12_4": "ex12_4",
+        "menu": "menu",
     }
     return aliases.get(key, key)
+
+
+def prompt_float(label: str, *, allow_blank: bool = False, default: float | None = None) -> float | None:
+    while True:
+        suffix = ""
+        if default is not None:
+            suffix += f" [default {fmt(default)}]"
+        if allow_blank:
+            suffix += " [blank allowed]"
+        raw = input(f"{label}{suffix}: ").strip()
+        if raw == "":
+            if default is not None:
+                return float(default)
+            if allow_blank:
+                return None
+        try:
+            return float(raw)
+        except ValueError:
+            print(f"Could not parse a number from {raw!r}. Try again.")

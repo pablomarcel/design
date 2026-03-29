@@ -2,7 +2,7 @@
 
 Run these commands from inside the `journalBearings` package directory.
 
-## Example 12-1 from CLI flags
+## The intended lazy-student workflow: let the app stop at charts
 
 ```bash
 python -m cli ex12_1 \
@@ -12,13 +12,16 @@ python -m cli ex12_1 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --h0-over-c 0.42 \
-  --epsilon 0.58 \
-  --phi-deg 53 \
   --outfile out/example_12_1.json
 ```
 
-## Example 12-2 from CLI flags
+The app will compute `P`, `S`, `l/d`, and `r/c`, then pause and ask for:
+
+- `h0/c`
+- `epsilon`
+- `phi`
+
+## Example 12-2 with hold-at-chart behavior
 
 ```bash
 python -m cli ex12_2 \
@@ -28,11 +31,12 @@ python -m cli ex12_2 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --rcf 3.50 \
   --outfile out/example_12_2.json
 ```
 
-## Example 12-3 from CLI flags
+The app will pause and ask for `(r/c)f` from Figure 12-18.
+
+## Example 12-3 with hold-at-chart behavior
 
 ```bash
 python -m cli ex12_3 \
@@ -42,12 +46,15 @@ python -m cli ex12_3 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --q-over-rcNl 4.28 \
-  --qs-over-q 0.655 \
   --outfile out/example_12_3.json
 ```
 
-## Example 12-4 from CLI flags
+The app will pause and ask for:
+
+- `Q/(rcNl)`
+- `Qs/Q`
+
+## Example 12-4 with hold-at-chart behavior
 
 ```bash
 python -m cli ex12_4 \
@@ -57,31 +64,40 @@ python -m cli ex12_4 \
   --r 0.75 \
   --c 0.0015 \
   --l 1.5 \
-  --p-over-pmax 0.42 \
-  --theta-pmax-deg 18.5 \
-  --theta-p0-deg 75 \
   --outfile out/example_12_4.json
 ```
 
-## Interactive mode
+The app will pause and ask for:
 
-When chart values are not known in advance, let the app pause and prompt for them:
+- `P/pmax`
+- `theta_pmax`
+- `theta_p0`
+
+## Menu mode
 
 ```bash
-python -m cli ex12_1 \
-  --mu 4e-6 \
-  --N 30 \
-  --W 500 \
-  --r 0.75 \
-  --c 0.0015 \
-  --l 1.5 \
-  --interactive
+python -m cli menu
 ```
 
-## Solve from JSON file
+This launches a simple menu, asks for the givens, then pauses whenever a chart read is needed.
+
+## JSON workflow with missing chart values on purpose
 
 ```bash
 python -m cli run \
-  --infile in/example_12_3.json \
-  --outfile out/example_12_3_from_file.json
+  --infile in/example_12_1_prompt.json \
+  --outfile out/example_12_1_prompt_result.json
 ```
+
+The JSON supplies the known givens only. The app will prompt for missing chart values.
+
+## Strict mode without prompting
+
+```bash
+python -m cli run \
+  --infile in/example_12_1_prefilled.json \
+  --outfile out/example_12_1_prefilled_result.json \
+  --no-prompt
+```
+
+Use `--no-prompt` only when all required chart values are already known.

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Sequence, Tuple
+from typing import Any, Dict
 
 from utils import dump_json, fmt, load_json
 
@@ -38,6 +38,19 @@ class ConsoleRenderer:
             self._render_rich(result)
         else:
             self._render_plain(result)
+
+    def render_checkpoint(self, title: str, rows: Dict[str, Any], note: str | None = None) -> None:
+        payload = {
+            "title": title,
+            "problem": "checkpoint",
+            "inputs": rows,
+            "derived": {},
+            "chart_inputs_used": {},
+            "outputs": {},
+            "checks": {},
+            "notes": [note] if note else [],
+        }
+        self.render_result(payload)
 
     def _render_plain(self, result: Dict[str, Any]) -> None:
         print("=" * 88)

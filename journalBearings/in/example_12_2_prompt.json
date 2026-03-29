@@ -1,5 +1,5 @@
 {
-  "problem": "ex12_4",
+  "problem": "ex12_2",
   "inputs": {
     "mu": 0.000004,
     "N": 30,
@@ -8,10 +8,5 @@
     "c": 0.0015,
     "l": 1.5,
     "unit_system": "ips"
-  },
-  "chart_inputs": {
-    "p_over_pmax": 0.42,
-    "theta_pmax_deg": 18.5,
-    "theta_p0_deg": 75
   }
 }

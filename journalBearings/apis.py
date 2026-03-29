@@ -14,7 +14,7 @@ class JournalBearingAPI:
         problem: str,
         inputs: Dict[str, Any],
         chart_inputs: Optional[Dict[str, Any]] = None,
-        interactive: bool = False,
+        interactive: bool = True,
     ) -> Dict[str, Any]:
         return self.app.solve(
             problem=problem,
