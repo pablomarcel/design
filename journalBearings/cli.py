@@ -6,7 +6,7 @@ from typing import Any, Dict, Optional
 
 from apis import JournalBearingAPI
 from in_out import ConsoleRenderer, read_problem_file, write_result_file
-from utils import normalize_problem_name, prompt_float
+from utils import normalize_problem_name
 
 
 def _add_common_bearing_args(parser: argparse.ArgumentParser) -> None:
@@ -16,18 +16,14 @@ def _add_common_bearing_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--r", type=float, required=True, help="Journal radius.")
     parser.add_argument("--c", type=float, required=True, help="Radial clearance.")
     parser.add_argument("--l", type=float, required=True, help="Bearing length.")
+    parser.add_argument("--Ps", type=float, default=0.0, help="Supply pressure. Default is 0 for non-pressure-fed bearings.")
     parser.add_argument(
         "--unit-system",
         default="ips",
         choices=["ips", "custom"],
-        help="Current implementation is ips-first, but custom is allowed for dimensionless calculations.",
+        help="ips is the current reference system for convenience outputs like hp and Btu/s.",
     )
     parser.add_argument("--outfile", help="Optional JSON output file.")
-    parser.add_argument(
-        "--no-prompt",
-        action="store_true",
-        help="Disable holding-pattern chart prompts. If chart values are missing, the run errors out.",
-    )
 
 
 def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
@@ -38,28 +34,9 @@ def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         "r": args.r,
         "c": args.c,
         "l": args.l,
+        "Ps": args.Ps,
         "unit_system": args.unit_system,
     }
-
-
-def _chart_inputs_for_command(command: str, args: argparse.Namespace) -> Dict[str, Any]:
-    if command == "minimum_film_thickness":
-        return {"h0_over_c": args.h0_over_c, "epsilon": args.epsilon, "phi_deg": args.phi_deg}
-    if command == "coefficient_of_friction":
-        return {"rcf": args.rcf}
-    if command == "volumetric_flow_rate":
-        return {"q_over_rcNl": args.q_over_rcNl, "qs_over_q": args.qs_over_q}
-    if command == "maximum_film_pressure":
-        return {
-            "p_over_pmax": args.p_over_pmax,
-            "theta_pmax_deg": args.theta_pmax_deg,
-            "theta_p0_deg": args.theta_p0_deg,
-        }
-    return {}
-
-
-def _prune_none(data: Dict[str, Any]) -> Dict[str, Any]:
-    return {k: v for k, v in data.items() if v is not None}
 
 
 def _default_outfile_for_input(infile: str | Path) -> Path:
@@ -70,59 +47,26 @@ def _default_outfile_for_input(infile: str | Path) -> Path:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python -m cli",
-        description=(
-            "CLI app for Shigley Chapter 12 journal-bearing calculations. "
-            "When chart values are missing, the app pauses and asks for them."
-        ),
+        description="Automatic journal-bearing app backed by finite_journal_bearing.csv and interpolation.",
     )
     sub = parser.add_subparsers(dest="command", required=True)
 
     pmenu = sub.add_parser("menu", help="Launch an interactive menu workflow.")
     pmenu.add_argument("--outfile", help="Optional JSON output file.")
 
-    p1 = sub.add_parser("minimum_film_thickness", help="Minimum film thickness workflow.")
-    _add_common_bearing_args(p1)
-    p1.add_argument("--h0-over-c", type=float, help="Optional pre-known chart value from Fig. 12-16.")
-    p1.add_argument("--epsilon", type=float, help="Optional pre-known chart value from Fig. 12-16.")
-    p1.add_argument("--phi-deg", type=float, help="Optional pre-known chart value from Fig. 12-17.")
-
-    p2 = sub.add_parser("coefficient_of_friction", help="Coefficient of friction workflow.")
-    _add_common_bearing_args(p2)
-    p2.add_argument("--rcf", type=float, help="Optional pre-known chart value from Fig. 12-18.")
-
-    p3 = sub.add_parser("volumetric_flow_rate", help="Volumetric flow rate workflow.")
-    _add_common_bearing_args(p3)
-    p3.add_argument("--q-over-rcNl", type=float, help="Optional pre-known chart value from Fig. 12-19.")
-    p3.add_argument("--qs-over-q", type=float, help="Optional pre-known chart value from Fig. 12-20.")
-
-    p4 = sub.add_parser("maximum_film_pressure", help="Maximum film pressure workflow.")
-    _add_common_bearing_args(p4)
-    p4.add_argument("--p-over-pmax", type=float, help="Optional pre-known chart value from Fig. 12-21.")
-    p4.add_argument("--theta-pmax-deg", type=float, help="Optional pre-known chart value from Fig. 12-22.")
-    p4.add_argument("--theta-p0-deg", type=float, help="Optional pre-known chart value from Fig. 12-22.")
+    for name, help_text in (
+        ("minimum_film_thickness", "Compute minimum film thickness, eccentricity, and phi automatically."),
+        ("coefficient_of_friction", "Compute coefficient of friction, torque, and power loss automatically."),
+        ("volumetric_flow_rate", "Compute flow rates automatically."),
+        ("maximum_film_pressure", "Compute maximum film pressure automatically."),
+    ):
+        p = sub.add_parser(name, help=help_text)
+        _add_common_bearing_args(p)
 
     prun = sub.add_parser("run", help="Solve a problem from an input JSON file.")
     prun.add_argument("--infile", required=True, help="Input JSON file in the in/ folder or any path.")
     prun.add_argument("--outfile", help="Output JSON filename or path.")
-    prun.add_argument(
-        "--no-prompt",
-        action="store_true",
-        help="Disable chart prompting for missing values in the JSON workflow.",
-    )
     return parser
-
-
-def _interactive_common_inputs() -> Dict[str, Any]:
-    print("\nEnter the bearing givens. The app will do the boring algebra and stop when a chart is needed.")
-    return {
-        "mu": prompt_float("mu") or 0.0,
-        "N": prompt_float("N") or 0.0,
-        "W": prompt_float("W") or 0.0,
-        "r": prompt_float("r") or 0.0,
-        "c": prompt_float("c") or 0.0,
-        "l": prompt_float("l") or 0.0,
-        "unit_system": input("unit system [default ips]: ").strip().lower() or "ips",
-    }
 
 
 def _menu_problem_choice() -> str:
@@ -144,11 +88,41 @@ def _menu_problem_choice() -> str:
         print("Invalid option. Try again.")
 
 
+def _prompt_float(label: str, default: float | None = None) -> float:
+    while True:
+        suffix = f" [default {default}]" if default is not None else ""
+        raw = input(f"{label}{suffix}: ").strip()
+        if raw == "" and default is not None:
+            return float(default)
+        try:
+            return float(raw)
+        except ValueError:
+            print(f"Could not parse a number from {raw!r}. Try again.")
+
+
+
+def _interactive_common_inputs() -> Dict[str, Any]:
+    print("\nEnter the bearing givens. The app will compute the dimensionless state, interpolate the table, and finish automatically.")
+    unit_system = input("unit system [default ips]: ").strip().lower() or "ips"
+    return {
+        "mu": _prompt_float("mu"),
+        "N": _prompt_float("N"),
+        "W": _prompt_float("W"),
+        "r": _prompt_float("r"),
+        "c": _prompt_float("c"),
+        "l": _prompt_float("l"),
+        "Ps": _prompt_float("Ps", 0.0),
+        "unit_system": unit_system,
+    }
+
+
+
 def _render_and_write(renderer: ConsoleRenderer, result: Dict[str, Any], outfile: str | Path | None) -> None:
     renderer.render_result(result)
     if outfile:
         write_result_file(outfile, result)
         print(f"\nWrote result file: {outfile}")
+
 
 
 def main(argv: Optional[list[str]] = None) -> int:
@@ -159,30 +133,19 @@ def main(argv: Optional[list[str]] = None) -> int:
 
     if args.command == "menu":
         problem = _menu_problem_choice()
-        inputs = _interactive_common_inputs()
-        result = api.solve_problem(problem=problem, inputs=inputs, chart_inputs=None, interactive=True)
+        result = api.solve_problem(problem=problem, inputs=_interactive_common_inputs())
         _render_and_write(renderer, result, args.outfile)
         return 0
 
     if args.command == "run":
         payload = read_problem_file(args.infile)
-        result = api.solve_problem(
-            problem=payload["problem"],
-            inputs=payload["inputs"],
-            chart_inputs=payload.get("chart_inputs"),
-            interactive=not args.no_prompt,
-        )
+        result = api.solve_problem(problem=payload["problem"], inputs=payload["inputs"])
         outpath = Path(args.outfile) if args.outfile else _default_outfile_for_input(args.infile)
         _render_and_write(renderer, result, outpath)
         return 0
 
     problem = normalize_problem_name(args.command)
-    result = api.solve_problem(
-        problem=problem,
-        inputs=_common_inputs_from_args(args),
-        chart_inputs=_prune_none(_chart_inputs_for_command(problem, args)),
-        interactive=not args.no_prompt,
-    )
+    result = api.solve_problem(problem=problem, inputs=_common_inputs_from_args(args))
     _render_and_write(renderer, result, args.outfile)
     return 0
 

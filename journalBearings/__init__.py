@@ -1,8 +1,8 @@
 """journalBearings package.
 
-CLI app for Shigley Chapter 12 journal-bearing selection workflows.
+CLI app for journal-bearing selection workflows.
 Current scope:
-    - Type 1 problems: non-pressure-fed journal bearings with given steady-state viscosity
+    - finite journal bearing table driven automation
     - minimum film thickness
     - coefficient of friction
     - volumetric flow rate
@@ -18,4 +18,4 @@ __all__ = [
     "utils",
 ]
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"

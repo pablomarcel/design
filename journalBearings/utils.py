@@ -42,7 +42,9 @@ def fmt(x: Any, digits: int = 6) -> str:
     if isinstance(x, float):
         if math.isnan(x) or math.isinf(x):
             return str(x)
-        return f"{x:.{digits}f}".rstrip("0").rstrip(".") if abs(x) < 1e8 else f"{x:.6e}"
+        if abs(x) < 1e8:
+            return f"{x:.{digits}f}".rstrip("0").rstrip(".")
+        return f"{x:.6e}"
     return str(x)
 
 
@@ -64,33 +66,12 @@ def normalize_problem_name(name: str) -> str:
         "example_12_2": "coefficient_of_friction",
         "example_12_3": "volumetric_flow_rate",
         "example_12_4": "maximum_film_pressure",
-        "ex12_1": "minimum_film_thickness",
-        "ex12_2": "coefficient_of_friction",
-        "ex12_3": "volumetric_flow_rate",
-        "ex12_4": "maximum_film_pressure",
         "minimumfilmthickness": "minimum_film_thickness",
         "coefficientoffriction": "coefficient_of_friction",
         "volumetricflowrate": "volumetric_flow_rate",
         "maximumfilmpressure": "maximum_film_pressure",
-        "menu": "menu",
+        "friction": "coefficient_of_friction",
+        "flow": "volumetric_flow_rate",
+        "pressure": "maximum_film_pressure",
     }
     return aliases.get(key, key)
-
-
-def prompt_float(label: str, *, allow_blank: bool = False, default: float | None = None) -> float | None:
-    while True:
-        suffix = ""
-        if default is not None:
-            suffix += f" [default {fmt(default)}]"
-        if allow_blank:
-            suffix += " [blank allowed]"
-        raw = input(f"{label}{suffix}: ").strip()
-        if raw == "":
-            if default is not None:
-                return float(default)
-            if allow_blank:
-                return None
-        try:
-            return float(raw)
-        except ValueError:
-            print(f"Could not parse a number from {raw!r}. Try again.")

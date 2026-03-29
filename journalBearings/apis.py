@@ -1,24 +1,14 @@
 from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Any, Dict
 
 from app import JournalBearingApp
 
 
 class JournalBearingAPI:
-    def __init__(self) -> None:
-        self.app = JournalBearingApp()
+    def __init__(self, table_path: str | Path | None = None) -> None:
+        self.app = JournalBearingApp(table_path=table_path)
 
-    def solve_problem(
-        self,
-        problem: str,
-        inputs: Dict[str, Any],
-        chart_inputs: Optional[Dict[str, Any]] = None,
-        interactive: bool = True,
-    ) -> Dict[str, Any]:
-        return self.app.solve(
-            problem=problem,
-            inputs=inputs,
-            chart_inputs=chart_inputs,
-            interactive=interactive,
-        )
+    def solve_problem(self, problem: str, inputs: Dict[str, Any]) -> Dict[str, Any]:
+        return self.app.solve(problem=problem, inputs=inputs)

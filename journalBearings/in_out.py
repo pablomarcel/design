@@ -21,8 +21,9 @@ class ConsoleRenderer:
         self._rich_panel = None
         try:
             from rich.console import Console
-            from rich.table import Table
             from rich.panel import Panel
+            from rich.table import Table
+
             self._rich_console = Console()
             self._rich_table = Table
             self._rich_panel = Panel
@@ -39,31 +40,25 @@ class ConsoleRenderer:
         else:
             self._render_plain(result)
 
-    def render_checkpoint(self, title: str, rows: Dict[str, Any], note: str | None = None) -> None:
-        payload = {
-            "title": title,
-            "problem": "checkpoint",
-            "inputs": rows,
-            "derived": {},
-            "chart_inputs_used": {},
-            "outputs": {},
-            "checks": {},
-            "notes": [note] if note else [],
-        }
-        self.render_result(payload)
-
     def _render_plain(self, result: Dict[str, Any]) -> None:
-        print("=" * 88)
-        print(result["title"])
-        print("=" * 88)
-        for section_name in ("inputs", "derived", "chart_inputs_used", "outputs", "checks"):
-            print(f"\n[{section_name}]")
+        print("=" * 92)
+        print(result.get("title", result.get("problem", "journal bearing result")))
+        print("=" * 92)
+        for section_name in (
+            "inputs",
+            "derived",
+            "table_lookup",
+            "interpolated_dimensionless",
+            "outputs",
+            "checks",
+        ):
             section = result.get(section_name, {})
+            print(f"\n[{section_name}]")
             if not section:
                 print("  -")
                 continue
-            for k, v in section.items():
-                print(f"  {k:32s} {fmt(v)}")
+            for key, value in section.items():
+                print(f"  {key:36s} {fmt(value)}")
         notes = result.get("notes", [])
         if notes:
             print("\n[notes]")
@@ -74,8 +69,15 @@ class ConsoleRenderer:
         assert self._rich_console is not None
         Table = self._rich_table
         Panel = self._rich_panel
-        self._rich_console.print(Panel.fit(result["title"], subtitle=result.get("problem", "")))
-        for section_name in ("inputs", "derived", "chart_inputs_used", "outputs", "checks"):
+        self._rich_console.print(Panel.fit(result.get("title", result.get("problem", "journal bearing result")), subtitle=result.get("problem", "")))
+        for section_name in (
+            "inputs",
+            "derived",
+            "table_lookup",
+            "interpolated_dimensionless",
+            "outputs",
+            "checks",
+        ):
             section = result.get(section_name, {})
             table = Table(title=section_name.replace("_", " "), show_header=True)
             table.add_column("Name", style="cyan")
@@ -83,8 +85,8 @@ class ConsoleRenderer:
             if not section:
                 table.add_row("-", "-")
             else:
-                for k, v in section.items():
-                    table.add_row(str(k), fmt(v))
+                for key, value in section.items():
+                    table.add_row(str(key), fmt(value))
             self._rich_console.print(table)
         notes = result.get("notes", [])
         if notes:
