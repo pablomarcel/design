@@ -1,0 +1,192 @@
+These results are pretty good. The app is landing **very close to Shigley**, but not exactly on top of it.
+
+Here is the plain-English comparison.
+
+Shigley’s Example 12-5 concludes about:
+
+* average film temperature `T̄f ≈ 193.4 °F`, rounded to `193 °F`
+* viscosity `μ' ≈ 1.08 μreyn`
+* Sommerfeld number `S ≈ 0.65`
+* temperature rise through the film `ΔTf ≈ 11.0 °F`
+* sump temperature `Ts ≈ 187.5 °F`
+* maximum film temperature `Tmax ≈ 198.5 °F`
+* housing temperature `Tb ≈ 131.5 °F`
+* minimum film thickness `h0 ≈ 0.00079 in`
+* friction coefficient `f ≈ 0.0128`
+* torque `T ≈ 1.28 lbf·in`
+
+Your app gave:
+
+* `T_f_avg = 196.625 °F`
+* `mu_effective = 1.0647e-6 reyn = 1.0647 μreyn`
+* `S = 0.6388`
+* `delta_T_F = 10.844 °F`
+* `T_sump_F = 191.203 °F`
+* `T_max_F = 202.047 °F`
+* `T_b_F = 133.313 °F`
+* `h_min = 0.000801 in`
+* `f = 0.012964`
+* `torque = 1.296 lbf·in`【turn12file0†L1-L15】【turn12file7†L264-L486】
+
+So the **agreement is very good** for the quantities that matter most to the bearing design:
+
+* `μ`: very close
+* `S`: very close
+* `ΔTf`: very close
+* `h_min`: very close
+* `f`: very close
+* torque: very close
+
+The biggest differences are the temperatures:
+
+* your `T_f_avg` is about **3.2 °F higher**
+* your `Tb` is about **1.8 °F higher**
+* your `T_sump` and `Tmax` are also a few degrees higher
+
+Why?
+
+Because your app is using the **finite-bearing dataset + interpolation** for `(fr/c)` instead of Shigley’s original chart read from Fig. 12-18. That shifts the heat-generation side a little. In your converged solution, `(fr/c) = 12.964`, while Shigley effectively uses about `12.8`. That small difference propagates into `Hgen`, and then into the balance temperature. Your code is explicitly using interpolated `RC_over_C_times_f` from the table and then solving heat balance by bisection, rather than manual chart reading【turn12file7†L264-L486】.
+
+So the story is:
+
+* **same algorithmic structure as Shigley**
+* **slightly different source for friction data**
+* therefore **slightly different balanced temperature**
+
+That is a defensible result.
+
+Now let me explain each section of your JSON.
+
+`derived`
+
+* `P = 25 psi` matches Shigley exactly.
+* `S = 0.6388` is your final converged Sommerfeld number.
+* `heat_loss_bracket_lower_temp_F = 196.0`
+* `heat_loss_bracket_upper_temp_F = 197.25`
+
+Those last two mean the root finder found the heat-balance solution inside that temperature interval. So the converged average film temperature is bracketed there, and your chosen final value `196.625 °F` is inside that bracket.
+
+`table_lookup`
+
+This says the bearing table lookup was done at:
+
+* exact `L/D = 1`
+* epsilon between `0.15` and `0.20`
+* with epsilon solved by bisection from the Sommerfeld number
+
+So the app is doing exactly what you wanted: solve `S`, invert the finite-bearing table, then interpolate the performance quantities.
+
+`interpolated_dimensionless`
+
+These are the final dimensionless values at convergence:
+
+* `epsilon = 0.19853`
+* `fr_over_c = 12.9641`
+* `phi = 73.94°`
+* `fig12_24_y = 4.2075`
+
+That `fig12_24_y` is the dimensionless temperature-rise variable from Fig. 12-24. Since `L/D = 1`, your app used the exact polynomial for that curve, not interpolation between curves.
+
+`outputs`
+
+This is the final self-consistent operating point.
+
+`mu_effective = 1.0647e-6`
+means the oil settled at about **1.065 μreyn**. Shigley says about **1.08 μreyn**. That is very close.
+
+`T_f_avg = 196.625 °F`
+is the app’s final average film temperature. This is the central unknown of the self-contained-bearing problem.
+
+`delta_T_F = 10.844 °F`
+is the temperature rise of the oil during the pass through the bearing. Shigley got `11.0 °F`. Very close.
+
+`T_sump_F = 191.203 °F`
+This is the sump or inlet oil temperature inside the housing, after mixing, based on
+`Ts = T̄f - ΔTf/2`.
+Shigley got `187.5 °F`, but that came from his lower average temperature `193 °F`. Since your app converged to a higher `T̄f`, this number is correspondingly higher.
+
+`T_max_F = 202.047 °F`
+This is the hot-end oil temperature:
+`Tmax = Ts + ΔTf`.
+Again, same formula as Shigley, just based on a slightly hotter converged state.
+
+`T_b_F = 133.313 °F`
+This is the housing temperature from Eq. (12-19b):
+`Tb = (T̄f + α T∞)/(1 + α)`.
+Shigley got `131.5 °F`. Very close.
+
+`h_min = 0.000801 in`
+This is essentially a match to Shigley’s `0.00079 in`.
+
+`f = 0.012964`
+Again, essentially a match to Shigley’s `0.0128`.
+
+`torque = 1.2964 lbf·in`
+Again, essentially a match to Shigley’s `1.28 lbf·in`.
+
+`heat_generation_btu_h = 47.115`
+`heat_loss_btu_h = 47.484`
+These are very close, which is why the solver marked the run as converged.
+
+`checks`
+
+* `converged = true`
+* `final_bracket_width_F = 1.25`
+* `heat_balance_residual_btu_h = -0.3695`
+
+That means the final root bracket is narrow and heat generation is within about `0.37 Btu/h` of heat loss. For this kind of engineering calculation, that is pretty respectable.
+
+`iteration_history`
+
+This is your audit trail. It shows the bisection on average film temperature:
+
+* at `198.5 °F`, heat generation was too low relative to heat loss
+* at `197.25 °F`, still a bit low
+* at `196.625 °F`, much closer
+
+So the solver is narrowing in on the temperature where:
+
+`Hgen = Hloss`
+
+That is exactly what Shigley says to do, except he does it manually with trial values, while your app is doing it algorithmically【turn12file7†L264-L486】.
+
+So what can we conclude?
+
+The app is reproducing Example 12-5 in the right spirit and with close numerical agreement.
+
+What it teaches in plain English is:
+
+* In a **self-contained bearing**, the oil in the housing gets hot and recirculates.
+* So you cannot just use ambient or inlet temperature; you must solve for an internal steady-state temperature.
+* That steady-state temperature sets viscosity.
+* That viscosity sets Sommerfeld number and friction.
+* Friction sets heat generation.
+* Heat generation must balance heat loss to the surroundings.
+
+Your app is now doing exactly that loop.
+
+The practical comparison to Shigley is:
+
+* **film thickness and friction results are essentially matched**
+* **temperature results are slightly hotter**
+* the slight hot bias likely comes from using the finite-bearing dataset for `(fr/c)` instead of the original chart read Shigley used
+
+So I would summarize it like this:
+
+**The app matches Shigley well enough to be considered successful, and the remaining discrepancy is small and physically understandable.**
+
+The one thing I would watch is naming. Your `T_sump_F` is really Shigley’s `Ts`, and `T_f_avg` is `T̄f`. Those are fine, but you may want to add a note in the JSON so the meaning is explicit.
+
+Also, there is one sentence in the notes that is a little misleading. It says:
+
+> “Friction and minimum film thickness are then computed from the finite-bearing dataset at the converged viscosity.”
+
+That is true for friction, but for the **self-contained route** the heat generation side is Shigley-style and the temperature rise side is Fig. 12-24 style. So the route is really a **hybrid**:
+
+* Shigley heat-balance framework
+* finite-bearing data for friction/film quantities
+* Fig. 12-24 correlation for temperature-rise variable
+
+That is not wrong. It is just worth stating clearly.
+
+If you want, next I can help you write a tighter `notes` block for this route so the output JSON explains that hybrid logic cleanly.

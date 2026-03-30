@@ -36,6 +36,28 @@ def _add_temperature_rise_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--max-iter", type=int, default=50, help="Maximum number of temperature-viscosity iterations.")
 
 
+def _add_self_contained_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--N", type=float, required=True, help="Journal speed in rev/s.")
+    parser.add_argument("--W", type=float, required=True, help="Bearing load.")
+    parser.add_argument("--r", type=float, required=True, help="Journal radius.")
+    parser.add_argument("--c", type=float, required=True, help="Radial clearance.")
+    parser.add_argument("--l", type=float, required=True, help="Bearing length.")
+    parser.add_argument("--oil-grade", required=True, help="SAE oil grade such as 10, 20, 30, 40, 50, 60.")
+    parser.add_argument("--ambient-temp-f", type=float, required=True, help="Ambient air temperature in degrees F.")
+    parser.add_argument("--alpha", type=float, required=True, help="Geometry factor alpha from Shigley Eq. (12-19).")
+    parser.add_argument("--area-in2", type=float, required=True, help="Lateral bearing area A in in^2.")
+    parser.add_argument("--h-cr", type=float, required=True, help="Heat-transfer coefficient h_CR in Btu/(h*ft^2*F).")
+    parser.add_argument(
+        "--unit-system",
+        default="ips",
+        choices=["ips", "custom"],
+        help="ips is the current reference system for convenience outputs like hp and Btu/s.",
+    )
+    parser.add_argument("--temp-tol-f", type=float, default=2.0, help="Convergence tolerance on the final temperature bracket width.")
+    parser.add_argument("--max-iter", type=int, default=60, help="Maximum number of heat-balance bisection iterations.")
+    parser.add_argument("--outfile", help="Optional JSON output file.")
+
+
 def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         "mu": args.mu,
@@ -59,6 +81,24 @@ def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         if hasattr(args, argname):
             data[key] = getattr(args, argname)
     return data
+
+
+def _self_contained_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "N": args.N,
+        "W": args.W,
+        "r": args.r,
+        "c": args.c,
+        "l": args.l,
+        "oil_grade": args.oil_grade,
+        "ambient_temp_F": args.ambient_temp_f,
+        "alpha": args.alpha,
+        "area_in2": args.area_in2,
+        "h_cr": args.h_cr,
+        "unit_system": args.unit_system,
+        "temp_tol_F": args.temp_tol_f,
+        "max_iter": args.max_iter,
+    }
 
 
 def _default_outfile_for_input(infile: str | Path) -> Path:
@@ -89,6 +129,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_common_bearing_args(ptemp)
     _add_temperature_rise_args(ptemp)
 
+    pself = sub.add_parser("self_contained_steady_state", help="Solve Shigley self-contained steady-state bearing problems like Example 12-5.")
+    _add_self_contained_args(pself)
+
     prun = sub.add_parser("run", help="Solve a problem from an input JSON file.")
     prun.add_argument("--infile", required=True, help="Input JSON file in the in/ folder or any path.")
     prun.add_argument("--outfile", help="Output JSON filename or path.")
@@ -102,6 +145,7 @@ def _menu_problem_choice() -> str:
         "3": "volumetric_flow_rate",
         "4": "maximum_film_pressure",
         "5": "temperature_rise",
+        "6": "self_contained_steady_state",
     }
     print("\nJournal Bearings Menu")
     print("  1) minimum film thickness")
@@ -109,8 +153,9 @@ def _menu_problem_choice() -> str:
     print("  3) volumetric flow rate")
     print("  4) maximum film pressure")
     print("  5) temperature rise")
+    print("  6) self-contained steady state")
     while True:
-        choice = input("Choose an option [1-5]: ").strip()
+        choice = input("Choose an option [1-6]: ").strip()
         if choice in options:
             return options[choice]
         print("Invalid option. Try again.")
@@ -129,6 +174,25 @@ def _prompt_float(label: str, default: float | None = None) -> float:
 
 
 def _interactive_common_inputs(problem: str) -> Dict[str, Any]:
+    if problem == "self_contained_steady_state":
+        print("\nEnter the self-contained steady-state bearing givens.")
+        unit_system = input("unit system [default ips]: ").strip().lower() or "ips"
+        return {
+            "N": _prompt_float("N"),
+            "W": _prompt_float("W"),
+            "r": _prompt_float("r"),
+            "c": _prompt_float("c"),
+            "l": _prompt_float("l"),
+            "oil_grade": input("oil grade (SAE) [e.g. 20]: ").strip(),
+            "ambient_temp_F": _prompt_float("ambient_temp_F"),
+            "alpha": _prompt_float("alpha"),
+            "area_in2": _prompt_float("area_in2"),
+            "h_cr": _prompt_float("h_cr"),
+            "unit_system": unit_system,
+            "temp_tol_F": _prompt_float("temp_tol_F", 2.0),
+            "max_iter": int(_prompt_float("max_iter", 60)),
+        }
+
     print("\nEnter the bearing givens. The app will compute the dimensionless state, interpolate the table, and finish automatically.")
     unit_system = input("unit system [default ips]: ").strip().lower() or "ips"
     data: Dict[str, Any] = {
@@ -183,7 +247,10 @@ def main(argv: Optional[list[str]] = None) -> int:
         return 0
 
     problem = normalize_problem_name(args.command)
-    result = api.solve_problem(problem=problem, inputs=_common_inputs_from_args(args))
+    if problem == "self_contained_steady_state":
+        result = api.solve_problem(problem=problem, inputs=_self_contained_inputs_from_args(args))
+    else:
+        result = api.solve_problem(problem=problem, inputs=_common_inputs_from_args(args))
     _render_and_write(renderer, result, args.outfile)
     return 0
 

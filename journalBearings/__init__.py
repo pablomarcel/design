@@ -8,6 +8,7 @@ Current scope:
     - volumetric flow rate
     - maximum film pressure
     - temperature rise with iterative viscosity update
+    - self-contained bearing steady-state solution
 """
 
 __all__ = [
@@ -19,4 +20,4 @@ __all__ = [
     "utils",
 ]
 
-__version__ = "0.5.0"
+__version__ = "0.6.0"

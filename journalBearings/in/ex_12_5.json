@@ -1,0 +1,23 @@
+{
+  "problem": "self_contained_steady_state",
+  "inputs": {
+    "N": 15.0,
+    "W": 100.0,
+    "r": 1.0,
+    "c": 0.001,
+    "l": 2.0,
+    "oil_grade": "20",
+    "ambient_temp_F": 70.0,
+    "alpha": 1.0,
+    "area_in2": 40.0,
+    "h_cr": 2.7,
+    "unit_system": "ips",
+    "temp_tol_F": 2.0,
+    "max_iter": 60,
+    "notes": [
+      "Shigley Example 12-5 style self-contained bearing steady-state solution.",
+      "l/d is unity because r = 1 in and l = 2 in.",
+      "Heat-transfer coefficient h_cr = 2.7 Btu/(h*ft^2*F) corresponds to shaft-stirred air in the textbook discussion."
+    ]
+  }
+}

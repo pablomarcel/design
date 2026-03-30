@@ -47,6 +47,15 @@ class ConsoleRenderer:
             return
         keys = [
             "iteration",
+            "trial_temp_F",
+            "mu_trial",
+            "S",
+            "heat_generation_btu_h",
+            "heat_loss_btu_h",
+            "residual_btu_h",
+        ]
+        alt_keys = [
+            "iteration",
             "mu_used",
             "effective_temp_used_F",
             "effective_temp_updated_F",
@@ -56,11 +65,15 @@ class ConsoleRenderer:
             "power_in_lbf_s",
             "updated_mu",
         ]
-        header = "  " + " | ".join(f"{k:>24s}" for k in keys)
+        if set(keys).issubset(history[0].keys()):
+            use_keys = keys
+        else:
+            use_keys = alt_keys
+        header = "  " + " | ".join(f"{k:>24s}" for k in use_keys)
         print(header)
         print("  " + "-" * (len(header) - 2))
         for row in history:
-            print("  " + " | ".join(f"{fmt(row.get(k)):>24s}" for k in keys))
+            print("  " + " | ".join(f"{fmt(row.get(k)):>24s}" for k in use_keys))
 
     def _render_plain(self, result: Dict[str, Any]) -> None:
         print("=" * 92)
@@ -119,17 +132,28 @@ class ConsoleRenderer:
         history = result.get("iteration_history", [])
         if history:
             hist_table = Table(title="iteration history", show_header=True)
-            keys = [
-                "iteration",
-                "mu_used",
-                "effective_temp_used_F",
-                "effective_temp_updated_F",
-                "effective_temp_change_F",
-                "delta_T_F",
-                "Q_leakage",
-                "power_in_lbf_s",
-                "updated_mu",
-            ]
+            if "trial_temp_F" in history[0]:
+                keys = [
+                    "iteration",
+                    "trial_temp_F",
+                    "mu_trial",
+                    "S",
+                    "heat_generation_btu_h",
+                    "heat_loss_btu_h",
+                    "residual_btu_h",
+                ]
+            else:
+                keys = [
+                    "iteration",
+                    "mu_used",
+                    "effective_temp_used_F",
+                    "effective_temp_updated_F",
+                    "effective_temp_change_F",
+                    "delta_T_F",
+                    "Q_leakage",
+                    "power_in_lbf_s",
+                    "updated_mu",
+                ]
             for key in keys:
                 hist_table.add_column(key, style="white")
             for row in history:

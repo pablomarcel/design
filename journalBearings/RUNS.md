@@ -101,6 +101,36 @@ This route:
 - updates viscosity using the SAE oil correlation
 - repeats until successive effective temperatures differ by at most `temp_tol_F`
 
+## Self-contained bearing steady state — Shigley Example 12-5 style
+
+```bash
+python -m cli self_contained_steady_state \
+  --N 15 \
+  --W 100 \
+  --r 1.0 \
+  --c 0.001 \
+  --l 2.0 \
+  --oil-grade 20 \
+  --ambient-temp-f 70 \
+  --alpha 1 \
+  --area-in2 40 \
+  --h-cr 2.7 \
+  --temp-tol-f 2.0 \
+  --max-iter 60 \
+  --outfile out/ex_12_5_self_contained.json
+```
+
+This route:
+
+- assumes a trial average film temperature
+- computes oil viscosity from the SAE correlation
+- computes Sommerfeld number and interpolates the finite-bearing table
+- computes friction heat generation from the converged `f`
+- computes heat loss with Shigley Eq. (12-19a)
+- uses Fig. 12-24 polynomial correlations to estimate `delta_T_F`
+- iterates on average film temperature until the heat-balance bracket is within `temp_tol_F`
+- reports steady-state temperatures, friction, and minimum film thickness
+
 ## Menu mode
 
 ```bash
@@ -115,6 +145,14 @@ This launches a simple menu, asks for the givens, and solves automatically with 
 python -m cli run \
   --infile in/minimum_film_thickness.json \
   --outfile out/minimum_film_thickness_from_file.json
+```
+
+## Example 12-5 from JSON
+
+```bash
+python -m cli run \
+  --infile in/ex_12_5.json \
+  --outfile out/ex_12_5_out.json
 ```
 
 The JSON supplies only the real bearing givens. No manual chart-entry block remains in this version.
