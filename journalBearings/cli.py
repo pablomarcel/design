@@ -58,6 +58,7 @@ def _add_self_contained_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--outfile', help='Optional JSON output file.')
 
 
+
 def _add_pressure_fed_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--N', type=float, required=True, help='Journal speed in rev/s.')
     parser.add_argument('--W', type=float, required=True, help='Radial load in lbf.')
@@ -65,11 +66,10 @@ def _add_pressure_fed_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--sump-temp-f', type=float, required=True, help='Externally maintained sump temperature Ts in degrees F.')
     parser.add_argument('--Ps', type=float, required=True, help='Supply pressure ps in psi.')
     parser.add_argument('--r', type=float, help='Journal radius in inches. Optional when --dj is provided.')
-    parser.add_argument('--c', type=float, help='Radial clearance in inches. Optional when --dj and --db are provided.')
-    parser.add_argument('--l', type=float, help='Half-bearing length l-prime in inches. Optional when --l-prime is provided.')
-    parser.add_argument('--dj', type=float, help='Journal diameter dj in inches.')
-    parser.add_argument('--db', type=float, help='Bushing diameter db in inches.')
-    parser.add_argument('--l-prime', type=float, help='Half-bearing length l-prime in inches.')
+    parser.add_argument('--dj', type=float, help='Journal diameter dj in inches. Optional when --r is provided.')
+    parser.add_argument('--c', type=float, required=True, help='Minimum radial clearance in inches (direct given input).')
+    parser.add_argument('--l-prime', type=float, required=True, help='Half-bearing length l-prime in inches.')
+    parser.add_argument('--l-prime-over-d', type=float, required=True, help='Given l-prime/d ratio used for table lookup.')
     parser.add_argument('--rho', type=float, default=0.0311, help='Oil density in lbm/in^3 for ips workflows.')
     parser.add_argument('--cp', type=float, default=0.42, help='Specific heat in Btu/(lbm*F) for ips workflows.')
     parser.add_argument('--J', type=float, default=9336.0, help='Mechanical equivalent of heat in in·lbf/Btu. Default 9336.')
@@ -128,6 +128,7 @@ def _self_contained_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]
     }
 
 
+
 def _pressure_fed_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         'N': args.N,
@@ -135,6 +136,9 @@ def _pressure_fed_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
         'oil_grade': args.oil_grade,
         'sump_temp_F': args.sump_temp_f,
         'Ps': args.Ps,
+        'c': args.c,
+        'l_prime': args.l_prime,
+        'l_prime_over_d': args.l_prime_over_d,
         'rho': args.rho,
         'cp': args.cp,
         'J': args.J,
@@ -144,16 +148,8 @@ def _pressure_fed_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     }
     if args.r is not None:
         data['r'] = args.r
-    if args.c is not None:
-        data['c'] = args.c
-    if args.l is not None:
-        data['l'] = args.l
     if args.dj is not None:
         data['dj'] = args.dj
-    if args.db is not None:
-        data['db'] = args.db
-    if args.l_prime is not None:
-        data['l_prime'] = args.l_prime
     if args.heat_loss_limit_btu_h is not None:
         data['heat_loss_limit_btu_h'] = args.heat_loss_limit_btu_h
     return data
@@ -259,13 +255,16 @@ def _interactive_common_inputs(problem: str) -> Dict[str, Any]:
     if problem == 'pressure_fed_circumferential':
         print('\nEnter the pressure-fed circumferential-groove bearing givens.')
         unit_system = input('unit system [default ips]: ').strip().lower() or 'ips'
-        use_diams = input('Provide dj and db instead of r and c? [y/N]: ').strip().lower() in {'y', 'yes'}
+        use_dj = input('Provide dj instead of r? [y/N]: ').strip().lower() in {'y', 'yes'}
         data: Dict[str, Any] = {
             'N': _prompt_float('N'),
             'W': _prompt_float('W'),
             'oil_grade': input('oil grade (SAE) [e.g. 20]: ').strip(),
             'sump_temp_F': _prompt_float('sump_temp_F'),
             'Ps': _prompt_float('Ps'),
+            'c': _prompt_float('c'),
+            'l_prime': _prompt_float('l_prime'),
+            'l_prime_over_d': _prompt_float('l_prime_over_d'),
             'rho': _prompt_float('rho', 0.0311),
             'cp': _prompt_float('cp', 0.42),
             'J': _prompt_float('J', 9336.0),
@@ -273,14 +272,10 @@ def _interactive_common_inputs(problem: str) -> Dict[str, Any]:
             'max_iter': int(_prompt_float('max_iter', 60)),
             'unit_system': unit_system,
         }
-        if use_diams:
+        if use_dj:
             data['dj'] = _prompt_float('dj')
-            data['db'] = _prompt_float('db')
-            data['l_prime'] = _prompt_float('l_prime')
         else:
             data['r'] = _prompt_float('r')
-            data['c'] = _prompt_float('c')
-            data['l'] = _prompt_float('l (use l-prime)')
         limit = input('heat_loss_limit_btu_h [optional]: ').strip()
         if limit:
             data['heat_loss_limit_btu_h'] = float(limit)

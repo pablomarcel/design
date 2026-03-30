@@ -61,6 +61,7 @@ class BearingInputs:
     dj: Optional[float] = None
     db: Optional[float] = None
     l_prime: Optional[float] = None
+    l_prime_over_d: Optional[float] = None
 
     @property
     def d(self) -> float:
@@ -83,6 +84,19 @@ class BearingInputs:
     def l_over_d(self) -> float:
         return self.l / self.d
 
+    @property
+    def pressure_fed_l_over_d(self) -> float:
+        if self.l_prime_over_d is not None:
+            return self.l_prime_over_d
+        if self.l_prime is not None:
+            return self.l_prime / self.d
+        return self.l_over_d
+
+    @property
+    def pressure_fed_pressure(self) -> float:
+        lprime = self.l_prime if self.l_prime is not None else self.l
+        return self.W / (4.0 * self.r * lprime)
+
     @staticmethod
     def _maybe_float(value: Any) -> Optional[float]:
         if value in (None, ''):
@@ -103,6 +117,7 @@ class BearingInputs:
 
         dj = cls._maybe_float(data.get('dj'))
         db = cls._maybe_float(data.get('db'))
+        l_prime_over_d_raw = data.get('l_prime_over_d', data.get('lprime_over_d', data.get('l_over_d', None)))
         r_raw = data.get('r', None)
         c_raw = data.get('c', None)
         l_raw = data.get('l', data.get('l_prime', data.get('lprime', None)))
@@ -119,7 +134,7 @@ class BearingInputs:
         elif dj is not None and db is not None:
             c_val = (db - dj) / 2.0
         else:
-            raise ValueError("Input mapping must provide 'c' or both 'dj' and 'db'.")
+            raise ValueError("Input mapping must provide 'c'.")
 
         if l_raw in (None, ''):
             raise ValueError("Input mapping must provide 'l' or 'l_prime'.")
@@ -151,6 +166,7 @@ class BearingInputs:
             dj=dj,
             db=db,
             l_prime=float(l_raw) if data.get('l_prime', data.get('lprime', None)) not in (None, '') else None,
+            l_prime_over_d=float(l_prime_over_d_raw) if l_prime_over_d_raw not in (None, '') else None,
         )
 
     def validate_common(self) -> None:
@@ -429,10 +445,10 @@ class BaseProblem:
         }
         if self.inputs.dj is not None:
             data['dj'] = self.inputs.dj
-        if self.inputs.db is not None:
-            data['db'] = self.inputs.db
         if self.inputs.l_prime is not None:
             data['l_prime'] = self.inputs.l_prime
+        if self.inputs.l_prime_over_d is not None:
+            data['l_prime_over_d'] = self.inputs.l_prime_over_d
         if self.inputs.oil_grade is not None:
             data['oil_grade'] = self.inputs.oil_grade
         if self.inputs.inlet_temp_F is not None:
@@ -940,6 +956,7 @@ class SelfContainedSteadyStateProblem(BaseProblem):
         )
 
 
+
 class PressureFedCircumferentialProblem(BaseProblem):
     problem_name = 'pressure_fed_circumferential'
     title = 'Pressure-Fed Circumferential-Groove Bearing: Shigley Example 12-6 style iterative solution'
@@ -952,10 +969,28 @@ class PressureFedCircumferentialProblem(BaseProblem):
             raise ValueError('pressure_fed_circumferential requires sump_temp_F.')
         if inputs.Ps <= 0.0:
             raise ValueError('pressure_fed_circumferential requires Ps > 0.')
+        if inputs.c <= 0.0:
+            raise ValueError('pressure_fed_circumferential requires c > 0.')
+        if inputs.l_prime is None and inputs.l <= 0.0:
+            raise ValueError('pressure_fed_circumferential requires l_prime (or l used as l_prime).')
+        if inputs.l_prime_over_d is None:
+            raise ValueError('pressure_fed_circumferential requires l_prime_over_d as a given problem input.')
+        if inputs.l_prime_over_d <= 0.0:
+            raise ValueError('pressure_fed_circumferential requires l_prime_over_d > 0.')
+
+    def _pressure_fed_state_lookup_for_mu(self, mu: float) -> Tuple[DerivedState, InterpolationResult]:
+        state = DerivedState(
+            P=self.inputs.pressure_fed_pressure,
+            S=(self.inputs.r / self.inputs.c) ** 2 * (mu * self.inputs.N / self.inputs.pressure_fed_pressure),
+            l_over_d=self.inputs.pressure_fed_l_over_d,
+            r_over_c=self.inputs.r / self.inputs.c,
+        )
+        lookup = self.table.epsilon_from_sommerfeld(state.l_over_d, state.S)
+        return state, lookup
 
     def _evaluate_trial(self, trial_temp_F: float) -> Dict[str, Any]:
         mu_trial = self.inputs.viscosity_from_temperature(trial_temp_F)
-        state, lookup = self._state_lookup_for_mu(mu_trial)
+        state, lookup = self._pressure_fed_state_lookup_for_mu(mu_trial)
         perf = self._performance_from_lookup(mu_trial, state, lookup)
         epsilon = lookup.epsilon
         fr_over_c = perf['fr_over_c']
@@ -963,7 +998,8 @@ class PressureFedCircumferentialProblem(BaseProblem):
         Tav_F = (self.inputs.sump_temp_F or 0.0) + delta_T_F / 2.0
         residual_F = Tav_F - trial_temp_F
         T_max_F = (self.inputs.sump_temp_F or 0.0) + delta_T_F
-        Qs = math.pi * self.inputs.Ps * self.inputs.r * (self.inputs.c ** 3) / (3.0 * mu_trial * self.inputs.l) * (1.0 + 1.5 * epsilon ** 2)
+        lprime = self.inputs.l_prime if self.inputs.l_prime is not None else self.inputs.l
+        Qs = math.pi * self.inputs.Ps * self.inputs.r * (self.inputs.c ** 3) / (3.0 * mu_trial * lprime) * (1.0 + 1.5 * epsilon ** 2)
         Hloss_btu_s = self.inputs.rho * self.inputs.cp * Qs * delta_T_F
         Hloss_btu_h = Hloss_btu_s * 3600.0
         torque_lbf_in = fr_over_c * self.inputs.W * self.inputs.c
@@ -1094,11 +1130,11 @@ class PressureFedCircumferentialProblem(BaseProblem):
             checks=checks,
             notes=[
                 'This route implements the pressure-fed circumferential-groove bearing workflow from Shigley Sec. 12-11 and Example 12-6.',
+                'Clearance c is treated as a direct given input. The bushing diameter db is not required for the route.',
+                'The characteristic load pressure uses Shigley Eq. (12-23): P_st = W / (4 r l_prime).',
+                'The table lookup uses l_prime_over_d as a direct given ratio, rather than deriving it from geometry.',
                 'The iterative closure condition is T_trial = T_av, where T_av = T_s + DeltaT/2.',
-                'DeltaT uses Shigley Eq. (12-24) in ips form.',
-                'Side flow uses Shigley Eq. (12-22) with l interpreted as l-prime, the half-bearing length.',
-                'Characteristic load pressure P_st uses Shigley Eq. (12-23): P = W / (4 r l-prime).',
-                'Total peak pressure includes supply pressure via the existing dimensionless-pressure calculation plus Ps.',
+                'DeltaT uses Shigley Eq. (12-24) in ips form, and side flow uses Shigley Eq. (12-22).',
             ],
             iteration_history=iteration_history,
         )

@@ -4,8 +4,9 @@
     "oil_grade": "20",
     "Ps": 30.0,
     "dj": 1.75,
-    "db": 1.753,
+    "c": 0.0015,
     "l_prime": 0.875,
+    "l_prime_over_d": 0.5,
     "N": 50.0,
     "W": 900.0,
     "sump_temp_F": 120.0,
@@ -18,8 +19,9 @@
     "max_iter": 60,
     "notes": [
       "Shigley Example 12-6 pressure-fed circumferential-groove bearing.",
-      "The half-bearing length l-prime is used as the effective length in the pressure-fed equations.",
-      "dj and db are supplied so the app computes r and c automatically."
+      "Clearance c is provided directly as a given; db is not needed.",
+      "The lookup ratio l_prime_over_d is provided directly as a given problem parameter.",
+      "P_st should follow Shigley Eq. (12-23): W / (4 r l_prime)."
     ]
   }
 }

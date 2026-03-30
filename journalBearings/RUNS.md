@@ -133,15 +133,16 @@ This route:
 
 ## Pressure-fed circumferential-groove bearing — Shigley Example 12-6 style
 
-Using `dj`, `db`, and `l-prime` directly:
+Clearance `c` and ratio `l'/d` are treated as direct givens.
 
 ```bash
 python -m cli pressure_fed_circumferential \
   --oil-grade 20 \
   --Ps 30 \
   --dj 1.750 \
-  --db 1.753 \
+  --c 0.0015 \
   --l-prime 0.875 \
+  --l-prime-over-d 0.5 \
   --N 50 \
   --W 900 \
   --sump-temp-f 120 \
@@ -156,10 +157,12 @@ python -m cli pressure_fed_circumferential \
 
 This route:
 
-- uses `l` as `l-prime`, the half-bearing length
+- uses the direct-given clearance `c`
+- uses the direct-given ratio `l'/d` for table lookup
+- uses Shigley Eq. (12-23) for `P_st = W / (4 r l')`
 - iterates on trial average film temperature until `T_trial ≈ T_av`
 - computes `mu` from the SAE correlation at each trial temperature
-- computes `S`, `epsilon`, and `(fr/c)` from the finite-bearing dataset using `l'/d`
+- computes `S`, `epsilon`, and `(fr/c)` from the finite-bearing dataset using the given `l'/d`
 - computes `DeltaT_F` with Shigley Eq. (12-24)
 - computes `h_min`, `T_max`, `P_st`, `Q_s`, `H_loss`, and friction torque after convergence
 
