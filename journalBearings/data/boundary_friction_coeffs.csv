@@ -1,0 +1,8 @@
+type,bearing,friction_coefficient_fs
+Plastic,Oiles 80,0.05
+Composite,Drymet ST,0.03
+Composite,Toughmet,0.05
+Metal,Cermet M,0.05
+Metal,Oiles 2000,0.03
+Metal,Oiles 300,0.03
+Metal,Oiles 500SP,0.03

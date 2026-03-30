@@ -1,0 +1,13 @@
+bushing_material,wear_factor_K_in3_min_per_lbf_ft_h,limiting_pv_psi_fpm
+Oiles 800,3e-10,18000
+Oiles 500,6e-11,46700
+Polyacetal copolymer,5e-09,5000
+Polyacetal homopolymer,6e-09,3000
+66 nylon,2e-08,2000
+66 nylon + 15% PTFE,1.3e-09,7000
+66 nylon + 15% PTFE + 30% glass,1.6e-09,10000
+66 nylon + 2.5% MoS2,2e-08,2000
+6 nylon,2e-08,2000
+Polycarbonate + 15% PTFE,7.5e-09,7000
+Sintered bronze,1.02e-08,8500
+Phenol + 25% glass fiber,8e-10,11500

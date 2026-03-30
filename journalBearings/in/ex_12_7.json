@@ -1,0 +1,15 @@
+{
+  "problem": "boundary_lubricated_bearing",
+  "inputs": {
+    "bearing_model": "oiles_500_sp",
+    "dj": 1.0,
+    "l": 1.0,
+    "ambient_temp_F": 70.0,
+    "foreign_matter": false,
+    "allowable_wear_in": 0.005,
+    "W": 700.0,
+    "peripheral_velocity_fpm": 33.0,
+    "motion_type": "rotary",
+    "unit_system": "ips"
+  }
+}

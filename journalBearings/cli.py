@@ -85,6 +85,28 @@ def _add_pressure_fed_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument('--outfile', help='Optional JSON output file.')
 
 
+
+
+def _add_boundary_lubricated_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument('--bearing-model', required=True, help='Boundary-lubricated bearing model, e.g. oiles_500_sp.')
+    parser.add_argument('--length', '--l', dest='length', type=float, required=True, help='Bearing length in inches.')
+    parser.add_argument('--bore', '--dj', dest='bore', type=float, required=True, help='Bore diameter in inches.')
+    parser.add_argument('--ambient-temp-f', type=float, required=True, help='Ambient temperature in degrees F.')
+    parser.add_argument('--foreign-matter', action='store_true', help='Set when foreign matter is present in the environment.')
+    parser.add_argument('--allowable-wear-in', type=float, required=True, help='Allowable radial wear in inches.')
+    parser.add_argument('--radial-load-lbf', '--W', dest='radial_load_lbf', type=float, required=True, help='Radial load in lbf.')
+    parser.add_argument('--velocity-fpm', '--peripheral-velocity-fpm', dest='velocity_fpm', type=float, required=True, help='Peripheral velocity in ft/min.')
+    parser.add_argument('--motion-type', default='rotary', choices=['rotary', 'oscillatory', 'reciprocating'], help='Mode of motion for Table 12-10.')
+    parser.add_argument('--oscillation-angle-band', choices=['>30', '<30'], help='Required for oscillatory motion.')
+    parser.add_argument('--outfile', help='Optional JSON output file.')
+    parser.add_argument(
+        '--unit-system',
+        default='ips',
+        choices=['ips', 'custom'],
+        help='ips is the current reference system for convenience outputs.',
+    )
+
+
 def _common_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         'mu': args.mu,
@@ -127,6 +149,29 @@ def _self_contained_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]
         'max_iter': args.max_iter,
     }
 
+
+
+
+
+def _boundary_lubricated_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        'bearing_model': args.bearing_model,
+        'dj': args.bore,
+        'l': args.length,
+        'ambient_temp_F': args.ambient_temp_f,
+        'foreign_matter': args.foreign_matter,
+        'allowable_wear_in': args.allowable_wear_in,
+        'W': args.radial_load_lbf,
+        'peripheral_velocity_fpm': args.velocity_fpm,
+        'motion_type': args.motion_type,
+        'oscillation_angle_band': args.oscillation_angle_band,
+        'unit_system': args.unit_system,
+        'r': args.bore / 2.0,
+        'c': 1.0,
+        'N': 1.0,
+        'mu': None,
+        'Ps': 0.0,
+    }
 
 
 def _pressure_fed_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
@@ -189,6 +234,9 @@ def build_parser() -> argparse.ArgumentParser:
     ppf = sub.add_parser('pressure_fed_circumferential', help='Solve Shigley pressure-fed circumferential-groove bearing problems like Example 12-6.')
     _add_pressure_fed_args(ppf)
 
+    pbl = sub.add_parser('boundary_lubricated_bearing', help='Solve Shigley boundary-lubricated bearing problems like Example 12-7.')
+    _add_boundary_lubricated_args(pbl)
+
     prun = sub.add_parser('run', help='Solve a problem from an input JSON file.')
     prun.add_argument('--infile', required=True, help='Input JSON file in the in/ folder or any path.')
     prun.add_argument('--outfile', help='Output JSON filename or path.')
@@ -204,6 +252,7 @@ def _menu_problem_choice() -> str:
         '5': 'temperature_rise',
         '6': 'self_contained_steady_state',
         '7': 'pressure_fed_circumferential',
+        '8': 'boundary_lubricated_bearing',
     }
     print('\nJournal Bearings Menu')
     print('  1) minimum film thickness')
@@ -213,8 +262,9 @@ def _menu_problem_choice() -> str:
     print('  5) temperature rise')
     print('  6) self-contained steady state')
     print('  7) pressure-fed circumferential groove bearing')
+    print('  8) boundary-lubricated bearing')
     while True:
-        choice = input('Choose an option [1-7]: ').strip()
+        choice = input('Choose an option [1-8]: ').strip()
         if choice in options:
             return options[choice]
         print('Invalid option. Try again.')
@@ -251,6 +301,27 @@ def _interactive_common_inputs(problem: str) -> Dict[str, Any]:
             'temp_tol_F': _prompt_float('temp_tol_F', 2.0),
             'max_iter': int(_prompt_float('max_iter', 60)),
         }
+
+    if problem == 'boundary_lubricated_bearing':
+        print('\nEnter the boundary-lubricated bearing givens.')
+        unit_system = input('unit system [default ips]: ').strip().lower() or 'ips'
+        data: Dict[str, Any] = {
+            'bearing_model': input('bearing_model [e.g. oiles_500_sp]: ').strip(),
+            'dj': _prompt_float('bore'),
+            'l': _prompt_float('length'),
+            'ambient_temp_F': _prompt_float('ambient_temp_F'),
+            'allowable_wear_in': _prompt_float('allowable_wear_in'),
+            'W': _prompt_float('radial_load_lbf'),
+            'peripheral_velocity_fpm': _prompt_float('velocity_fpm'),
+            'motion_type': input('motion_type [rotary/oscillatory/reciprocating] [default rotary]: ').strip().lower() or 'rotary',
+            'unit_system': unit_system,
+        }
+        fm = input('foreign matter present? [y/N]: ').strip().lower()
+        data['foreign_matter'] = fm in {'y', 'yes', 'true', '1'}
+        if data['motion_type'] == 'oscillatory':
+            data['oscillation_angle_band'] = input('oscillation_angle_band [>30 or <30]: ').strip()
+        data['r'] = data['dj'] / 2.0
+        return data
 
     if problem == 'pressure_fed_circumferential':
         print('\nEnter the pressure-fed circumferential-groove bearing givens.')
@@ -339,6 +410,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         result = api.solve_problem(problem=problem, inputs=_self_contained_inputs_from_args(args))
     elif problem == 'pressure_fed_circumferential':
         result = api.solve_problem(problem=problem, inputs=_pressure_fed_inputs_from_args(args))
+    elif problem == 'boundary_lubricated_bearing':
+        result = api.solve_problem(problem=problem, inputs=_boundary_lubricated_inputs_from_args(args))
     else:
         result = api.solve_problem(problem=problem, inputs=_common_inputs_from_args(args))
     _render_and_write(renderer, result, args.outfile)

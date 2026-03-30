@@ -1,0 +1,46 @@
+{
+  "service_range": {
+    "characteristic_pressure_pmax_psi": 3560.0,
+    "velocity_vmax_fpm": 100.0,
+    "pv_product_max_psi_fpm": 46700.0,
+    "temperature_max_F": 300.0
+  },
+  "properties": [
+    {
+      "name": "Tensile strength",
+      "units": "psi",
+      "value": ">110000",
+      "test_method": "ASTM E8"
+    },
+    {
+      "name": "Elongation",
+      "units": "%",
+      "value": ">12",
+      "test_method": "ASTM E8"
+    },
+    {
+      "name": "Compressive strength",
+      "units": "psi",
+      "value": "49770",
+      "test_method": "ASTM E9"
+    },
+    {
+      "name": "Brinell hardness",
+      "units": "HB",
+      "value": ">210",
+      "test_method": "ASTM E10"
+    },
+    {
+      "name": "Coefficient of thermal expansion",
+      "units": "(10^-5) C",
+      "value": ">1.6",
+      "test_method": ""
+    },
+    {
+      "name": "Specific gravity",
+      "units": "",
+      "value": "8.2",
+      "test_method": ""
+    }
+  ]
+}

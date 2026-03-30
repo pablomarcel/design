@@ -10,6 +10,7 @@ Current scope:
     - temperature rise with iterative viscosity update
     - self-contained bearing steady-state solution
     - pressure-fed circumferential-groove bearings
+    - boundary-lubricated bearings
 """
 
 __all__ = [
@@ -21,4 +22,4 @@ __all__ = [
     'utils',
 ]
 
-__version__ = '0.7.1'
+__version__ = '0.8.0'

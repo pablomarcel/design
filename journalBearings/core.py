@@ -4,6 +4,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Tuple, Optional
 import csv
+import json
 import math
 
 from utils import normalize_oil_grade, safe_float
@@ -63,6 +64,15 @@ class BearingInputs:
     l_prime: Optional[float] = None
     l_prime_over_d: Optional[float] = None
 
+    bearing_model: Optional[str] = None
+    environment: Optional[str] = None
+    foreign_matter: Optional[bool] = None
+    allowable_wear_in: Optional[float] = None
+    peripheral_velocity_fpm: Optional[float] = None
+    motion_type: Optional[str] = None
+    oscillation_angle_band: Optional[str] = None
+    material: Optional[str] = None
+
     @property
     def d(self) -> float:
         return 2.0 * self.r
@@ -107,6 +117,16 @@ class BearingInputs:
     def from_mapping(cls, data: Dict[str, object]) -> 'BearingInputs':
         oil_grade_raw = data.get('oil_grade')
         oil_grade = None if oil_grade_raw in (None, '') else normalize_oil_grade(str(oil_grade_raw))
+        bearing_model_raw = data.get('bearing_model')
+        bearing_model = None if bearing_model_raw in (None, '') else str(bearing_model_raw).strip()
+        environment_raw = data.get('environment')
+        environment = None if environment_raw in (None, '') else str(environment_raw).strip()
+        motion_type_raw = data.get('motion_type', data.get('mode_of_motion', None))
+        motion_type = None if motion_type_raw in (None, '') else str(motion_type_raw).strip()
+        osc_band_raw = data.get('oscillation_angle_band', None)
+        oscillation_angle_band = None if osc_band_raw in (None, '') else str(osc_band_raw).strip()
+        material_raw = data.get('material')
+        material = None if material_raw in (None, '') else str(material_raw).strip()
         inlet_temp_raw = data.get('inlet_temp_F', data.get('Tin_F', None))
         ambient_temp_raw = data.get('ambient_temp_F', data.get('T_inf_F', data.get('air_temp_F', None)))
         sump_temp_raw = data.get('sump_temp_F', data.get('Ts_F', data.get('supply_temp_F', None)))
@@ -167,6 +187,14 @@ class BearingInputs:
             db=db,
             l_prime=float(l_raw) if data.get('l_prime', data.get('lprime', None)) not in (None, '') else None,
             l_prime_over_d=float(l_prime_over_d_raw) if l_prime_over_d_raw not in (None, '') else None,
+            bearing_model=bearing_model,
+            environment=environment,
+            foreign_matter=(str(data.get('foreign_matter')).strip().lower() in {'1','true','yes','y'}) if data.get('foreign_matter') not in (None, '') else None,
+            allowable_wear_in=float(data.get('allowable_wear_in')) if data.get('allowable_wear_in') not in (None, '') else None,
+            peripheral_velocity_fpm=float(data.get('peripheral_velocity_fpm', data.get('V'))) if data.get('peripheral_velocity_fpm', data.get('V')) not in (None, '') else None,
+            motion_type=motion_type,
+            oscillation_angle_band=oscillation_angle_band,
+            material=material,
         )
 
     def validate_common(self) -> None:
@@ -465,6 +493,22 @@ class BaseProblem:
             data['h_cr'] = self.inputs.h_cr
         if self.inputs.heat_loss_limit_btu_h is not None:
             data['heat_loss_limit_btu_h'] = self.inputs.heat_loss_limit_btu_h
+        if self.inputs.bearing_model is not None:
+            data['bearing_model'] = self.inputs.bearing_model
+        if self.inputs.environment is not None:
+            data['environment'] = self.inputs.environment
+        if self.inputs.foreign_matter is not None:
+            data['foreign_matter'] = self.inputs.foreign_matter
+        if self.inputs.allowable_wear_in is not None:
+            data['allowable_wear_in'] = self.inputs.allowable_wear_in
+        if self.inputs.peripheral_velocity_fpm is not None:
+            data['peripheral_velocity_fpm'] = self.inputs.peripheral_velocity_fpm
+        if self.inputs.motion_type is not None:
+            data['motion_type'] = self.inputs.motion_type
+        if self.inputs.oscillation_angle_band is not None:
+            data['oscillation_angle_band'] = self.inputs.oscillation_angle_band
+        if self.inputs.material is not None:
+            data['material'] = self.inputs.material
         if self.inputs.rho != 0.0315:
             data['rho'] = self.inputs.rho
         if self.inputs.cp != 0.48:
@@ -1140,6 +1184,229 @@ class PressureFedCircumferentialProblem(BaseProblem):
         )
 
 
+
+
+class BoundaryLubricatedData:
+    def __init__(self, data_dir: str | Path):
+        self.data_dir = Path(data_dir)
+        self.table_12_7 = self._read_csv('boundary_material_limits.csv')
+        self.table_12_8 = self._read_csv('boundary_wear_factors.csv')
+        self.table_12_9 = self._read_csv('boundary_friction_coeffs.csv')
+        self.table_12_10 = self._read_csv('motion_factor_f1.csv')
+        self.table_12_11 = self._read_csv('environmental_factor_f2.csv')
+        self.oiles_500_sp = json.loads((self.data_dir / 'oiles_500_sp.json').read_text(encoding='utf-8'))
+
+        self.model_catalog = {
+            'oiles_500_sp': {
+                'wear_factor_material': 'Oiles 500',
+                'friction_bearing': 'Oiles 500SP',
+                'service_data': 'oiles_500_sp',
+                'display_name': 'Oiles 500 SP',
+            }
+        }
+
+    def _read_csv(self, name: str) -> List[Dict[str, Any]]:
+        path = self.data_dir / name
+        rows: List[Dict[str, Any]] = []
+        with path.open('r', encoding='utf-8', newline='') as f:
+            reader = csv.DictReader(f)
+            for raw in reader:
+                row: Dict[str, Any] = {}
+                for k, v in raw.items():
+                    if isinstance(v, list):
+                        v = ' '.join(str(x) for x in v if x not in (None, ''))
+                    if v in ('', None):
+                        row[k] = None
+                    else:
+                        sv = str(v).strip()
+                        try:
+                            row[k] = float(sv)
+                        except ValueError:
+                            row[k] = sv
+                rows.append(row)
+        return rows
+
+    def _norm(self, s: str) -> str:
+        return str(s).strip().lower().replace(' ', '_').replace('-', '_')
+
+    def lookup_model(self, model: str) -> Dict[str, Any]:
+        key = self._norm(model)
+        if key not in self.model_catalog:
+            known = ', '.join(sorted(self.model_catalog))
+            raise ValueError(f"Unsupported bearing_model '{model}'. Known models: {known}")
+        return self.model_catalog[key]
+
+    def lookup_wear_factor(self, material_name: str) -> Dict[str, Any]:
+        target = self._norm(material_name)
+        for row in self.table_12_8:
+            if self._norm(str(row['bushing_material'])) == target:
+                return row
+        raise ValueError(f"No Table 12-8 wear-factor row found for material '{material_name}'.")
+
+    def lookup_friction_coeff(self, bearing_name: str) -> Dict[str, Any]:
+        target = self._norm(bearing_name)
+        for row in self.table_12_9:
+            if self._norm(str(row['bearing'])) == target:
+                return row
+        raise ValueError(f"No Table 12-9 friction row found for bearing '{bearing_name}'.")
+
+    def lookup_motion_factor(self, mode_of_motion: str, pressure_psi: float, velocity_fpm: float, oscillation_angle_band: Optional[str] = None) -> Dict[str, Any]:
+        mode = self._norm(mode_of_motion)
+        matches: List[Dict[str, Any]] = []
+        for row in self.table_12_10:
+            if self._norm(str(row['mode_of_motion'])) != mode:
+                continue
+            pb = str(row['pressure_band'])
+            if pb == '720_or_less' and not (pressure_psi <= 720.0):
+                continue
+            if pb == '720_to_3600' and not (720.0 < pressure_psi <= 3600.0):
+                continue
+            if mode == 'oscillatory':
+                band = row['oscillation_angle_band']
+                if band is not None and self._norm(str(band)) != self._norm(str(oscillation_angle_band or '')):
+                    continue
+            vmin = float(row['velocity_min_fpm'])
+            vmax = float(row['velocity_max_fpm'])
+            if velocity_fpm < vmin:
+                continue
+            upper_ok = velocity_fpm <= vmax or math.isclose(velocity_fpm, vmax, abs_tol=1e-12)
+            if not upper_ok:
+                continue
+            matches.append(row)
+        if not matches:
+            raise ValueError('No Table 12-10 motion-factor row matches the supplied motion, pressure, and velocity.')
+        row = matches[0]
+        return row
+
+    def lookup_environment_factor(self, ambient_temp_F: float, foreign_matter: bool) -> Dict[str, Any]:
+        for row in self.table_12_11:
+            lo = float(row['ambient_temp_min_F']) if row['ambient_temp_min_F'] is not None else float('-inf')
+            hi = float(row['ambient_temp_max_F']) if row['ambient_temp_max_F'] is not None else float('inf')
+            temp_ok = (lo <= ambient_temp_F <= hi) if lo == 0.0 else (lo < ambient_temp_F <= hi)
+            if not temp_ok:
+                continue
+            if self._norm(str(row['foreign_matter'])) != ('yes' if foreign_matter else 'no'):
+                continue
+            return row
+        raise ValueError('No Table 12-11 environmental-factor row matches the supplied ambient temperature and foreign-matter condition.')
+
+    def lookup_service_range(self, service_key: str) -> Dict[str, Any]:
+        if service_key == 'oiles_500_sp':
+            return self.oiles_500_sp['service_range']
+        raise ValueError(f"Unsupported service-range data key '{service_key}'.")
+
+
+class BoundaryLubricatedBearingProblem(BaseProblem):
+    problem_name = 'boundary_lubricated_bearing'
+    title = 'Boundary-Lubricated Bearing: Shigley Example 12-7 style wear-life evaluation'
+
+    def __init__(self, inputs: BearingInputs, table: FiniteJournalBearingTable):
+        original_mu = inputs.mu
+        inputs.mu = None
+        super().__init__(inputs, table)
+        inputs.mu = original_mu
+        if inputs.bearing_model is None:
+            raise ValueError('boundary_lubricated_bearing requires bearing_model.')
+        if inputs.l <= 0.0:
+            raise ValueError('boundary_lubricated_bearing requires l > 0.')
+        if inputs.d <= 0.0:
+            raise ValueError('boundary_lubricated_bearing requires a valid bore diameter via r or dj.')
+        if inputs.allowable_wear_in is None or inputs.allowable_wear_in <= 0.0:
+            raise ValueError('boundary_lubricated_bearing requires allowable_wear_in > 0.')
+        if inputs.peripheral_velocity_fpm is None or inputs.peripheral_velocity_fpm <= 0.0:
+            raise ValueError('boundary_lubricated_bearing requires peripheral_velocity_fpm > 0.')
+        if inputs.ambient_temp_F is None:
+            raise ValueError('boundary_lubricated_bearing requires ambient_temp_F.')
+        if inputs.foreign_matter is None:
+            raise ValueError('boundary_lubricated_bearing requires foreign_matter (true/false).')
+        if inputs.motion_type is None:
+            raise ValueError('boundary_lubricated_bearing requires motion_type.')
+        self.boundary_db = BoundaryLubricatedData(Path(__file__).resolve().parent / 'data')
+
+    def solve(self) -> SolveResult:
+        model_info = self.boundary_db.lookup_model(self.inputs.bearing_model or '')
+        wear_row = self.boundary_db.lookup_wear_factor(model_info['wear_factor_material'])
+        friction_row = self.boundary_db.lookup_friction_coeff(model_info['friction_bearing'])
+        D = self.inputs.d
+        L = self.inputs.l
+        F = self.inputs.W
+        V = self.inputs.peripheral_velocity_fpm or 0.0
+        P_nom = F / (D * L)
+        PV = P_nom * V
+        P_max = 4.0 * F / (math.pi * D * L)
+        motion_row = self.boundary_db.lookup_motion_factor(
+            self.inputs.motion_type or '',
+            P_nom,
+            V,
+            self.inputs.oscillation_angle_band,
+        )
+        f1 = motion_row['f1_max'] if motion_row['f1_min'] != motion_row['f1_max'] else motion_row['f1_min']
+        env_row = self.boundary_db.lookup_environment_factor(self.inputs.ambient_temp_F or 0.0, bool(self.inputs.foreign_matter))
+        f2 = env_row['f2_max'] if env_row['f2_min'] != env_row['f2_max'] else env_row['f2_min']
+        service = self.boundary_db.lookup_service_range(model_info['service_data'])
+        K = wear_row['wear_factor_K_in3_min_per_lbf_ft_h']
+        t_hours = math.pi * D * L * (self.inputs.allowable_wear_in or 0.0) / (4.0 * f1 * f2 * K * V * F)
+        t_minutes = 60.0 * t_hours
+        N_rpm = 12.0 * V / (math.pi * D)
+        cycles = N_rpm * t_minutes
+        fs = friction_row['friction_coefficient_fs']
+        return SolveResult(
+            problem=self.problem_name,
+            title=self.title,
+            inputs=self.base_inputs(),
+            derived={
+                'nominal_pressure_P_psi': P_nom,
+                'peripheral_velocity_V_fpm': V,
+                'pv_product_psi_fpm': PV,
+                'shaft_speed_rpm': N_rpm,
+                'l_over_d': L / D,
+            },
+            table_lookup={
+                'table_12_8_material': wear_row['bushing_material'],
+                'table_12_8_K': K,
+                'table_12_10_mode': motion_row['mode_of_motion'],
+                'table_12_10_pressure_band': motion_row['pressure_band'],
+                'table_12_10_velocity_min_fpm': motion_row['velocity_min_fpm'],
+                'table_12_10_velocity_max_fpm': motion_row['velocity_max_fpm'],
+                'table_12_11_foreign_matter': env_row['foreign_matter'],
+                'table_12_12_model': model_info['display_name'],
+            },
+            interpolated_dimensionless={},
+            outputs={
+                'friction_coefficient_fs': fs,
+                'wear_factor_K': K,
+                'f1': f1,
+                'f2': f2,
+                'P_max_psi': P_max,
+                'P_nominal_psi': P_nom,
+                'V_fpm': V,
+                'PV_psi_fpm': PV,
+                'allowable_P_max_psi': service['characteristic_pressure_pmax_psi'],
+                'allowable_V_max_fpm': service['velocity_vmax_fpm'],
+                'allowable_PV_max_psi_fpm': service['pv_product_max_psi_fpm'],
+                'allowable_temperature_max_F': service['temperature_max_F'],
+                'wear_depth_in': self.inputs.allowable_wear_in,
+                'time_to_wear_h': t_hours,
+                'time_to_wear_min': t_minutes,
+                'cycles_revolutions': cycles,
+            },
+            checks={
+                'P_max_within_allowable': P_max <= service['characteristic_pressure_pmax_psi'],
+                'V_within_allowable': V <= service['velocity_vmax_fpm'],
+                'PV_within_allowable': PV <= service['pv_product_max_psi_fpm'],
+                'recommended_L_over_D_range': 0.5 <= (L / D) <= 2.0,
+            },
+            notes=[
+                'This route implements Shigley Sec. 12-15 boundary-lubricated bearing sizing and life checks for Example 12-7 type problems.',
+                'Nominal pressure uses Eq. (12-28): P = F / (D L).',
+                'Maximum pressure uses Eq. (12-31): P_max = 4 F / (pi D L).',
+                'Wear depth uses Eq. (12-32), solved for time: t = pi D L w / (4 f1 f2 K V F).',
+                'Cycles are computed from shaft speed N = 12 V / (pi D) and total time in minutes.',
+                'For tabulated factor ranges, this route conservatively uses the upper value for f1 and f2.',
+            ],
+            iteration_history=[],
+        )
+
 PROBLEM_REGISTRY = {
     'minimum_film_thickness': MinimumFilmThicknessProblem,
     'coefficient_of_friction': CoefficientOfFrictionProblem,
@@ -1148,4 +1415,5 @@ PROBLEM_REGISTRY = {
     'temperature_rise': TemperatureRiseProblem,
     'self_contained_steady_state': SelfContainedSteadyStateProblem,
     'pressure_fed_circumferential': PressureFedCircumferentialProblem,
+    'boundary_lubricated_bearing': BoundaryLubricatedBearingProblem,
 }

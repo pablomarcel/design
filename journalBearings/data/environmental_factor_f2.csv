@@ -1,0 +1,5 @@
+ambient_temp_min_F,ambient_temp_max_F,foreign_matter,f2_min,f2_max
+0.0,140.0,no,1.0,1.0
+0.0,140.0,yes,3.0,6.0
+140.0,210.0,no,3.0,6.0
+140.0,210.0,yes,6.0,12.0

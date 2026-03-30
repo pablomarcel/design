@@ -1,0 +1,13 @@
+material,max_load_psi,max_temp_F,max_speed_fpm,max_pv_psi_fpm
+Cast bronze,4500,325,1500,50000
+Porous bronze,4500,150,1500,50000
+Porous iron,8000,150,800,50000
+Phenolics,6000,200,2500,15000
+Nylon,1000,200,1000,3000
+Teflon,500,500,100,1000
+Reinforced Teflon,2500,500,1000,10000
+Teflon fabric,60000,500,50,25000
+Delrin,1000,180,1000,3000
+Carbon-graphite,600,750,2500,15000
+Rubber,50,150,4000,
+Wood,2000,150,2000,15000
