@@ -23,19 +23,19 @@ def to_plain_data(obj: Any) -> Any:
 def dump_json(data: Any, path: str | Path) -> None:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    with path.open("w", encoding="utf-8") as f:
+    with path.open('w', encoding='utf-8') as f:
         json.dump(to_plain_data(data), f, indent=2, sort_keys=False)
-        f.write("\n")
+        f.write('\n')
 
 
 def load_json(path: str | Path) -> Dict[str, Any]:
-    with Path(path).open("r", encoding="utf-8") as f:
+    with Path(path).open('r', encoding='utf-8') as f:
         return json.load(f)
 
 
 def fmt(x: Any, digits: int = 6) -> str:
     if x is None:
-        return "-"
+        return '-'
     if isinstance(x, bool):
         return str(x)
     if isinstance(x, int):
@@ -44,7 +44,7 @@ def fmt(x: Any, digits: int = 6) -> str:
         if math.isnan(x) or math.isinf(x):
             return str(x)
         if abs(x) < 1e8:
-            return f"{x:.{digits}f}".rstrip("0").rstrip(".")
+            return f"{x:.{digits}f}".rstrip('0').rstrip('.')
         return f"{x:.6e}"
     return str(x)
 
@@ -57,38 +57,46 @@ def safe_float(value: Any, field_name: str) -> float:
 
 
 def normalize_problem_name(name: str) -> str:
-    key = str(name).strip().lower().replace("-", "_").replace(" ", "_")
+    key = str(name).strip().lower().replace('-', '_').replace(' ', '_')
     aliases = {
-        "12_1": "minimum_film_thickness",
-        "12_2": "coefficient_of_friction",
-        "12_3": "volumetric_flow_rate",
-        "12_4": "maximum_film_pressure",
-        "12_5": "self_contained_steady_state",
-        "example_12_1": "minimum_film_thickness",
-        "example_12_2": "coefficient_of_friction",
-        "example_12_3": "volumetric_flow_rate",
-        "example_12_4": "maximum_film_pressure",
-        "example_12_5": "self_contained_steady_state",
-        "minimumfilmthickness": "minimum_film_thickness",
-        "coefficientoffriction": "coefficient_of_friction",
-        "volumetricflowrate": "volumetric_flow_rate",
-        "maximumfilmpressure": "maximum_film_pressure",
-        "selfcontainedsteadystate": "self_contained_steady_state",
-        "self_contained": "self_contained_steady_state",
-        "steady_state_self_contained": "self_contained_steady_state",
-        "steady_state_conditions_in_self_contained_bearings": "self_contained_steady_state",
-        "temperaturerise": "temperature_rise",
-        "temp_rise": "temperature_rise",
-        "temperature": "temperature_rise",
-        "friction": "coefficient_of_friction",
-        "flow": "volumetric_flow_rate",
-        "pressure": "maximum_film_pressure",
+        '12_1': 'minimum_film_thickness',
+        '12_2': 'coefficient_of_friction',
+        '12_3': 'volumetric_flow_rate',
+        '12_4': 'maximum_film_pressure',
+        '12_5': 'self_contained_steady_state',
+        '12_6': 'pressure_fed_circumferential',
+        'example_12_1': 'minimum_film_thickness',
+        'example_12_2': 'coefficient_of_friction',
+        'example_12_3': 'volumetric_flow_rate',
+        'example_12_4': 'maximum_film_pressure',
+        'example_12_5': 'self_contained_steady_state',
+        'example_12_6': 'pressure_fed_circumferential',
+        'minimumfilmthickness': 'minimum_film_thickness',
+        'coefficientoffriction': 'coefficient_of_friction',
+        'volumetricflowrate': 'volumetric_flow_rate',
+        'maximumfilmpressure': 'maximum_film_pressure',
+        'selfcontainedsteadystate': 'self_contained_steady_state',
+        'self_contained': 'self_contained_steady_state',
+        'steady_state_self_contained': 'self_contained_steady_state',
+        'steady_state_conditions_in_self_contained_bearings': 'self_contained_steady_state',
+        'temperaturerise': 'temperature_rise',
+        'temp_rise': 'temperature_rise',
+        'temperature': 'temperature_rise',
+        'pressure_fed': 'pressure_fed_circumferential',
+        'pressurefed': 'pressure_fed_circumferential',
+        'pressure_fed_bearing': 'pressure_fed_circumferential',
+        'pressure_fed_bearings': 'pressure_fed_circumferential',
+        'pressure_fed_circumferential_bearing': 'pressure_fed_circumferential',
+        'circumferential_pressure_fed': 'pressure_fed_circumferential',
+        'friction': 'coefficient_of_friction',
+        'flow': 'volumetric_flow_rate',
+        'pressure': 'maximum_film_pressure',
     }
     return aliases.get(key, key)
 
 
 def normalize_oil_grade(name: str) -> str:
     raw = str(name).strip().lower()
-    raw = raw.replace("sae", "").strip()
-    raw = re.sub(r"\s+", "", raw)
+    raw = raw.replace('sae', '').strip()
+    raw = re.sub(r'\s+', '', raw)
     return raw

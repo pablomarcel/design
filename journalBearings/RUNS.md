@@ -131,6 +131,38 @@ This route:
 - iterates on average film temperature until the heat-balance bracket is within `temp_tol_F`
 - reports steady-state temperatures, friction, and minimum film thickness
 
+## Pressure-fed circumferential-groove bearing — Shigley Example 12-6 style
+
+Using `dj`, `db`, and `l-prime` directly:
+
+```bash
+python -m cli pressure_fed_circumferential \
+  --oil-grade 20 \
+  --Ps 30 \
+  --dj 1.750 \
+  --db 1.753 \
+  --l-prime 0.875 \
+  --N 50 \
+  --W 900 \
+  --sump-temp-f 120 \
+  --rho 0.0311 \
+  --cp 0.42 \
+  --J 9336 \
+  --heat-loss-limit-btu-h 800 \
+  --temp-tol-f 0.5 \
+  --max-iter 60 \
+  --outfile out/ex_12_6_pressure_fed.json
+```
+
+This route:
+
+- uses `l` as `l-prime`, the half-bearing length
+- iterates on trial average film temperature until `T_trial ≈ T_av`
+- computes `mu` from the SAE correlation at each trial temperature
+- computes `S`, `epsilon`, and `(fr/c)` from the finite-bearing dataset using `l'/d`
+- computes `DeltaT_F` with Shigley Eq. (12-24)
+- computes `h_min`, `T_max`, `P_st`, `Q_s`, `H_loss`, and friction torque after convergence
+
 ## Menu mode
 
 ```bash
@@ -153,6 +185,14 @@ python -m cli run \
 python -m cli run \
   --infile in/ex_12_5.json \
   --outfile out/ex_12_5_out.json
+```
+
+## Example 12-6 from JSON
+
+```bash
+python -m cli run \
+  --infile in/ex_12_6.json \
+  --outfile out/ex_12_6_out.json
 ```
 
 The JSON supplies only the real bearing givens. No manual chart-entry block remains in this version.
