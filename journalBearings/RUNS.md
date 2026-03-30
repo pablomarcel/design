@@ -197,6 +197,23 @@ python -m cli boundary_lubricated_bearing \
   --outfile out/ex_12_7_boundary_dirty.json
 ```
 
+## Boundary Lubricated Bearings — Shigley Example 12-8 style - Temperature Rise
+
+```bash
+python -m cli boundary_lubricated_temperature_rise \
+  --bearing-model oiles_500_sp \
+  --ambient-temp-f 70 \
+  --allowable-wear-in 0.001 \
+  --hours-of-use 800 \
+  --rpm 300 \
+  --radial-load-lbf 50 \
+  --h-cr 2.7 \
+  --tmax-f 300 \
+  --design-factor 2.0 \
+  --motion-type rotary \
+  --outfile out/ex_12_8_boundary_temp_rise.json
+```
+
 ## Menu mode
 
 ```bash
@@ -237,7 +254,17 @@ python -m cli run \
   --outfile out/ex_12_7_out.json
 ```
 
+## Example 12-8 from JSON
+
+```bash
+python -m cli run \
+  --infile in/ex_12_8.json \
+  --outfile out/ex_12_8_out.json
+```
+
 The JSON supplies only the real bearing givens. No manual chart-entry block remains in this version.
+
+#### Examples from Applied Tribology by Khonsari 
 
 ## Example 8.2 minimum film thickness
 

@@ -24,6 +24,15 @@ class JournalBearingApp:
             data.setdefault('mu', None)
             data.setdefault('Ps', 0.0)
             data.setdefault('unit_system', 'ips')
+        if problem == 'boundary_lubricated_temperature_rise':
+            if 'dj' in data and 'r' not in data:
+                data['r'] = float(data['dj']) / 2.0
+            data.setdefault('r', 0.5)
+            data.setdefault('l', 1.0)
+            data.setdefault('c', 1.0)
+            data.setdefault('mu', None)
+            data.setdefault('Ps', 0.0)
+            data.setdefault('unit_system', 'ips')
         return data
 
     def solve(self, problem: str, inputs: Dict[str, Any]) -> Dict[str, Any]:

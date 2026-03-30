@@ -1,0 +1,17 @@
+{
+  "problem": "boundary_lubricated_temperature_rise",
+  "inputs": {
+    "bearing_model": "oiles_500_sp",
+    "ambient_temp_F": 70.0,
+    "foreign_matter": false,
+    "allowable_wear_in": 0.001,
+    "hours_of_use": 800.0,
+    "N": 300.0,
+    "W": 50.0,
+    "h_cr": 2.7,
+    "Tmax_F": 300.0,
+    "design_factor": 2,
+    "motion_type": "rotary",
+    "unit_system": "ips"
+  }
+}

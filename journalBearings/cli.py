@@ -174,6 +174,53 @@ def _boundary_lubricated_inputs_from_args(args: argparse.Namespace) -> Dict[str,
     }
 
 
+
+def _add_boundary_lubricated_temperature_rise_args(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument('--bearing-model', required=True, help='Boundary-lubricated bearing model, e.g. oiles_500_sp.')
+    parser.add_argument('--ambient-temp-f', type=float, required=True, help='Ambient temperature in degrees F.')
+    parser.add_argument('--foreign-matter', action='store_true', help='Set when foreign matter is present in the environment.')
+    parser.add_argument('--allowable-wear-in', type=float, required=True, help='Maximum allowable wear in inches.')
+    parser.add_argument('--hours-of-use', type=float, required=True, help='Required service life in hours.')
+    parser.add_argument('--rpm', type=float, required=True, help='Journal speed in rev/min.')
+    parser.add_argument('--radial-load-lbf', '--W', dest='radial_load_lbf', type=float, required=True, help='Radial load in lbf.')
+    parser.add_argument('--h-cr', type=float, required=True, help='Heat-transfer coefficient h_CR in Btu/(h*ft^2*F).')
+    parser.add_argument('--tmax-f', type=float, required=True, help='Maximum allowable operating temperature in degrees F.')
+    parser.add_argument('--friction-coefficient-fs', '--fs', dest='friction_coefficient_fs', type=float, help='Optional friction coefficient fs. If omitted, Table 12-9 is used from the bearing model.')
+    parser.add_argument('--design-factor', type=float, required=True, help='Design factor n_d.')
+    parser.add_argument('--motion-type', default='rotary', choices=['rotary', 'oscillatory', 'reciprocating'], help='Mode of motion for Table 12-10.')
+    parser.add_argument('--oscillation-angle-band', choices=['>30', '<30'], help='Required for oscillatory motion.')
+    parser.add_argument('--outfile', help='Optional JSON output file.')
+    parser.add_argument(
+        '--unit-system',
+        default='ips',
+        choices=['ips', 'custom'],
+        help='ips is the current reference system for convenience outputs.',
+    )
+
+
+def _boundary_lubricated_temperature_rise_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        'bearing_model': args.bearing_model,
+        'ambient_temp_F': args.ambient_temp_f,
+        'foreign_matter': args.foreign_matter,
+        'allowable_wear_in': args.allowable_wear_in,
+        'hours_of_use': args.hours_of_use,
+        'N': args.rpm,
+        'W': args.radial_load_lbf,
+        'h_cr': args.h_cr,
+        'Tmax_F': args.tmax_f,
+        'mu': args.friction_coefficient_fs,
+        'design_factor': args.design_factor,
+        'motion_type': args.motion_type,
+        'oscillation_angle_band': args.oscillation_angle_band,
+        'unit_system': args.unit_system,
+        'r': 0.5,
+        'c': 1.0,
+        'l': 1.0,
+        'Ps': 0.0,
+    }
+
+
 def _pressure_fed_inputs_from_args(args: argparse.Namespace) -> Dict[str, Any]:
     data: Dict[str, Any] = {
         'N': args.N,
@@ -237,6 +284,9 @@ def build_parser() -> argparse.ArgumentParser:
     pbl = sub.add_parser('boundary_lubricated_bearing', help='Solve Shigley boundary-lubricated bearing problems like Example 12-7.')
     _add_boundary_lubricated_args(pbl)
 
+    pblt = sub.add_parser('boundary_lubricated_temperature_rise', help='Solve Shigley boundary-lubricated bearing sizing problems with temperature rise like Example 12-8.')
+    _add_boundary_lubricated_temperature_rise_args(pblt)
+
     prun = sub.add_parser('run', help='Solve a problem from an input JSON file.')
     prun.add_argument('--infile', required=True, help='Input JSON file in the in/ folder or any path.')
     prun.add_argument('--outfile', help='Output JSON filename or path.')
@@ -253,6 +303,7 @@ def _menu_problem_choice() -> str:
         '6': 'self_contained_steady_state',
         '7': 'pressure_fed_circumferential',
         '8': 'boundary_lubricated_bearing',
+        '9': 'boundary_lubricated_temperature_rise',
     }
     print('\nJournal Bearings Menu')
     print('  1) minimum film thickness')
@@ -263,8 +314,9 @@ def _menu_problem_choice() -> str:
     print('  6) self-contained steady state')
     print('  7) pressure-fed circumferential groove bearing')
     print('  8) boundary-lubricated bearing')
+    print('  9) boundary-lubricated bearing with temperature rise')
     while True:
-        choice = input('Choose an option [1-8]: ').strip()
+        choice = input('Choose an option [1-9]: ').strip()
         if choice in options:
             return options[choice]
         print('Invalid option. Try again.')
@@ -321,6 +373,34 @@ def _interactive_common_inputs(problem: str) -> Dict[str, Any]:
         if data['motion_type'] == 'oscillatory':
             data['oscillation_angle_band'] = input('oscillation_angle_band [>30 or <30]: ').strip()
         data['r'] = data['dj'] / 2.0
+        return data
+
+    if problem == 'boundary_lubricated_temperature_rise':
+        print('\nEnter the boundary-lubricated bearing with temperature-rise givens.')
+        unit_system = input('unit system [default ips]: ').strip().lower() or 'ips'
+        data: Dict[str, Any] = {
+            'bearing_model': input('bearing_model [e.g. oiles_500_sp]: ').strip(),
+            'ambient_temp_F': _prompt_float('ambient_temp_F'),
+            'allowable_wear_in': _prompt_float('allowable_wear_in'),
+            'hours_of_use': _prompt_float('hours_of_use'),
+            'N': _prompt_float('rpm'),
+            'W': _prompt_float('radial_load_lbf'),
+            'h_cr': _prompt_float('h_cr'),
+            'Tmax_F': _prompt_float('Tmax_F'),
+            'design_factor': _prompt_float('design_factor'),
+            'motion_type': input('motion_type [rotary/oscillatory/reciprocating] [default rotary]: ').strip().lower() or 'rotary',
+            'unit_system': unit_system,
+            'r': 0.5,
+            'c': 1.0,
+            'l': 1.0,
+            'Ps': 0.0,
+        }
+        fs_raw = input('friction_coefficient_fs [optional, blank uses Table 12-9]: ').strip()
+        data['mu'] = float(fs_raw) if fs_raw else None
+        fm = input('foreign matter present? [y/N]: ').strip().lower()
+        data['foreign_matter'] = fm in {'y', 'yes', 'true', '1'}
+        if data['motion_type'] == 'oscillatory':
+            data['oscillation_angle_band'] = input('oscillation_angle_band [>30 or <30]: ').strip()
         return data
 
     if problem == 'pressure_fed_circumferential':
@@ -412,6 +492,8 @@ def main(argv: Optional[list[str]] = None) -> int:
         result = api.solve_problem(problem=problem, inputs=_pressure_fed_inputs_from_args(args))
     elif problem == 'boundary_lubricated_bearing':
         result = api.solve_problem(problem=problem, inputs=_boundary_lubricated_inputs_from_args(args))
+    elif problem == 'boundary_lubricated_temperature_rise':
+        result = api.solve_problem(problem=problem, inputs=_boundary_lubricated_temperature_rise_inputs_from_args(args))
     else:
         result = api.solve_problem(problem=problem, inputs=_common_inputs_from_args(args))
     _render_and_write(renderer, result, args.outfile)

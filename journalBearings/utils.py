@@ -43,9 +43,10 @@ def fmt(x: Any, digits: int = 6) -> str:
     if isinstance(x, float):
         if math.isnan(x) or math.isinf(x):
             return str(x)
-        if abs(x) < 1e8:
-            return f"{x:.{digits}f}".rstrip('0').rstrip('.')
-        return f"{x:.6e}"
+        ax = abs(x)
+        if ax != 0.0 and (ax < 1e-4 or ax >= 1e8):
+            return f"{x:.6e}"
+        return f"{x:.{digits}f}".rstrip('0').rstrip('.')
     return str(x)
 
 
@@ -72,6 +73,11 @@ def normalize_problem_name(name: str) -> str:
         'example_12_5': 'self_contained_steady_state',
         'example_12_6': 'pressure_fed_circumferential',
         'example_12_7': 'boundary_lubricated_bearing',
+        '12_8': 'boundary_lubricated_temperature_rise',
+        'example_12_8': 'boundary_lubricated_temperature_rise',
+        'boundary_lubricated_temperature_rise_bearing': 'boundary_lubricated_temperature_rise',
+        'boundary_lubricated_temperature_rise': 'boundary_lubricated_temperature_rise',
+        'boundary_lubricated_with_temperature_rise': 'boundary_lubricated_temperature_rise',
         'minimumfilmthickness': 'minimum_film_thickness',
         'coefficientoffriction': 'coefficient_of_friction',
         'volumetricflowrate': 'volumetric_flow_rate',

@@ -67,8 +67,10 @@ class ConsoleRenderer:
         ]
         if set(keys).issubset(history[0].keys()):
             use_keys = keys
-        else:
+        elif set(alt_keys).issubset(history[0].keys()):
             use_keys = alt_keys
+        else:
+            use_keys = list(history[0].keys())
         header = "  " + " | ".join(f"{k:>24s}" for k in use_keys)
         print(header)
         print("  " + "-" * (len(header) - 2))
@@ -132,7 +134,7 @@ class ConsoleRenderer:
         history = result.get("iteration_history", [])
         if history:
             hist_table = Table(title="iteration history", show_header=True)
-            if "trial_temp_F" in history[0]:
+            if {'trial_temp_F', 'mu_trial', 'heat_generation_btu_h', 'heat_loss_btu_h', 'residual_btu_h'}.issubset(history[0].keys()):
                 keys = [
                     "iteration",
                     "trial_temp_F",
@@ -142,7 +144,7 @@ class ConsoleRenderer:
                     "heat_loss_btu_h",
                     "residual_btu_h",
                 ]
-            else:
+            elif {'mu_used', 'effective_temp_used_F', 'effective_temp_updated_F', 'effective_temp_change_F', 'delta_T_F', 'Q_leakage', 'power_in_lbf_s', 'updated_mu'}.issubset(history[0].keys()):
                 keys = [
                     "iteration",
                     "mu_used",
@@ -154,6 +156,8 @@ class ConsoleRenderer:
                     "power_in_lbf_s",
                     "updated_mu",
                 ]
+            else:
+                keys = list(history[0].keys())
             for key in keys:
                 hist_table.add_column(key, style="white")
             for row in history:
