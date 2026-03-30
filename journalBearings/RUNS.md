@@ -166,7 +166,7 @@ This route:
 - computes `DeltaT_F` with Shigley Eq. (12-24)
 - computes `h_min`, `T_max`, `P_st`, `Q_s`, `H_loss`, and friction torque after convergence
 
-## Boundary Lubricated Bearings — Shigley Example 12-7 style
+## Boundary Lubricated Bearings — Shigley Example 12-7 style - Clean Environment
 
 ```bash
 python -m cli boundary_lubricated_bearing \
@@ -179,6 +179,22 @@ python -m cli boundary_lubricated_bearing \
   --velocity-fpm 33 \
   --motion-type rotary \
   --outfile out/ex_12_7_boundary.json
+```
+
+## Boundary Lubricated Bearings — Shigley Example 12-7 style - Dirty Environment
+
+```bash
+python -m cli boundary_lubricated_bearing \
+  --bearing-model oiles_500_sp \
+  --length 1.0 \
+  --bore 1.0 \
+  --ambient-temp-f 70 \
+  --foreign-matter \
+  --allowable-wear-in 0.005 \
+  --radial-load-lbf 700 \
+  --velocity-fpm 33 \
+  --motion-type rotary \
+  --outfile out/ex_12_7_boundary_dirty.json
 ```
 
 ## Menu mode
@@ -254,3 +270,7 @@ python -m cli run \
   --infile in/ex_8_2_p.json \
   --outfile out/ex_8_2_p_out.json
 ```
+
+## RipGrep
+
+rg "foreign_matter" journalBearings
