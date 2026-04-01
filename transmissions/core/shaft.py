@@ -16,7 +16,7 @@ Real automatic transmissions often have situations like:
 - front carrier = output shaft = rear ring
 - front sun = rear sun (common sun)
 - node23 = PG2 carrier = PG3 ring
-- input shaft connected to several members through clutches
+- input shaft connected to several members through clutchesBrakes
 
 Those are not “new gears”; they are *the same rotating node* seen by multiple
 components.  This module provides a simple, explicit representation for that.

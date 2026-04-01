@@ -1,0 +1,5 @@
+end_condition,alpha,note
+Spring supported between flat parallel surfaces (fixed ends),0.5,Ends supported by flat surfaces must be squared and ground.
+One end supported by flat surface perpendicular to spring axis (fixed); other end pivoted (hinged),0.707,
+Both ends pivoted (hinged),1,
+One end clamped; other end free,2,

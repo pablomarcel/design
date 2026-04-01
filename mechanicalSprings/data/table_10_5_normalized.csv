@@ -1,0 +1,23 @@
+material,diameter_condition,diameter_in_min,diameter_in_max,elastic_limit_tension_pct_Sut_min,elastic_limit_tension_pct_Sut_max,elastic_limit_torsion_pct_Sut_min,elastic_limit_torsion_pct_Sut_max,E_Mpsi,E_GPa,G_Mpsi,G_GPa
+Music wire A228,lt,,0.032,65,75,45,60,29.5,203.4,12.0,82.7
+Music wire A228,range,0.033,0.063,65,75,45,60,29.0,200,11.85,81.7
+Music wire A228,range,0.064,0.125,65,75,45,60,28.5,196.5,11.75,81.0
+Music wire A228,gt,0.125,,65,75,45,60,28.0,193,11.6,80.0
+HD spring A227,lt,,0.032,60,70,45,55,28.8,198.6,11.7,80.7
+HD spring A227,range,0.033,0.063,60,70,45,55,28.7,197.9,11.6,80.0
+HD spring A227,range,0.064,0.125,60,70,45,55,28.6,197.2,11.5,79.3
+HD spring A227,gt,0.125,,60,70,45,55,28.5,196.5,11.4,78.6
+Oil tempered A239,all,,,85,90,45,50,28.5,196.5,11.2,77.2
+Valve spring A230,all,,,85,90,50,60,29.5,203.4,11.2,77.2
+Chrome-vanadium A231,all,,,88,93,65,75,29.5,203.4,11.2,77.2
+A232,all,,,88,93,,,29.5,203.4,11.2,77.2
+Chrome-silicon A401,all,,,85,93,65,75,29.5,203.4,11.2,77.2
+Stainless steel A313*,all,,,65,75,45,55,28,193,10,69.0
+17-7PH,all,,,75,80,55,60,29.5,208.4,11,75.8
+414,all,,,65,70,42,55,29,200,11.2,77.2
+420,all,,,65,75,45,55,29,200,11.2,77.2
+431,all,,,72,76,50,55,30,206,11.5,79.3
+Phosphor-bronze B159,all,,,75,80,45,50,15,103.4,6,41.4
+Beryllium-copper B197,all,,,70,70,50,50,17,117.2,6.5,44.8
+Beryllium-copper B197,all,,,75,75,50,55,19,131,7.3,50.3
+Inconel alloy X-750,all,,,65,70,40,45,31,213.7,11.2,77.2

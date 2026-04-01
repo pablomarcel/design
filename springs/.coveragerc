@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = springs
-
-[html]
-directory = springs/out/htmlcov
-
-[report]
-show_missing = True

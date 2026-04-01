@@ -1,0 +1,6 @@
+term,symbol,plain,plain_and_ground,squared_or_closed,squared_and_ground,notes
+End coils,Ne,0,1,2,2,
+Total coils,Nt,Na,Na + 1,Na + 2,Na + 2,
+Free length,L0,p*Na + d,p*(Na + 1),p*Na + 3*d,p*Na + 2*d,
+Solid length,Ls,d*(Nt + 1),d*Nt,d*(Nt + 1),d*Nt,"Text below table notes an alternative for squared-and-ground ends: Ls = (Nt - a)*d, average a ≈ 0.75."
+Pitch,p,(L0 - d)/Na,L0/(Na + 1),(L0 - 3*d)/Na,(L0 - 2*d)/Na,

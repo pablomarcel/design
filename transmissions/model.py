@@ -147,13 +147,13 @@ class TransmissionSpec:
             raise TransmissionAppError("spec.gearsets must contain at least one planetary gearset.")
 
         clutches: list[ClutchSpec] = []
-        for idx, item in enumerate(ensure_list(d.get("clutches"), context="spec.clutches")):
-            c = ensure_dict(item, context=f"spec.clutches[{idx}]")
+        for idx, item in enumerate(ensure_list(d.get("clutchesBrakes"), context="spec.clutchesBrakes")):
+            c = ensure_dict(item, context=f"spec.clutchesBrakes[{idx}]")
             clutches.append(
                 ClutchSpec(
-                    name=ensure_str(c.get("name"), context=f"spec.clutches[{idx}].name"),
-                    a=ensure_str(c.get("a"), context=f"spec.clutches[{idx}].a"),
-                    b=ensure_str(c.get("b"), context=f"spec.clutches[{idx}].b"),
+                    name=ensure_str(c.get("name"), context=f"spec.clutchesBrakes[{idx}].name"),
+                    a=ensure_str(c.get("a"), context=f"spec.clutchesBrakes[{idx}].a"),
+                    b=ensure_str(c.get("b"), context=f"spec.clutchesBrakes[{idx}].b"),
                 )
             )
 
@@ -418,7 +418,7 @@ class GenericTransmission:
                 }
                 for g in self.spec.gearsets
             ],
-            "clutches": [{"name": c.name, "a": c.a, "b": c.b} for c in self.spec.clutches],
+            "clutchesBrakes": [{"name": c.name, "a": c.a, "b": c.b} for c in self.spec.clutches],
             "brakes": [{"name": b.name, "member": b.member} for b in self.spec.brakes],
             "sprags": [
                 {
