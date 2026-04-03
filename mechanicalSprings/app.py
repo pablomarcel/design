@@ -12,9 +12,17 @@ from core import (
     equation_10_23,
     equation_10_23_d_from_strength,
     fatigue_forces,
+    extension_active_turns,
+    extension_free_length,
+    extension_hook_bending_factor,
+    extension_hook_bending_stress,
+    extension_hook_torsion_factor,
+    extension_hook_torsion_stress,
+    extension_initial_tension_preferred_range_psi,
     figure_of_merit,
     fs_solid,
     gerber_allowable_shear_amplitude,
+    gerber_nf,
     gerber_sse_from_zimmerli,
     goodman_allowable_shear_amplitude,
     goodman_sse_from_zimmerli,
@@ -56,6 +64,31 @@ class BaseSpringSolver:
             "Ssy_kpsi": Ssy_kpsi,
             "G_psi": t105["G_Mpsi"] * 1e6,
             "E_psi": t105["E_Mpsi"] * 1e6,
+            "relative_cost": t104.get("relative_cost") or 1.0,
+        }
+
+
+    def _extension_material_context(self, material: str, d_in: float, percent_strategy: str = "min", high_initial_tension: bool = False) -> Dict[str, Any]:
+        t104 = self.db.get_material_104(material, d_in)
+        t105 = self.db.get_material_105(material, d_in)
+        Sut_kpsi = sut_from_table_104(t104["A_kpsi_in_m"], t104["m"], d_in)
+        Ssu_kpsi = ssu_from_sut(Sut_kpsi)
+        pct_body_torsion = self.db.get_allowable_percent_107(material, location="body", mode="torsion", strategy=percent_strategy, high_initial_tension=high_initial_tension)
+        pct_end_torsion = self.db.get_allowable_percent_107(material, location="end", mode="torsion", strategy=percent_strategy, high_initial_tension=high_initial_tension)
+        pct_end_bending = self.db.get_allowable_percent_107(material, location="end", mode="bending", strategy=percent_strategy, high_initial_tension=high_initial_tension)
+        return {
+            "table_10_4": t104,
+            "table_10_5": t105,
+            "Sut_kpsi": Sut_kpsi,
+            "Ssu_kpsi": Ssu_kpsi,
+            "G_psi": t105["G_Mpsi"] * 1e6,
+            "E_psi": t105["E_Mpsi"] * 1e6,
+            "body_torsion_pct": pct_body_torsion,
+            "end_torsion_pct": pct_end_torsion,
+            "end_bending_pct": pct_end_bending,
+            "Ssy_body_kpsi": pct_body_torsion * Sut_kpsi,
+            "Ssy_end_torsion_kpsi": pct_end_torsion * Sut_kpsi,
+            "Sy_end_bending_kpsi": pct_end_bending * Sut_kpsi,
             "relative_cost": t104.get("relative_cost") or 1.0,
         }
 
@@ -451,6 +484,100 @@ class FatigueDesignSolver(BaseSpringSolver):
         })
 
 
+
+
+class ExtensionStaticServiceSolver(BaseSpringSolver):
+    solve_path = "extension_static_service"
+
+    def solve(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        material = payload["material"]
+        d = float(payload["d_in"])
+        OD = float(payload["OD_in"])
+        r1 = float(payload["r1_in"])
+        r2 = float(payload["r2_in"])
+        Fi = float(payload["Fi_lbf"])
+        Nb = float(payload["Nb"])
+        Fmax = float(payload["Fmax_lbf"])
+        high_initial_tension = bool(payload.get("high_initial_tension", False))
+        ctx = self._extension_material_context(material, d, percent_strategy=payload.get("percent_strategy", "min"), high_initial_tension=high_initial_tension)
+        D = D_from_OD(OD, d)
+        C = spring_index(D, d)
+        KB_body = kb(C)
+        Na = extension_active_turns(Nb, ctx["G_psi"], ctx["E_psi"])
+        k = spring_rate(D, d, Na, ctx["G_psi"])
+        L0 = extension_free_length(D, d, Nb)
+        y_service = (Fmax - Fi) / k
+        L_service = L0 + y_service
+        tau_i_uncorrected_kpsi = (8.0 * Fi * D / (3.141592653589793 * d ** 3)) / 1000.0
+        tau_i_pref = extension_initial_tension_preferred_range_psi(C)
+        initial_tension_preferred_range_ok = tau_i_pref["low_psi"] <= tau_i_uncorrected_kpsi * 1000.0 <= tau_i_pref["high_psi"]
+        tau_body_kpsi = tau_max(Fmax, D, d, KB_body) / 1000.0
+        n_body = ctx["Ssy_body_kpsi"] / tau_body_kpsi
+        hookA = extension_hook_bending_factor(r1, d)
+        sigma_A_kpsi = extension_hook_bending_stress(Fmax, D, d, hookA["K_A"]) / 1000.0
+        n_A = ctx["Sy_end_bending_kpsi"] / sigma_A_kpsi
+        hookB = extension_hook_torsion_factor(r2, d)
+        tau_B_kpsi = extension_hook_torsion_stress(Fmax, D, d, hookB["K_B_hook"]) / 1000.0
+        n_B = ctx["Ssy_end_torsion_kpsi"] / tau_B_kpsi
+        checks = {"body_torsion": n_body, "hook_bending_A": n_A, "hook_torsion_B": n_B}
+        failure_first = min(checks, key=checks.get)
+        return round_dict({"solve_path": self.solve_path, "inputs": payload, "material_context": ctx, "computed": {"D_in": D, "C": C, "KB_body": KB_body, "Na": Na, "Nb": Nb, "k_lbf_per_in": k, "L0_in": L0, "y_service_in": y_service, "L_service_in": L_service, "tau_i_uncorrected_kpsi": tau_i_uncorrected_kpsi, "tau_i_preferred_range_kpsi": {"center": tau_i_pref["center_psi"] / 1000.0, "low": tau_i_pref["low_psi"] / 1000.0, "high": tau_i_pref["high_psi"] / 1000.0}, "initial_tension_preferred_range_ok": initial_tension_preferred_range_ok, "body": {"Ssy_kpsi": ctx["Ssy_body_kpsi"], "tau_max_kpsi": tau_body_kpsi, "n": n_body}, "hook_bending_A": {"C1": hookA["C1"], "K_A": hookA["K_A"], "sigma_A_kpsi": sigma_A_kpsi, "Sy_bending_kpsi": ctx["Sy_end_bending_kpsi"], "n": n_A}, "hook_torsion_B": {"C2": hookB["C2"], "K_B_hook": hookB["K_B_hook"], "tau_B_kpsi": tau_B_kpsi, "Ssy_torsion_kpsi": ctx["Ssy_end_torsion_kpsi"], "n": n_B}, "failure_first": failure_first}})
+
+
+class ExtensionDynamicLoadingSolver(BaseSpringSolver):
+    solve_path = "extension_dynamic_loading"
+
+    def solve(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        import math
+        material = payload["material"]
+        surface = payload.get("surface_treatment", "unpeened")
+        d = float(payload["d_in"])
+        OD = float(payload["OD_in"])
+        r1 = float(payload["r1_in"])
+        r2 = float(payload["r2_in"])
+        Fi = float(payload["Fi_lbf"])
+        Nb = float(payload["Nb"])
+        Fmin = float(payload["Fmin_lbf"])
+        Fmax = float(payload["Fmax_lbf"])
+        ctx = self._extension_material_context(material, d, percent_strategy=payload.get("percent_strategy", "min"))
+        D = D_from_OD(OD, d)
+        C = spring_index(D, d)
+        KB_body = kb(C)
+        Na = extension_active_turns(Nb, ctx["G_psi"], ctx["E_psi"])
+        k = spring_rate(D, d, Na, ctx["G_psi"])
+        L0 = extension_free_length(D, d, Nb)
+        Fa = 0.5 * (Fmax - Fmin)
+        Fm = 0.5 * (Fmax + Fmin)
+        tau_a_body_kpsi = tau_max(Fa, D, d, KB_body) / 1000.0
+        tau_m_body_kpsi = tau_max(Fm, D, d, KB_body) / 1000.0
+        tau_i_corr_kpsi = tau_max(Fi, D, d, KB_body) / 1000.0
+        z = zimmerli(unpeened=(surface == "unpeened"))
+        Sse_shear_kpsi = gerber_sse_from_zimmerli(z["Ssa_kpsi"], z["Ssm_kpsi"], ctx["Ssu_kpsi"])
+        nf_body = gerber_nf(tau_a_body_kpsi, tau_m_body_kpsi, Sse_shear_kpsi, ctx["Ssu_kpsi"])
+        denom = tau_m_body_kpsi - tau_i_corr_kpsi
+        r_yield = tau_a_body_kpsi / denom if abs(denom) > 1e-12 else float("inf")
+        Ssa_y = (r_yield / (1.0 + r_yield)) * (ctx["Ssy_body_kpsi"] - tau_i_corr_kpsi) if math.isfinite(r_yield) else ctx["Ssy_body_kpsi"] - tau_i_corr_kpsi
+        ny_body = Ssa_y / tau_a_body_kpsi
+        hookA = extension_hook_bending_factor(r1, d)
+        sigma_a_A_kpsi = extension_hook_bending_stress(Fa, D, d, hookA["K_A"]) / 1000.0
+        sigma_m_A_kpsi = extension_hook_bending_stress(Fm, D, d, hookA["K_A"]) / 1000.0
+        Se_tension_kpsi = Sse_shear_kpsi / 0.577
+        nf_A = gerber_nf(sigma_a_A_kpsi, sigma_m_A_kpsi, Se_tension_kpsi, ctx["Sut_kpsi"])
+        hookB = extension_hook_torsion_factor(r2, d)
+        tau_a_B_kpsi = extension_hook_torsion_stress(Fa, D, d, hookB["K_B_hook"]) / 1000.0
+        tau_m_B_kpsi = extension_hook_torsion_stress(Fm, D, d, hookB["K_B_hook"]) / 1000.0
+        nf_B = gerber_nf(tau_a_B_kpsi, tau_m_B_kpsi, Sse_shear_kpsi, ctx["Ssu_kpsi"])
+        alt_108 = None
+        if payload.get("cycles") is not None:
+            try:
+                row_b = self.db.get_allowable_percent_108(float(payload["cycles"]), location="end", mode="bending", material_query=material)
+                row_t = self.db.get_allowable_percent_108(float(payload["cycles"]), location="body", mode="torsion", material_query=material)
+                alt_108 = {"bending_end": row_b, "torsion_body": row_t}
+            except Exception:
+                alt_108 = None
+        checks = {"body_fatigue": nf_body, "body_yield": ny_body, "hook_bending_A_fatigue": nf_A, "hook_torsion_B_fatigue": nf_B}
+        failure_first = min(checks, key=checks.get)
+        return round_dict({"solve_path": self.solve_path, "inputs": payload, "material_context": ctx, "computed": {"D_in": D, "C": C, "KB_body": KB_body, "Na": Na, "Nb": Nb, "L0_in": L0, "k_lbf_per_in": k, "Fa_lbf": Fa, "Fm_lbf": Fm, "body": {"tau_a_kpsi": tau_a_body_kpsi, "tau_m_kpsi": tau_m_body_kpsi, "tau_i_corrected_kpsi": tau_i_corr_kpsi, "zimmerli": z, "Sse_kpsi": Sse_shear_kpsi, "nf_gerber": nf_body, "r_yield": r_yield, "Ssa_y_kpsi": Ssa_y, "ny": ny_body}, "hook_bending_A": {"C1": hookA["C1"], "K_A": hookA["K_A"], "sigma_a_kpsi": sigma_a_A_kpsi, "sigma_m_kpsi": sigma_m_A_kpsi, "Se_tension_kpsi": Se_tension_kpsi, "nf_gerber": nf_A}, "hook_torsion_B": {"C2": hookB["C2"], "K_B_hook": hookB["K_B_hook"], "tau_a_kpsi": tau_a_B_kpsi, "tau_m_kpsi": tau_m_B_kpsi, "Sse_kpsi": Sse_shear_kpsi, "nf_gerber": nf_B}, "table_10_8_reference": alt_108, "failure_first": failure_first}})
 class SpringApplication:
     def __init__(self) -> None:
         self.solvers = {
@@ -459,6 +586,8 @@ class SpringApplication:
             StaticCDesignSolver.solve_path: StaticCDesignSolver(),
             FatigueAnalysisSolver.solve_path: FatigueAnalysisSolver(),
             FatigueDesignSolver.solve_path: FatigueDesignSolver(),
+            ExtensionStaticServiceSolver.solve_path: ExtensionStaticServiceSolver(),
+            ExtensionDynamicLoadingSolver.solve_path: ExtensionDynamicLoadingSolver(),
         }
 
     def solve(self, payload: Dict[str, Any]) -> Dict[str, Any]:

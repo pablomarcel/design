@@ -1,0 +1,14 @@
+{
+  "solve_path": "extension_dynamic_loading",
+  "material": "hard-drawn",
+  "surface_treatment": "unpeened",
+  "d_in": 0.035,
+  "OD_in": 0.248,
+  "r1_in": 0.106,
+  "r2_in": 0.089,
+  "Fi_lbf": 1.19,
+  "Nb": 12.17,
+  "Fmin_lbf": 1.5,
+  "Fmax_lbf": 5.0,
+  "percent_strategy": "min"
+}

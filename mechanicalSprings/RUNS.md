@@ -55,6 +55,30 @@ python -m cli solve \
   --payload '{"solve_path":"compression_analysis","material":"music wire","d_in":0.105,"OD_in":0.945,"end_type":"squared_and_ground","Nt":14}'
 ```
 
+## Example 10-6 Extension Spring Static Service
+
+```bash
+python -m cli run \
+  --infile example_10_6_extension_static.json \
+  --outfile example_10_6_extension_static_out.json
+```
+
+## Example 10-7 Extension Spring Dynamic Loading
+
+```bash
+python -m cli run \
+  --infile example_10_7_extension_dynamic.json \
+  --outfile example_10_7_extension_dynamic_out.json
+```
+
+## Example 10-8 Torsion Spring
+
+```bash
+python -m cli run \
+  --infile example_10_8_torsion_spring.json \
+  --outfile example_10_9_torsion_spring_out.json
+```
+
 ## RipGrep
 
 rg "music wire" mechanicalSprings

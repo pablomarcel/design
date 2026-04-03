@@ -34,6 +34,8 @@ class SpringData:
         self.table_6_6 = self._load_json("table_6_6.json")
         self.table_6_7 = self._load_json("table_6_7.json")
         self.table_6_8 = self._load_json("table_6_8.json")
+        self.table_10_7 = self._load_csv_optional("table_10_7.csv")
+        self.table_10_8 = self._load_csv_optional("table_10_8.csv")
 
     def _load_json(self, name: str) -> Dict[str, Any]:
         import json
@@ -42,6 +44,13 @@ class SpringData:
 
     def _load_csv(self, name: str) -> List[Dict[str, str]]:
         with (self.data_dir / name).open("r", encoding="utf-8") as f:
+            return list(csv.DictReader(f))
+
+    def _load_csv_optional(self, name: str) -> List[Dict[str, str]]:
+        path = self.data_dir / name
+        if not path.exists():
+            return []
+        with path.open("r", encoding="utf-8") as f:
             return list(csv.DictReader(f))
 
     @staticmethod
@@ -80,7 +89,7 @@ class SpringData:
             ],
             "a227": [
                 "a227", "hard drawn", "hard drawn wire", "hard-drawn", "hard-drawn wire",
-                "hd spring", "hd spring a227", "astm a227",
+                "hd spring", "hd spring a227", "astm a227", "patented", "cold drawn",
             ],
             "a229": [
                 "a229", "oqt", "oq and t", "oq&t", "oqt wire", "oil quenched and tempered",
@@ -99,7 +108,7 @@ class SpringData:
                 "a401", "chrome silicon", "chrome silicon wire", "astm a401",
             ],
             "a313": [
-                "a313", "302 stainless", "302 stainless wire", "stainless", "stainless wire", "astm a313",
+                "a313", "302 stainless", "302 stainless wire", "type 302 stainless steel", "stainless", "stainless wire", "astm a313",
             ],
             "b159": [
                 "b159", "phosphor bronze", "phosphor bronze wire", "astm b159",
@@ -231,6 +240,52 @@ class SpringData:
         if any(x in mq for x in ["stainless", "a313", "17 7ph", "414", "420", "431"]):
             return "austenitic_stainless_steels"
         return "nonferrous_alloys"
+
+
+    def _map_material_to_107_group(self, material_query: str) -> str:
+        mq = self._canonicalize_text(material_query)
+        if any(x in mq for x in ["music", "a228", "hard drawn", "a227", "cold drawn", "patented", "oil tempered", "a229", "valve", "a230", "chrome vanadium", "a231", "a232", "chrome silicon", "a401", "oqt", "low alloy", "carbon"]):
+            return "patented_cold_drawn_or_hardened_tempered_carbon_and_low_alloy_steels"
+        return "austenitic_stainless_steel_and_nonferrous_alloys"
+
+    def get_allowable_percent_107(self, material_query: str, location: str, mode: str, strategy: str = "min", high_initial_tension: bool = False) -> float:
+        if not self.table_10_7:
+            raise KeyError("table_10_7.csv not loaded")
+        group_key = self._map_material_to_107_group(self._canonicalize_text(material_query))
+        for row in self.table_10_7:
+            if row["material_group_key"] != group_key:
+                continue
+            if mode == "torsion" and location == "body":
+                if high_initial_tension:
+                    return float(row["torsion_end_pct"]) / 100.0
+                return self._range_value(row["torsion_body_pct_min"], row["torsion_body_pct_max"], strategy)
+            if mode == "torsion" and location == "end":
+                return float(row["torsion_end_pct"]) / 100.0
+            if mode == "bending" and location == "end":
+                return float(row["bending_end_pct"]) / 100.0
+            raise KeyError(f"Unsupported Table 10-7 lookup location={location!r}, mode={mode!r}")
+        raise KeyError(f"No Table 10-7 mapping for material={material_query!r}")
+
+    def get_allowable_percent_108(self, cycles: float, location: str, mode: str, material_query: str) -> Dict[str, Any]:
+        if not self.table_10_8:
+            raise KeyError("table_10_8.csv not loaded")
+        mq = self._canonicalize_text(material_query)
+        if not any(x in mq for x in ["a228", "music", "302", "a313", "stainless"]):
+            raise KeyError("Table 10-8 applies only to ASTM A228 and Type 302 stainless steel extension springs")
+        rows = []
+        for row in self.table_10_8:
+            c = float(row["cycles_numeric"])
+            rows.append((abs(math.log10(cycles) - math.log10(c)), row))
+        row = min(rows, key=lambda t: t[0])[1]
+        if mode == "torsion" and location == "body":
+            pct = float(row["torsion_body_pct"]) / 100.0
+        elif mode == "torsion" and location == "end":
+            pct = float(row["torsion_end_pct"]) / 100.0
+        elif mode == "bending" and location == "end":
+            pct = float(row["bending_end_pct"]) / 100.0
+        else:
+            raise KeyError(f"Unsupported Table 10-8 lookup location={location!r}, mode={mode!r}")
+        return {"cycle_count": row["cycle_count"], "cycles_numeric": float(row["cycles_numeric"]), "percent": pct}
 
     def _range_value(self, vmin: str, vmax: str, strategy: str) -> float:
         a = float(vmin)
@@ -402,3 +457,35 @@ def safe_eval_expr(expr: str, vars_map: Dict[str, float]) -> float:
     allowed = {"sqrt": math.sqrt, "pi": math.pi}
     allowed.update(vars_map)
     return float(eval(expr, {"__builtins__": {}}, allowed))
+
+
+# Extension spring helpers
+def extension_free_length(D: float, d: float, Nb: float) -> float:
+    return 2.0 * (D - d) + (Nb + 1.0) * d
+
+def extension_active_turns(Nb: float, G_psi: float, E_psi: float) -> float:
+    return Nb + G_psi / E_psi
+
+def extension_initial_tension_preferred_range_psi(C: float) -> Dict[str, float]:
+    center = 33500.0 / math.exp(0.105 * C)
+    delta = 1000.0 * (4.0 - (C - 3.0) / 6.5)
+    return {"center_psi": center, "delta_psi": delta, "low_psi": center - delta, "high_psi": center + delta}
+
+def extension_hook_bending_factor(r1: float, d: float) -> Dict[str, float]:
+    C1 = 2.0 * r1 / d
+    K_A = (4.0 * C1 ** 2 - C1 - 1.0) / (4.0 * C1 * (C1 - 1.0))
+    return {"C1": C1, "K_A": K_A}
+
+def extension_hook_bending_stress(F: float, D: float, d: float, K_A: float) -> float:
+    return F * ((16.0 * D * K_A) / (math.pi * d ** 3) + 4.0 / (math.pi * d ** 2))
+
+def extension_hook_torsion_factor(r2: float, d: float) -> Dict[str, float]:
+    C2 = 2.0 * r2 / d
+    K_B_hook = (4.0 * C2 - 1.0) / (4.0 * C2 - 4.0)
+    return {"C2": C2, "K_B_hook": K_B_hook}
+
+def extension_hook_torsion_stress(F: float, D: float, d: float, K_B_hook: float) -> float:
+    return K_B_hook * 8.0 * F * D / (math.pi * d ** 3)
+
+def gerber_nf(amplitude: float, mean: float, Se: float, Sut: float) -> float:
+    return 0.5 * (Sut / mean) ** 2 * (amplitude / Se) * (-1.0 + math.sqrt(1.0 + (2.0 * mean * Se / (Sut * amplitude)) ** 2))

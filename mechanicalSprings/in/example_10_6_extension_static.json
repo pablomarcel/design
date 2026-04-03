@@ -1,0 +1,12 @@
+{
+  "solve_path": "extension_static_service",
+  "material": "hard-drawn",
+  "d_in": 0.035,
+  "OD_in": 0.248,
+  "r1_in": 0.106,
+  "r2_in": 0.089,
+  "Fi_lbf": 1.19,
+  "Nb": 12.17,
+  "Fmax_lbf": 5.25,
+  "percent_strategy": "min"
+}

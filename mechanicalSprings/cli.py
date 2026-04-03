@@ -62,6 +62,8 @@ def main() -> int:
         print("static_iter_c")
         print("fatigue_check")
         print("fatigue_design_iter")
+        print("extension_static_service")
+        print("extension_dynamic_loading")
         return 0
 
     if args.command == "run":
