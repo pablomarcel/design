@@ -5,7 +5,7 @@
   "y_in": 2.25,
   "Fs_lbf": 24,
   "design_factor_solid": 1.2,
-  "end_type": "squared_and_ground",
+  "end_type": "plain",
   "end_condition": "fixed_fixed",
   "wire_table_system": "steel_wire_washburn_moen",
   "set_removed": false,
