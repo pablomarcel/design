@@ -1,0 +1,170 @@
+To a layman, that solve path means:
+
+**“We are trying to find out whether a spring can survive being compressed and released over and over, while still fitting in the available space and not becoming unstable or too flimsy.”**
+
+That is the big picture.
+
+A helical compression spring under **fatigue loading** is not judged by one single number. It has to pass **several tests at once**.
+
+The iterative fatigue design path is basically doing this:
+
+1. Pick a wire size.
+2. See what spring shape that wire size would force you into.
+3. Check whether that shape fits the package.
+4. Check whether it survives repeated loading.
+5. Check whether it buckles, has too many coils, is too long, or resonates too easily.
+6. Reject it if any one of those checks fails.
+7. Move to the next candidate.
+
+That is why it feels like a go/no-go process. It is.
+
+## What the results mean physically
+
+The output is telling you whether a spring is:
+
+* **strong enough**
+* **durable enough**
+* **compact enough**
+* **stiff enough**
+* **stable enough**
+
+all at the same time.
+
+A few of the key results, in plain English:
+
+**Wire diameter `d`**
+This is the thickness of the wire. Thicker wire usually means stronger spring, but it also makes the spring bulkier and stiffer.
+
+**Spring index `C`**
+This is basically how “tight” or “loose” the coil is. Too low and the spring is hard to manufacture and highly stressed. Too high and it gets flimsy and awkward.
+
+**Number of active coils `Na`**
+This controls flexibility. More coils means more travel and lower stiffness, but also a longer spring.
+
+**Free length `L0` and solid height `Ls`**
+These tell whether the spring physically fits and whether it will bottom out.
+
+**Fatigue factor of safety `nf`**
+This says how comfortably the spring survives repeated cycling.
+
+* Below 1: expected fatigue failure
+* Around 1: borderline
+* Higher than 1: safer
+
+**Static factor of safety `ns`**
+This says whether it yields or plastically deforms under peak loading.
+
+**Go/no-go inequalities**
+These are the hard practical rules:
+
+* too many active coils? reject
+* too long? reject
+* too short? maybe reject
+* too high spring index? reject
+* too low spring index? reject
+* buckles? reject
+* natural frequency too low? reject
+
+So this solve path is not just “solve an equation.” It is more like a hiring process for springs.
+
+## Why the iterative part matters
+
+A layman might ask: why not just calculate the answer directly?
+
+Because spring design is a **compromise problem**.
+
+You are not looking for any spring. You are looking for one that:
+
+* survives fatigue,
+* fits the packaging,
+* meets force-deflection behavior,
+* stays manufacturable,
+* avoids instability,
+* and uses a practical wire size.
+
+There is usually no single elegant closed-form answer. So the iteration is the computer doing what an experienced engineer would do by hand:
+
+**“Try this size. Nope, too long. Try the next one. Nope, fatigue is okay but buckling is bad. Try again.”**
+
+## What the Sines criterion means in plain English
+
+The **Sines fatigue criterion** is one way of judging whether repeated fluctuating stress is safe.
+
+To a layman, it means:
+
+**“Given how much the load swings up and down, do we still have enough endurance margin for the spring to keep doing this for a long time?”**
+
+So if the spring passes Sines, it means the design is likely okay for cyclic service under that criterion.
+
+It is not magic truth. It is a rational engineering rule for repeated loading.
+
+## Is the spring a good spring?
+
+That depends on whether it passes the checks.
+
+If the solver says a candidate is feasible, then it is saying:
+
+**“This spring is not just mathematically possible — it also respects the practical limits we care about.”**
+
+If the solver says `selected = null`, that means:
+
+**“None of the candidates are fully satisfactory under all constraints.”**
+
+That is actually very valuable. It saves you from fooling yourself.
+
+So the solve path is useful because it can tell you one of three things:
+
+* **Yes, this candidate is acceptable**
+* **No, this one is too risky or impractical**
+* **None of these are good enough; rethink the design**
+
+That is real engineering usefulness.
+
+## What does it tell us physically?
+
+Physically, it tells you whether the spring will likely:
+
+* keep its shape,
+* survive repeated cycling,
+* avoid buckling sideways,
+* avoid bottoming out too easily,
+* avoid being too large for the package,
+* and avoid becoming the weak link in the mechanism.
+
+It also tells you **why** a spring is bad.
+
+That is huge.
+
+Because if a spring fails only on fatigue, you redesign one way.
+If it fails only on length, you redesign another way.
+If it fails only on buckling, that suggests another fix.
+
+So this is not abstract. It is a decision tool.
+
+## Are the designers engineering geniuses?
+
+Usually not. Usually they are doing disciplined compromise management.
+
+A very good spring designer is someone who understands:
+
+* what failure mode matters most,
+* what can be relaxed,
+* what cannot be relaxed,
+* and how to move the design toward feasibility efficiently.
+
+The genius, if any, is not in making a spring “perfect.”
+It is in making a spring that is **good enough everywhere that matters**.
+
+That is what your app is reproducing.
+
+## Layman one-liner
+
+If I had to explain this solve path to a non-engineer in one sentence:
+
+**“It checks whether a repeatedly loaded spring is strong enough, durable enough, and compact enough to be worth building — and if not, exactly what disqualifies it.”**
+
+And if I had to explain the iterative fatigue design path in an even more human way:
+
+**“The computer is auditioning spring candidates and rejecting the ones that are too weak, too long, too unstable, or too impractical.”**
+
+That is why it matters.
