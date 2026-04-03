@@ -1,23 +1,23 @@
-material,elastic_limit_tension_pct_Sut,elastic_limit_torsion_pct_Sut,diameter_d_in,E_Mpsi,E_GPa,G_Mpsi,G_GPa
-Music wire A228,65–75,45–60,<0.032,29.5,203.4,12.0,82.7
-Music wire A228,65–75,45–60,0.033–0.063,29.0,200,11.85,81.7
-Music wire A228,65–75,45–60,0.064–0.125,28.5,196.5,11.75,81.0
-Music wire A228,65–75,45–60,>0.125,28.0,193,11.6,80.0
-HD spring A227,60–70,45–55,<0.032,28.8,198.6,11.7,80.7
-HD spring A227,60–70,45–55,0.033–0.063,28.7,197.9,11.6,80.0
-HD spring A227,60–70,45–55,0.064–0.125,28.6,197.2,11.5,79.3
-HD spring A227,60–70,45–55,>0.125,28.5,196.5,11.4,78.6
-Oil tempered A239,85–90,45–50,,28.5,196.5,11.2,77.2
-Valve spring A230,85–90,50–60,,29.5,203.4,11.2,77.2
-Chrome-vanadium A231,88–93,65–75,,29.5,203.4,11.2,77.2
-A232,88–93,,,29.5,203.4,11.2,77.2
-Chrome-silicon A401,85–93,65–75,,29.5,203.4,11.2,77.2
-Stainless steel A313*,65–75,45–55,,28,193,10,69.0
-17-7PH,75–80,55–60,,29.5,208.4,11,75.8
-414,65–70,42–55,,29,200,11.2,77.2
-420,65–75,45–55,,29,200,11.2,77.2
-431,72–76,50–55,,30,206,11.5,79.3
-Phosphor-bronze B159,75–80,45–50,,15,103.4,6,41.4
-Beryllium-copper B197,70,50,,17,117.2,6.5,44.8
-Beryllium-copper B197,75,50–55,,19,131,7.3,50.3
-Inconel alloy X-750,65–70,40–45,,31,213.7,11.2,77.2
+material_key,material_label,astm_no,diameter_in_min,diameter_in_max,Sey_tension_pct_min,Sey_tension_pct_max,Ssy_torsion_pct_min,Ssy_torsion_pct_max,E_Mpsi,G_Mpsi
+music_wire_a228_r1,Music wire A228,A228,,0.032,65,75,45,60,29.5,12.0
+music_wire_a228_r2,Music wire A228,A228,0.033,0.063,65,75,45,60,29.0,11.85
+music_wire_a228_r3,Music wire A228,A228,0.064,0.125,65,75,45,60,28.5,11.75
+music_wire_a228_r4,Music wire A228,A228,0.125,,65,75,45,60,28.0,11.6
+hd_spring_a227_r1,HD spring A227,A227,,0.032,60,70,45,55,28.8,11.7
+hd_spring_a227_r2,HD spring A227,A227,0.033,0.063,60,70,45,55,28.7,11.6
+hd_spring_a227_r3,HD spring A227,A227,0.064,0.125,60,70,45,55,28.6,11.5
+hd_spring_a227_r4,HD spring A227,A227,0.125,,60,70,45,55,28.5,11.4
+oil_tempered_a239,Oil tempered A239,A239,,,85,90,45,50,28.5,11.2
+valve_spring_a230,Valve spring A230,A230,,,85,90,50,60,29.5,11.2
+chrome_vanadium_a231,Chrome-vanadium A231,A231,,,88,93,65,75,29.5,11.2
+chrome_vanadium_a232,Chrome-vanadium A232,A232,,,88,93,65,75,29.5,11.2
+chrome_silicon_a401,Chrome-silicon A401,A401,,,85,93,65,75,29.5,11.2
+stainless_a313,Stainless steel A313,A313,,,65,75,45,55,28.0,10.0
+stainless_17_7ph,Stainless steel 17-7PH,,,,75,80,55,60,29.5,11.0
+stainless_414,Stainless steel 414,,,,65,70,42,55,29.0,11.2
+stainless_420,Stainless steel 420,,,,65,75,45,55,29.0,11.2
+stainless_431,Stainless steel 431,,,,72,76,50,55,30.0,11.5
+phosphor_bronze_b159,Phosphor-bronze B159,B159,,,75,80,45,50,15.0,6.0
+beryllium_copper_b197_low,Beryllium-copper B197,B197,,,70,70,50,50,17.0,6.5
+beryllium_copper_b197_high,Beryllium-copper B197,B197,,,75,75,50,55,19.0,7.3
+inconel_x750,Inconel alloy X-750,,,,65,70,40,45,31.0,11.2

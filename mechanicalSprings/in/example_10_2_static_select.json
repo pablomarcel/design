@@ -1,0 +1,28 @@
+{
+  "solve_path": "static_select",
+  "material": "music wire",
+  "Fmax_lbf": 20,
+  "ymax_in": 2,
+  "design_factor_solid": 1.2,
+  "robust_linearity": 0.15,
+  "set_removed": false,
+  "end_type": "squared_and_ground",
+  "end_condition": "fixed_fixed",
+  "mode": "free",
+  "d_values_in": [
+    0.069,
+    0.071,
+    0.08,
+    0.085,
+    0.09,
+    0.095,
+    0.105,
+    0.112
+  ],
+  "Ls_max_in": 1.0,
+  "L0_max_in": 4.0,
+  "gamma_lb_per_in3": 0.284,
+  "operating_frequency_hz": 5.0,
+  "frequency_ratio": 20.0,
+  "percent_strategy": "min"
+}

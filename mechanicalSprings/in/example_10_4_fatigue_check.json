@@ -1,0 +1,13 @@
+{
+  "solve_path": "fatigue_check",
+  "material": "music wire",
+  "d_in": 0.092,
+  "OD_in": 0.5625,
+  "Na": 21,
+  "Fmin_lbf": 5,
+  "Fmax_lbf": 35,
+  "surface_treatment": "unpeened",
+  "gamma_lb_per_in3": 0.284,
+  "operating_frequency_hz": 14.1,
+  "frequency_ratio": 20.0
+}

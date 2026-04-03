@@ -1,12 +1,12 @@
-material,astm_no,exponent_m,diameter_in,A_kpsi_in_m,diameter_mm,A_MPa_mm_m,relative_cost_of_wire,notes
-Music wire,A228,0.145,0.004–0.256,201,0.10–6.5,2211,2.6,"Surface is smooth, free of defects, and has a bright, lustrous finish."
-OQ&T wire,A229,0.187,0.020–0.500,147,0.5–12.7,1855,1.3,Has a slight heat-treating scale which must be removed before plating.
-Hard-drawn wire,A227,0.190,0.028–0.500,140,0.7–12.7,1783,1.0,Surface is smooth and bright with no visible marks.
-Chrome-vanadium wire,A232,0.168,0.032–0.437,169,0.8–11.1,2005,3.1,"Aircraft-quality tempered wire, can also be obtained annealed."
-Chrome-silicon wire,A401,0.108,0.063–0.375,202,1.6–9.5,1974,4.0,"Tempered to Rockwell C49, but may be obtained untempered."
-302 Stainless wire,A313,0.146,0.013–0.10,169,0.3–2.5,1867,7.6–11,Type 302 stainless steel.
-302 Stainless wire,A313,0.263,0.10–0.20,128,2.5–5,2065,7.6–11,Type 302 stainless steel.
-302 Stainless wire,A313,0.478,0.20–0.40,90,5–10,2911,7.6–11,Type 302 stainless steel.
-Phosphor-bronze wire,B159,0,0.004–0.022,145,0.1–0.6,1000,8.0,Temper CA510.
-Phosphor-bronze wire,B159,0.028,0.022–0.075,121,0.6–2,913,8.0,Temper CA510.
-Phosphor-bronze wire,B159,0.064,0.075–0.30,110,2–7.5,932,8.0,Temper CA510.
+material_key,material_label,astm_no,m,diameter_in_min,diameter_in_max,A_kpsi_in_m,relative_cost_min,relative_cost_max
+music_wire,Music wire,A228,0.145,0.004,0.256,201,2.6,2.6
+oqt_wire,OQ&T wire,A229,0.187,0.02,0.5,147,1.3,1.3
+hard_drawn_wire,Hard-drawn wire,A227,0.19,0.028,0.5,140,1.0,1.0
+chrome_vanadium_wire,Chrome-vanadium wire,A232,0.168,0.032,0.437,169,3.1,3.1
+chrome_silicon_wire,Chrome-silicon wire,A401,0.108,0.063,0.375,202,4.0,4.0
+stainless_302_wire_r1,302 Stainless wire,A313,0.146,0.013,0.1,169,7.6,11.0
+stainless_302_wire_r2,302 Stainless wire,A313,0.263,0.1,0.2,128,7.6,11.0
+stainless_302_wire_r3,302 Stainless wire,A313,0.478,0.2,0.4,90,7.6,11.0
+phosphor_bronze_wire_r1,Phosphor-bronze wire,B159,0.0,0.004,0.022,145,8.0,8.0
+phosphor_bronze_wire_r2,Phosphor-bronze wire,B159,0.028,0.022,0.075,121,8.0,8.0
+phosphor_bronze_wire_r3,Phosphor-bronze wire,B159,0.064,0.075,0.3,110,8.0,8.0

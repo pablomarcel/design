@@ -1,0 +1,30 @@
+{
+  "solve_path": "fatigue_design_iter",
+  "material": "music wire",
+  "gamma_lb_per_in3": 0.284,
+  "load_frequency_hz": 5,
+  "Ls_max_in": 1,
+  "L0_max_in": 4,
+  "d_values_in": [
+    0.069,
+    0.071,
+    0.08,
+    0.085,
+    0.09,
+    0.095,
+    0.105,
+    0.112
+  ],
+  "surface_treatment": "unpeened",
+  "end_type": "squared_and_ground",
+  "end_condition": "fixed_fixed",
+  "robust_linearity": 0.15,
+  "set_removed": false,
+  "nf_target": 1.5,
+  "Fmin_lbf": 5,
+  "Fmax_lbf": 20,
+  "ymin_in": 0.5,
+  "ymax_in": 2,
+  "frequency_ratio": 20.0,
+  "percent_strategy": "min"
+}

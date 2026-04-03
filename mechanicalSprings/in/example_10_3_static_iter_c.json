@@ -1,0 +1,16 @@
+{
+  "solve_path": "static_iter_c",
+  "material": "music wire",
+  "F_lbf": 18,
+  "y_in": 2.25,
+  "Fs_lbf": 24,
+  "design_factor_solid": 1.2,
+  "end_type": "squared_and_ground",
+  "end_condition": "fixed_fixed",
+  "wire_table_system": "steel_wire_washburn_moen",
+  "set_removed": false,
+  "C_start": 4.0,
+  "C_stop": 14.0,
+  "C_step": 0.1,
+  "percent_strategy": "min"
+}

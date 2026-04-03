@@ -1,46 +1,42 @@
 {
   "table_id": "10-1",
   "title": "Formulas for the dimensional characteristics of compression springs",
-  "note": "Na = number of active coils.",
   "end_types": {
     "plain": {
-      "Ne": "0",
-      "Nt": "Na",
-      "L0": "p*Na + d",
-      "Ls": "d*(Nt + 1)",
-      "p": "(L0 - d)/Na"
+      "equations": {
+        "Ne": "0",
+        "Nt": "Na",
+        "L0": "p*Na + d",
+        "Ls": "d*(Nt + 1)",
+        "p": "(L0 - d)/Na"
+      }
     },
     "plain_and_ground": {
-      "Ne": "1",
-      "Nt": "Na + 1",
-      "L0": "p*(Na + 1)",
-      "Ls": "d*Nt",
-      "p": "L0/(Na + 1)"
+      "equations": {
+        "Ne": "1",
+        "Nt": "Na + 1",
+        "L0": "p*(Na + 1)",
+        "Ls": "d*Nt",
+        "p": "L0/(Na + 1)"
+      }
     },
     "squared_or_closed": {
-      "Ne": "2",
-      "Nt": "Na + 2",
-      "L0": "p*Na + 3*d",
-      "Ls": "d*(Nt + 1)",
-      "p": "(L0 - 3*d)/Na"
+      "equations": {
+        "Ne": "2",
+        "Nt": "Na + 2",
+        "L0": "p*Na + 3*d",
+        "Ls": "d*(Nt + 1)",
+        "p": "(L0 - 3*d)/Na"
+      }
     },
     "squared_and_ground": {
-      "Ne": "2",
-      "Nt": "Na + 2",
-      "L0": "p*Na + 2*d",
-      "Ls": "d*Nt",
-      "p": "(L0 - 2*d)/Na"
+      "equations": {
+        "Ne": "2",
+        "Nt": "Na + 2",
+        "L0": "p*Na + 2*d",
+        "Ls": "d*Nt",
+        "p": "(L0 - 2*d)/Na"
+      }
     }
-  },
-  "implementation_guidance": {
-    "recommended_primary_format": "json",
-    "reason": "This table is formula-driven, so JSON is better than plain CSV for symbolic solving.",
-    "extra_textbook_note": "Text below the table notes an alternative for squared-and-ground ends: Ls = (Nt - a)*d, where a varies with average 0.75.",
-    "solver_usage": [
-      "Choose end_type from CLI input.",
-      "Load the corresponding symbolic relations.",
-      "Combine them with independent problem equations such as L0 = y + Ls when given in examples.",
-      "Solve for the unknowns with your algebraic solver."
-    ]
   }
 }

@@ -1,0 +1,11 @@
+{
+  "solve_path": "compression_analysis",
+  "material": "music wire",
+  "d_in": 0.037,
+  "OD_in": 0.4375,
+  "end_type": "squared_and_ground",
+  "end_condition": "fixed_fixed",
+  "Nt": 12.5,
+  "set_removed": false,
+  "percent_strategy": "min"
+}
