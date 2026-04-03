@@ -11,6 +11,6 @@
   "set_removed": false,
   "C_start": 4.0,
   "C_stop": 14.0,
-  "C_step": 0.1,
+  "C_step": 2,
   "percent_strategy": "min"
 }
