@@ -53,6 +53,89 @@ class SpringData:
             return None
         return float(value)
 
+    @staticmethod
+    def _canonicalize_text(text: str) -> str:
+        return (
+            text.lower()
+            .strip()
+            .replace("_", " ")
+            .replace("-", " ")
+            .replace("&", "and")
+        )
+
+    def _normalize_material_query(self, material_query: str) -> List[str]:
+        """
+        Return a list of normalized aliases to try, most specific first.
+        This makes the lookup robust to user-friendly names such as
+        'hard-drawn', 'hard-drawn wire', 'music wire', etc.
+        """
+        raw = self._canonicalize_text(material_query)
+        compact = " ".join(raw.split())
+
+        aliases = {compact}
+
+        alias_groups = {
+            "a228": [
+                "a228", "music wire", "music", "astm a228",
+            ],
+            "a227": [
+                "a227", "hard drawn", "hard drawn wire", "hard-drawn", "hard-drawn wire",
+                "hd spring", "hd spring a227", "astm a227",
+            ],
+            "a229": [
+                "a229", "oqt", "oq and t", "oq&t", "oqt wire", "oil quenched and tempered",
+                "oil quenched and tempered wire", "astm a229",
+            ],
+            "a230": [
+                "a230", "valve spring", "valve spring wire", "astm a230",
+            ],
+            "a231": [
+                "a231", "chrome vanadium", "chrome vanadium wire", "astm a231",
+            ],
+            "a232": [
+                "a232", "chrome vanadium", "chrome vanadium wire", "astm a232",
+            ],
+            "a401": [
+                "a401", "chrome silicon", "chrome silicon wire", "astm a401",
+            ],
+            "a313": [
+                "a313", "302 stainless", "302 stainless wire", "stainless", "stainless wire", "astm a313",
+            ],
+            "b159": [
+                "b159", "phosphor bronze", "phosphor bronze wire", "astm b159",
+            ],
+            "b197": [
+                "b197", "beryllium copper", "beryllium copper wire", "astm b197",
+            ],
+            "x750": [
+                "inconel x 750", "inconel x750", "x750", "inconel alloy x 750",
+            ],
+            "17-7ph": [
+                "17 7ph", "17-7ph", "stainless 17 7ph", "stainless 17-7ph",
+            ],
+            "414": [
+                "414", "stainless 414",
+            ],
+            "420": [
+                "420", "stainless 420",
+            ],
+            "431": [
+                "431", "stainless 431",
+            ],
+        }
+
+        for canon, group in alias_groups.items():
+            group_norm = {self._canonicalize_text(x) for x in group}
+            if compact in group_norm:
+                aliases.add(canon)
+                aliases.update(group_norm)
+
+        ordered = [compact]
+        for item in sorted(aliases, key=lambda s: (len(s), s)):
+            if item not in ordered:
+                ordered.append(item)
+        return ordered
+
     def get_end_equations(self, end_type: str) -> Dict[str, str]:
         return self.table_10_1["end_types"][end_type]["equations"]
 
@@ -62,17 +145,24 @@ class SpringData:
                 return float(row["alpha"])
         raise KeyError(f"Unknown end condition: {end_condition_key}")
 
+    def _row_text(self, row: Dict[str, str], keys: List[str]) -> str:
+        return self._canonicalize_text(" ".join(row.get(k, "") for k in keys))
+
+    def _diameter_matches(self, row: Dict[str, str], d_in: Optional[float]) -> bool:
+        if d_in is None:
+            return True
+        dmin = self._to_float(row.get("diameter_in_min"))
+        dmax = self._to_float(row.get("diameter_in_max"))
+        return (dmin is None or d_in >= dmin - 1e-12) and (dmax is None or d_in <= dmax + 1e-12)
+
     def get_material_104(self, material_query: str, d_in: Optional[float] = None) -> Dict[str, Any]:
-        mq = material_query.lower().strip()
-        candidates = []
+        aliases = self._normalize_material_query(material_query)
+        candidates: List[Dict[str, str]] = []
         for row in self.table_10_4:
-            label = row["material_label"].lower()
-            key = row["material_key"].lower()
-            astm = row["astm_no"].lower()
-            if mq in {label, key, astm} or mq in label or mq == astm:
-                dmin = self._to_float(row.get("diameter_in_min"))
-                dmax = self._to_float(row.get("diameter_in_max"))
-                if d_in is None or ((dmin is None or d_in >= dmin - 1e-12) and (dmax is None or d_in <= dmax + 1e-12)):
+            row_text = self._row_text(row, ["material_label", "material_key", "astm_no"])
+            astm = self._canonicalize_text(row.get("astm_no", ""))
+            if any(alias == astm or alias in row_text for alias in aliases):
+                if self._diameter_matches(row, d_in):
                     candidates.append(row)
         if not candidates:
             raise KeyError(f"No Table 10-4 row matched material={material_query!r}, d_in={d_in}")
@@ -89,15 +179,14 @@ class SpringData:
         }
 
     def get_material_105(self, material_query: str, d_in: Optional[float] = None) -> Dict[str, Any]:
-        mq = material_query.lower().strip()
-        candidates = []
+        aliases = self._normalize_material_query(material_query)
+        candidates: List[Dict[str, str]] = []
         for row in self.table_10_5:
-            text = " ".join([row.get("material_label", ""), row.get("material_key", ""), row.get("astm_no", "")]).lower()
-            if mq not in text and mq != row.get("astm_no", "").lower():
+            row_text = self._row_text(row, ["material_label", "material_key", "astm_no"])
+            astm = self._canonicalize_text(row.get("astm_no", ""))
+            if not any(alias == astm or alias in row_text for alias in aliases):
                 continue
-            dmin = self._to_float(row.get("diameter_in_min"))
-            dmax = self._to_float(row.get("diameter_in_max"))
-            if d_in is None or ((dmin is None or d_in >= dmin - 1e-12) and (dmax is None or d_in <= dmax + 1e-12)):
+            if self._diameter_matches(row, d_in):
                 candidates.append(row)
         if not candidates:
             raise KeyError(f"No Table 10-5 row matched material={material_query!r}, d_in={d_in}")
@@ -115,23 +204,31 @@ class SpringData:
         }
 
     def get_allowable_percent_106(self, material_query: str, set_removed: bool = False, strategy: str = "min") -> float:
-        mq = material_query.lower().strip()
+        mq = self._canonicalize_text(material_query)
         group_key = self._map_material_to_106_group(mq)
         for row in self.table_10_6:
             if row["material_group_key"] != group_key:
                 continue
             if set_removed:
-                return self._range_value(row["max_percent_tensile_strength_after_set_removed_min"], row["max_percent_tensile_strength_after_set_removed_max"], strategy)
-            return self._range_value(row["max_percent_tensile_strength_before_set_removed_min"], row["max_percent_tensile_strength_before_set_removed_max"], strategy)
+                return self._range_value(
+                    row["max_percent_tensile_strength_after_set_removed_min"],
+                    row["max_percent_tensile_strength_after_set_removed_max"],
+                    strategy,
+                )
+            return self._range_value(
+                row["max_percent_tensile_strength_before_set_removed_min"],
+                row["max_percent_tensile_strength_before_set_removed_max"],
+                strategy,
+            )
         raise KeyError(f"No Table 10-6 mapping for material={material_query!r}")
 
     def _map_material_to_106_group(self, material_query: str) -> str:
-        mq = material_query.lower()
-        if any(x in mq for x in ["music", "a228", "hard-drawn", "a227", "cold-drawn", "cold drawn"]):
+        mq = self._canonicalize_text(material_query)
+        if any(x in mq for x in ["music", "a228", "hard drawn", "a227", "cold drawn"]):
             return "music_wire_and_cold_drawn_carbon_steel"
-        if any(x in mq for x in ["oil tempered", "a229", "valve", "a230", "chrome-vanadium", "a231", "a232", "chrome-silicon", "a401", "oq&t"]):
+        if any(x in mq for x in ["oil tempered", "a229", "valve", "a230", "chrome vanadium", "a231", "a232", "chrome silicon", "a401", "oqt"]):
             return "hardened_tempered_carbon_and_low_alloy_steel"
-        if any(x in mq for x in ["stainless", "a313", "17-7ph", "414", "420", "431"]):
+        if any(x in mq for x in ["stainless", "a313", "17 7ph", "414", "420", "431"]):
             return "austenitic_stainless_steels"
         return "nonferrous_alloys"
 
@@ -240,10 +337,8 @@ def equation_10_23(alpha: float, beta: float) -> float:
 
 
 def equation_10_23_d_from_strength(A_kpsi_in_m: float, m: float, percent: float, ns: float, Fs: float, C: float) -> float:
-    # percent is decimal fraction, e.g. 0.45.
     numerator = kb(C) * 8.0 * Fs * C * ns
     denominator = math.pi * percent * A_kpsi_in_m * 1000.0
-    # A is in kpsi*in^m, numerator denominator in psi terms -> consistent if convert A to psi.
     exponent = 1.0 / (2.0 - m)
     return (numerator / denominator) ** exponent
 
