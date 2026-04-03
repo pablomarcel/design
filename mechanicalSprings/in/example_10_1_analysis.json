@@ -3,7 +3,7 @@
   "material": "music wire",
   "d_in": 0.037,
   "OD_in": 0.4375,
-  "end_type": "squared_and_ground",
+  "end_type": "squared_or_closed",
   "end_condition": "fixed_fixed",
   "Nt": 12.5,
   "set_removed": false,

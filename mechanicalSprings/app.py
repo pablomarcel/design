@@ -149,21 +149,36 @@ class StaticSelectionSolver(BaseSpringSolver):
                 C = D / d
             else:
                 raise ValueError(f"Unknown mode: {mode}")
+
             KB = kb(C)
-            tau_s_psi = tau_max((1.0 + xi) * Fmax, D, d, KB)
+            Fs = fs_solid(Fmax, xi)
+            tau_s_psi = tau_max(Fs, D, d, KB)
             ns_actual = ctx["Ssy_kpsi"] * 1000.0 / tau_s_psi
+
             OD = OD_from_D(D, d)
             ID = ID_from_D(D, d)
+
+            # Example 10-2 path:
+            # use the service deflection ymax to size Na from k = Fmax / ymax,
+            # then use the solid-load deflection ys = Fs / k to compute free length.
             Na = ctx["G_psi"] * d ** 4 * ymax / (8.0 * D ** 3 * Fmax)
+            k = spring_rate(D, d, Na, ctx["G_psi"])
+            ys = Fs / k
+
             end_eqs = self.db.get_end_equations(end_type)
             Nt = eval(end_eqs["Nt"], {}, {"Na": Na})
             Ls = eval(end_eqs["Ls"], {}, {"d": d, "Nt": Nt})
-            L0 = eval(end_eqs["L0"], {}, {"p": None, "Na": Na, "d": d}) if False else Ls + ymax
+            L0 = Ls + ys
+
             L0_cr = buckling_l0_cr_steel(D, alpha_end)
-            fom = figure_of_merit(ctx["relative_cost"], d, D, Nt, include_gamma=True, gamma=gamma)
-            k = spring_rate(D, d, Na, ctx["G_psi"])
+
+            # For the textbook-style comparison in Example 10-2, omit gamma
+            # from the figure of merit when comparing steel candidates.
+            fom = figure_of_merit(ctx["relative_cost"], d, D, Nt, include_gamma=False)
+
             W = weight_lbf(d, D, Na, gamma)
             fn = natural_frequency_hz(k, W)
+
             constraints = {
                 "Na_range": 3.0 <= Na <= 15.0,
                 "C_range": 4.0 <= C <= 12.0,
@@ -190,6 +205,7 @@ class StaticSelectionSolver(BaseSpringSolver):
                 "feasible": feasible,
                 "active_constraints": [k for k, v in constraints.items() if not v],
             })
+
         feasible_rows = [r for r in rows if r["feasible"]]
         selected = None
         if feasible_rows:

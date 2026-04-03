@@ -54,3 +54,7 @@ python -m cli run \
 python -m cli solve \
   --payload '{"solve_path":"compression_analysis","material":"music wire","d_in":0.105,"OD_in":0.945,"end_type":"squared_and_ground","Nt":14}'
 ```
+
+## RipGrep
+
+rg "music wire" mechanicalSprings
