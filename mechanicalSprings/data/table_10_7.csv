@@ -1,0 +1,3 @@
+material_group_key,material_label,torsion_body_pct_min,torsion_body_pct_max,torsion_end_pct,bending_end_pct,set_removed,low_temperature_heat_treatment_applied,high_initial_tension_rule,source_note
+patented_cold_drawn_or_hardened_tempered_carbon_and_low_alloy_steels,"Patented, cold-drawn or hardened and tempered carbon and low-alloy steels",45,50,40,75,no,yes,use end percent for high initial tension springs,Shigley Table 10-7
+austenitic_stainless_steel_and_nonferrous_alloys,Austenitic stainless steel and nonferrous alloys,35,35,30,55,no,yes,use end percent for high initial tension springs,Shigley Table 10-7

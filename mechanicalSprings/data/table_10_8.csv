@@ -1,0 +1,4 @@
+cycle_count,cycles_numeric,material_scope,torsion_body_pct,torsion_end_pct,bending_end_pct,shot_peened,surging,environment,low_temperature_heat_treatment_applied,stress_ratio,source_note
+1e5,100000,ASTM A228 and Type 302 Stainless Steel,36,34,51,no,no,ambient,yes,0,Shigley Table 10-8
+1e6,1000000,ASTM A228 and Type 302 Stainless Steel,33,30,47,no,no,ambient,yes,0,Shigley Table 10-8
+1e7,10000000,ASTM A228 and Type 302 Stainless Steel,30,28,45,no,no,ambient,yes,0,Shigley Table 10-8
