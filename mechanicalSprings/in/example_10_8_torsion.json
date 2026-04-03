@@ -1,0 +1,14 @@
+{
+  "solve_path": "torsion_spring",
+  "material": "music wire",
+  "shot_peened": false,
+  "d_in": 0.072,
+  "Nb": 4.25,
+  "OD_in": 0.59375,
+  "Dp_in": 0.4,
+  "l1_in": 1.0,
+  "l2_in": 1.0,
+  "Mmin_lbf_in": 1.0,
+  "Mmax_lbf_in": 5.0,
+  "fatigue_cycles": 1000000.0
+}

@@ -1,0 +1,9 @@
+fatigue_life_cycles,cycles_numeric,material_group_key,material_label,shot_peened,max_recommended_bending_stress_pct_sut,surging,condition_note,source_note
+1e5,100000,astm_a228_and_type_302_stainless_steel,ASTM A228 and Type 302 Stainless Steel,no,53,no,as-stress-relieved,Shigley Table 10-10
+1e5,100000,astm_a228_and_type_302_stainless_steel,ASTM A228 and Type 302 Stainless Steel,yes,62,no,as-stress-relieved,Shigley Table 10-10
+1e5,100000,astm_a230_and_a232,ASTM A230 and A232,no,55,no,as-stress-relieved,Shigley Table 10-10
+1e5,100000,astm_a230_and_a232,ASTM A230 and A232,yes,64,no,as-stress-relieved,Shigley Table 10-10
+1e6,1000000,astm_a228_and_type_302_stainless_steel,ASTM A228 and Type 302 Stainless Steel,no,50,no,as-stress-relieved,Shigley Table 10-10
+1e6,1000000,astm_a228_and_type_302_stainless_steel,ASTM A228 and Type 302 Stainless Steel,yes,60,no,as-stress-relieved,Shigley Table 10-10
+1e6,1000000,astm_a230_and_a232,ASTM A230 and A232,no,53,no,as-stress-relieved,Shigley Table 10-10
+1e6,1000000,astm_a230_and_a232,ASTM A230 and A232,yes,62,no,as-stress-relieved,Shigley Table 10-10

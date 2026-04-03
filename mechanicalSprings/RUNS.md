@@ -75,8 +75,8 @@ python -m cli run \
 
 ```bash
 python -m cli run \
-  --infile example_10_8_torsion_spring.json \
-  --outfile example_10_9_torsion_spring_out.json
+  --infile example_10_8_torsion.json \
+  --outfile example_10_8_torsion_out.json
 ```
 
 ## RipGrep

@@ -36,6 +36,7 @@ class SpringData:
         self.table_6_8 = self._load_json("table_6_8.json")
         self.table_10_7 = self._load_csv_optional("table_10_7.csv")
         self.table_10_8 = self._load_csv_optional("table_10_8.csv")
+        self.table_10_10 = self._load_csv_optional("table_10_10.csv")
 
     def _load_json(self, name: str) -> Dict[str, Any]:
         import json
@@ -287,6 +288,39 @@ class SpringData:
             raise KeyError(f"Unsupported Table 10-8 lookup location={location!r}, mode={mode!r}")
         return {"cycle_count": row["cycle_count"], "cycles_numeric": float(row["cycles_numeric"]), "percent": pct}
 
+
+    def _map_material_to_1010_group(self, material_query: str) -> str:
+        mq = self._canonicalize_text(material_query)
+        if any(x in mq for x in ["a228", "music", "302", "a313", "stainless"]):
+            return "astm_a228_and_type_302_stainless_steel"
+        if any(x in mq for x in ["a230", "a232", "valve", "chrome vanadium"]):
+            return "astm_a230_and_a232"
+        raise KeyError(f"No Table 10-10 mapping for material={material_query!r}")
+
+    def get_allowable_percent_1010(self, cycles: float, material_query: str, shot_peened: bool = False) -> Dict[str, Any]:
+        if not self.table_10_10:
+            raise KeyError("table_10_10.csv not loaded")
+        group_key = self._map_material_to_1010_group(material_query)
+        rows = []
+        for row in self.table_10_10:
+            if row["material_group_key"] != group_key:
+                continue
+            if str(row["shot_peened"]).strip().lower() not in (["yes","y","true","1"] if shot_peened else ["no","n","false","0"]):
+                continue
+            c = float(row["cycles_numeric"])
+            rows.append((abs(math.log10(cycles) - math.log10(c)), row))
+        if not rows:
+            raise KeyError(f"No Table 10-10 row matched material={material_query!r}, shot_peened={shot_peened}")
+        row = min(rows, key=lambda t: t[0])[1]
+        return {
+            "material_group_key": row["material_group_key"],
+            "material_label": row["material_label"],
+            "fatigue_life_cycles": row["fatigue_life_cycles"],
+            "cycles_numeric": float(row["cycles_numeric"]),
+            "shot_peened": str(row["shot_peened"]).strip().lower() in ("yes","y","true","1"),
+            "percent": float(row["max_recommended_bending_stress_pct_sut"]) / 100.0,
+        }
+
     def _range_value(self, vmin: str, vmax: str, strategy: str) -> float:
         a = float(vmin)
         b = float(vmax)
@@ -457,6 +491,51 @@ def safe_eval_expr(expr: str, vars_map: Dict[str, float]) -> float:
     allowed = {"sqrt": math.sqrt, "pi": math.pi}
     allowed.update(vars_map)
     return float(eval(expr, {"__builtins__": {}}, allowed))
+
+
+
+# Helical torsion spring helpers
+def torsion_ki(C: float) -> float:
+    return (4.0 * C * C - C - 1.0) / (4.0 * C * (C - 1.0))
+
+def torsion_ko(C: float) -> float:
+    return (4.0 * C * C + C - 1.0) / (4.0 * C * (C + 1.0))
+
+def torsion_static_yield_percent(material_query: str) -> float:
+    mq = material_query.lower().strip().replace("_", " ").replace("-", " ")
+    if any(x in mq for x in ["music", "a228", "hard drawn", "a227", "cold drawn"]):
+        return 0.78
+    if any(x in mq for x in ["oil tempered", "a229", "valve", "a230", "chrome vanadium", "a231", "a232", "chrome silicon", "a401", "oqt"]):
+        return 0.87
+    return 0.61
+
+def torsion_static_yield_strength(Sut_kpsi: float, material_query: str) -> float:
+    return torsion_static_yield_percent(material_query) * Sut_kpsi
+
+def torsion_max_moment_for_yield(d: float, Sy_psi: float, Ki: float) -> float:
+    return math.pi * d**3 * Sy_psi / (32.0 * Ki)
+
+def torsion_body_deflection_turns(M: float, D: float, Nb: float, d: float, E_psi: float) -> float:
+    return 10.8 * M * D * Nb / (d**4 * E_psi)
+
+def torsion_active_turns(Nb: float, D: float, l1: float, l2: float) -> float:
+    return Nb + (l1 + l2) / (3.0 * math.pi * D)
+
+def torsion_rate_per_turn(d: float, D: float, Na: float, E_psi: float) -> float:
+    return d**4 * E_psi / (10.8 * D * Na)
+
+def torsion_loaded_diameter(Nb: float, D: float, theta_body_turns: float) -> float:
+    return Nb * D / (Nb + theta_body_turns)
+
+def torsion_diametral_clearance(D_loaded: float, d: float, Dp: float) -> float:
+    return D_loaded - d - Dp
+
+def torsion_bending_stress(M: float, d: float, Ki: float) -> float:
+    return Ki * 32.0 * M / (math.pi * d**3)
+
+def torsion_fatigue_endurance_from_Sr(Sr_kpsi: float, Sut_kpsi: float) -> float:
+    half = Sr_kpsi / 2.0
+    return half / (1.0 - (half / Sut_kpsi) ** 2)
 
 
 # Extension spring helpers

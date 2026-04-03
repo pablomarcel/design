@@ -18,6 +18,16 @@ from core import (
     extension_hook_bending_stress,
     extension_hook_torsion_factor,
     extension_hook_torsion_stress,
+    torsion_ki,
+    torsion_static_yield_strength,
+    torsion_max_moment_for_yield,
+    torsion_body_deflection_turns,
+    torsion_active_turns,
+    torsion_rate_per_turn,
+    torsion_loaded_diameter,
+    torsion_diametral_clearance,
+    torsion_bending_stress,
+    torsion_fatigue_endurance_from_Sr,
     extension_initial_tension_preferred_range_psi,
     figure_of_merit,
     fs_solid,
@@ -578,6 +588,97 @@ class ExtensionDynamicLoadingSolver(BaseSpringSolver):
         checks = {"body_fatigue": nf_body, "body_yield": ny_body, "hook_bending_A_fatigue": nf_A, "hook_torsion_B_fatigue": nf_B}
         failure_first = min(checks, key=checks.get)
         return round_dict({"solve_path": self.solve_path, "inputs": payload, "material_context": ctx, "computed": {"D_in": D, "C": C, "KB_body": KB_body, "Na": Na, "Nb": Nb, "L0_in": L0, "k_lbf_per_in": k, "Fa_lbf": Fa, "Fm_lbf": Fm, "body": {"tau_a_kpsi": tau_a_body_kpsi, "tau_m_kpsi": tau_m_body_kpsi, "tau_i_corrected_kpsi": tau_i_corr_kpsi, "zimmerli": z, "Sse_kpsi": Sse_shear_kpsi, "nf_gerber": nf_body, "r_yield": r_yield, "Ssa_y_kpsi": Ssa_y, "ny": ny_body}, "hook_bending_A": {"C1": hookA["C1"], "K_A": hookA["K_A"], "sigma_a_kpsi": sigma_a_A_kpsi, "sigma_m_kpsi": sigma_m_A_kpsi, "Se_tension_kpsi": Se_tension_kpsi, "nf_gerber": nf_A}, "hook_torsion_B": {"C2": hookB["C2"], "K_B_hook": hookB["K_B_hook"], "tau_a_kpsi": tau_a_B_kpsi, "tau_m_kpsi": tau_m_B_kpsi, "Sse_kpsi": Sse_shear_kpsi, "nf_gerber": nf_B}, "table_10_8_reference": alt_108, "failure_first": failure_first}})
+
+
+class TorsionSpringSolver(BaseSpringSolver):
+    solve_path = "torsion_spring"
+
+    def solve(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+        material = payload["material"]
+        shot_peened = bool(payload.get("shot_peened", False))
+        d = float(payload["d_in"])
+        Nb = float(payload["Nb"])
+        OD = float(payload["OD_in"])
+        Dp = float(payload["Dp_in"])
+        l1 = float(payload.get("l1_in", 1.0))
+        l2 = float(payload.get("l2_in", 1.0))
+        Mmin = float(payload.get("Mmin_lbf_in", 1.0))
+        Mmax_fatigue = float(payload.get("Mmax_lbf_in", 5.0))
+        fatigue_cycles = float(payload.get("fatigue_cycles", 1e6))
+
+        t104 = self.db.get_material_104(material, d)
+        t105 = self.db.get_material_105(material, d)
+        Sut_kpsi = sut_from_table_104(t104["A_kpsi_in_m"], t104["m"], d)
+        Sy_kpsi = torsion_static_yield_strength(Sut_kpsi, material)
+
+        D = D_from_OD(OD, d)
+        C = spring_index(D, d)
+        Ki = torsion_ki(C)
+        Mmax_static = torsion_max_moment_for_yield(d, Sy_kpsi * 1000.0, Ki)
+
+        E_psi = t105["E_Mpsi"] * 1e6
+        theta_c_prime_turns = torsion_body_deflection_turns(Mmax_static, D, Nb, d, E_psi)
+        theta_c_prime_deg = theta_c_prime_turns * 360.0
+
+        Na = torsion_active_turns(Nb, D, l1, l2)
+        k_prime = torsion_rate_per_turn(d, D, Na, E_psi)
+        theta_prime_turns = Mmax_static / k_prime
+        theta_prime_deg = theta_prime_turns * 360.0
+
+        D_prime = torsion_loaded_diameter(Nb, D, theta_c_prime_turns)
+        delta = torsion_diametral_clearance(D_prime, d, Dp)
+
+        Ma = 0.5 * (Mmax_fatigue - Mmin)
+        Mm = 0.5 * (Mmax_fatigue + Mmin)
+        r = Ma / Mm
+        sigma_a_kpsi = torsion_bending_stress(Ma, d, Ki) / 1000.0
+        sigma_m_kpsi = torsion_bending_stress(Mm, d, Ki) / 1000.0
+
+        row1010 = self.db.get_allowable_percent_1010(fatigue_cycles, material, shot_peened=shot_peened)
+        Sr_kpsi = row1010["percent"] * Sut_kpsi
+        Se_kpsi = torsion_fatigue_endurance_from_Sr(Sr_kpsi, Sut_kpsi)
+        Sa_kpsi = gerber_allowable_shear_amplitude(r, Se_kpsi, Sut_kpsi)
+        nf = Sa_kpsi / sigma_a_kpsi
+
+        return round_dict({
+            "solve_path": self.solve_path,
+            "inputs": payload,
+            "material_context": {
+                "table_10_4": t104,
+                "table_10_5": t105,
+                "Sut_kpsi": Sut_kpsi,
+                "Sy_kpsi": Sy_kpsi,
+                "E_psi": E_psi,
+                "table_10_10": row1010,
+            },
+            "computed": {
+                "D_in": D,
+                "C": C,
+                "Ki": Ki,
+                "Mmax_static_lbf_in": Mmax_static,
+                "theta_c_prime_turns": theta_c_prime_turns,
+                "theta_c_prime_deg": theta_c_prime_deg,
+                "Na": Na,
+                "k_prime_lbf_in_per_turn": k_prime,
+                "theta_prime_turns": theta_prime_turns,
+                "theta_prime_deg": theta_prime_deg,
+                "D_prime_in": D_prime,
+                "diametral_clearance_in": delta,
+                "fatigue": {
+                    "Ma_lbf_in": Ma,
+                    "Mm_lbf_in": Mm,
+                    "r": r,
+                    "sigma_a_kpsi": sigma_a_kpsi,
+                    "sigma_m_kpsi": sigma_m_kpsi,
+                    "Sr_kpsi": Sr_kpsi,
+                    "Se_kpsi": Se_kpsi,
+                    "Sa_kpsi": Sa_kpsi,
+                    "nf": nf,
+                },
+            },
+        })
+
+
 class SpringApplication:
     def __init__(self) -> None:
         self.solvers = {
@@ -588,6 +689,7 @@ class SpringApplication:
             FatigueDesignSolver.solve_path: FatigueDesignSolver(),
             ExtensionStaticServiceSolver.solve_path: ExtensionStaticServiceSolver(),
             ExtensionDynamicLoadingSolver.solve_path: ExtensionDynamicLoadingSolver(),
+            TorsionSpringSolver.solve_path: TorsionSpringSolver(),
         }
 
     def solve(self, payload: Dict[str, Any]) -> Dict[str, Any]:

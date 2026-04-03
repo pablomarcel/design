@@ -64,6 +64,7 @@ def main() -> int:
         print("fatigue_design_iter")
         print("extension_static_service")
         print("extension_dynamic_loading")
+        print("torsion_spring")
         return 0
 
     if args.command == "run":
