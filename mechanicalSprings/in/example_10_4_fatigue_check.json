@@ -8,6 +8,6 @@
   "Fmax_lbf": 35,
   "surface_treatment": "unpeened",
   "gamma_lb_per_in3": 0.284,
-  "operating_frequency_hz": 14.1,
+  "operating_frequency_hz": 14,
   "frequency_ratio": 20.0
 }
