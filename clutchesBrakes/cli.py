@@ -69,16 +69,18 @@ ANNULAR_TEMPLATE = {
     "schema": "clutchesBrakes.v1",
     "problem_type": "annular_pad",
     "meta": {"name": "annular_pad_case"},
-    "model": "uniform_wear",
-    "mu": 0.37,
-    "ri": 3.875,
-    "ro": 5.50,
-    "theta1_deg": 0.0,
-    "theta2_deg": 108.0,
-    "n_pads": 2,
-    "torque_total": 13000.0,
-    "cylinder_diameter": 1.5,
-    "n_cylinders": 2
+    "givens": {
+        "model": "uniform_wear",
+        "mu": 0.37,
+        "ri": 3.875,
+        "ro": 5.50,
+        "theta1_deg": 36.0,
+        "theta2_deg": 144.0,
+        "n_pads": 2,
+        "torque_total": 13000.0,
+        "cylinder_diameter": 1.5,
+        "n_cylinders": 2
+    }
 }
 
 
@@ -240,18 +242,20 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "annular_pad":
             payload = {
-                "model": args.model,
-                "mu": args.mu,
-                "ri": args.ri,
-                "ro": args.ro,
-                "theta1_deg": args.theta1_deg,
-                "theta2_deg": args.theta2_deg,
-                "n_pads": args.n_pads,
-                "torque_total": args.torque_total,
-                "p_a": args.p_a,
-                "F": args.F,
-                "cylinder_diameter": args.cylinder_diameter,
-                "n_cylinders": args.n_cylinders,
+                "givens": {
+                    "model": args.model,
+                    "mu": args.mu,
+                    "ri": args.ri,
+                    "ro": args.ro,
+                    "theta1_deg": args.theta1_deg,
+                    "theta2_deg": args.theta2_deg,
+                    "n_pads": args.n_pads,
+                    "torque_total": args.torque_total,
+                    "p_a": args.p_a,
+                    "F": args.F,
+                    "cylinder_diameter": args.cylinder_diameter,
+                    "n_cylinders": args.n_cylinders,
+                }
             }
             result = API.solve("annular_pad", payload)
             maybe_write(result, args.outfile)

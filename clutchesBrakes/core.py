@@ -440,71 +440,82 @@ class AnnularPadCaliperSolver(SolverBase):
     title = "Annular-pad caliper brake"
 
     def solve(self, payload: Dict[str, Any]) -> SolveResult:
-        mu = float(payload["mu"])
-        ri = float(payload["ri"])
-        ro = float(payload["ro"])
-        theta1_deg = float(payload.get("theta1_deg", 0.0))
-        theta2_deg = float(payload["theta2_deg"])
-        model = payload.get("model", "uniform_wear")
-        n_pads = int(payload.get("n_pads", 2))
+        raw_inputs = dict(payload)
+        givens = dict(payload.get("givens", payload))
+
+        mu = float(givens["mu"])
+        ri = float(givens["ri"])
+        ro = float(givens["ro"])
+        theta1_deg = float(givens.get("theta1_deg", 0.0))
+        theta2_deg = float(givens["theta2_deg"])
+        model = givens.get("model", "uniform_wear")
+        n_pads = int(givens.get("n_pads", 2))
+        torque_total = givens.get("torque_total")
+        pa_in = givens.get("p_a")
+        F_in = givens.get("F")
+        cylinder_diameter = givens.get("cylinder_diameter")
+        n_cylinders = int(givens.get("n_cylinders", 1)) if cylinder_diameter is not None else None
+
         ensure(mu >= 0 and ri > 0 and ro > ri, "Invalid annular-pad geometry.")
         ensure(model in {"uniform_wear", "uniform_pressure"}, "model must be uniform_wear or uniform_pressure.")
         ensure(n_pads >= 1, "n_pads must be >= 1.")
+
         th1 = deg_to_rad(theta1_deg)
         th2 = deg_to_rad(theta2_deg)
         theta_span = th2 - th1
         ensure(theta_span > 0, "theta2 must exceed theta1.")
 
-        notes = []
-
+        notes: list[str] = []
         if model == "uniform_wear":
-            torque_coeff_per_pad = 0.5 * theta_span * mu * ri * (ro ** 2 - ri ** 2)
             force_coeff = theta_span * ri * (ro - ri)
+            torque_coeff_per_pad = 0.5 * theta_span * mu * ri * (ro ** 2 - ri ** 2)
             re = 0.5 * (ro + ri)
             rbar = ((math.cos(th1) - math.cos(th2)) / theta_span) * re
+            pressure_distribution = "p = p_a r_i / r"
         else:
-            torque_coeff_per_pad = (1.0 / 3.0) * theta_span * mu * (ro ** 3 - ri ** 3)
             force_coeff = 0.5 * theta_span * (ro ** 2 - ri ** 2)
+            torque_coeff_per_pad = (1.0 / 3.0) * theta_span * mu * (ro ** 3 - ri ** 3)
             re = (2.0 / 3.0) * (ro ** 3 - ri ** 3) / (ro ** 2 - ri ** 2)
             rbar = ((math.cos(th1) - math.cos(th2)) / theta_span) * re
+            pressure_distribution = "p = p_a"
 
-        pa = payload.get("p_a")
-        F = payload.get("F")
-        torque_total = payload.get("torque_total")
-
-        if pa is None:
+        if pa_in is None:
             if torque_total is not None:
-                pa = float(torque_total) / (n_pads * torque_coeff_per_pad)
-                notes.append("Solved p_a from total torque requirement.")
-            elif F is not None:
-                pa = float(F) / force_coeff
+                torque_per_pad_target = float(torque_total) / n_pads
+                pa = torque_per_pad_target / torque_coeff_per_pad
+                notes.append("Solved p_a from torque requirement per pad.")
+            elif F_in is not None:
+                pa = float(F_in) / force_coeff
                 notes.append("Solved p_a from actuating force per pad.")
             else:
                 raise ValidationError("Provide at least one of p_a, F, or torque_total.")
-        pa = float(pa)
+        else:
+            pa = float(pa_in)
         ensure(pa > 0, "p_a must be positive.")
 
-        if F is None:
-            F = force_coeff * pa
-        F = float(F)
-
+        F_per_pad = force_coeff * pa if F_in is None else float(F_in)
         torque_per_pad = torque_coeff_per_pad * pa
         torque_total_calc = n_pads * torque_per_pad
 
         hydraulic_pressure = None
+        cyl_area_each = None
         cyl_area_total = None
-        if payload.get("cylinder_diameter") is not None:
-            d_cyl = float(payload["cylinder_diameter"])
-            n_cylinders = int(payload.get("n_cylinders", 1))
+        if cylinder_diameter is not None:
+            d_cyl = float(cylinder_diameter)
             ensure(d_cyl > 0 and n_cylinders >= 1, "Invalid hydraulic cylinder definition.")
-            cyl_area_total = n_cylinders * math.pi * d_cyl ** 2 / 4.0
-            hydraulic_pressure = F / cyl_area_total
-            if n_cylinders == 1:
-                notes.append("Hydraulic pressure uses one cylinder area. Example 16-3 uses a pair of cylinders, so set n_cylinders=2 to match the textbook statement.")
+            cyl_area_each = math.pi * d_cyl ** 2 / 4.0
+            cyl_area_total = n_cylinders * cyl_area_each
+            # Example 16-3 states each cylinder supplies the pad actuating force F.
+            hydraulic_pressure = F_per_pad / cyl_area_each
+            if n_cylinders != n_pads:
+                notes.append(
+                    "Hydraulic pressure was computed from force per pad divided by area of one cylinder. "
+                    "This assumes one cylinder supplies each pad; if your hardware is different, adjust the interpretation."
+                )
 
         outputs = {
             "p_a": pa,
-            "F_per_pad": F,
+            "F_per_pad": F_per_pad,
             "torque_per_pad": torque_per_pad,
             "torque_total": torque_total_calc,
             "effective_radius_re": re,
@@ -513,19 +524,45 @@ class AnnularPadCaliperSolver(SolverBase):
         }
         if hydraulic_pressure is not None:
             outputs["hydraulic_pressure"] = hydraulic_pressure
+            outputs["cylinder_area_each"] = cyl_area_each
             outputs["total_cylinder_area"] = cyl_area_total
+
+        derived = {
+            "givens": {
+                "model": model,
+                "mu": mu,
+                "ri": ri,
+                "ro": ro,
+                "theta1_deg": theta1_deg,
+                "theta2_deg": theta2_deg,
+                "n_pads": n_pads,
+                "torque_total_target": torque_total,
+                "cylinder_diameter": cylinder_diameter,
+                "n_cylinders": n_cylinders,
+            },
+            "angles": {
+                "theta1_rad": th1,
+                "theta2_rad": th2,
+                "theta_span_rad": theta_span,
+                "theta_span_deg": math.degrees(theta_span),
+            },
+            "model_details": {
+                "pressure_distribution": pressure_distribution,
+                "force_coefficient_per_pad": force_coeff,
+                "torque_coefficient_per_pad": torque_coeff_per_pad,
+            },
+            "intermediate_calculations": {
+                "torque_per_pad_target": (float(torque_total) / n_pads) if torque_total is not None else None,
+                "effective_radius_re": re,
+                "force_location_rbar": rbar,
+            },
+        }
 
         return SolveResult(
             problem_type=self.problem_type,
             title=self.title,
-            inputs=payload,
+            inputs={"givens": givens},
             outputs=outputs,
-            derived={
-                "theta1_rad": th1,
-                "theta2_rad": th2,
-                "theta_span_rad": theta_span,
-                "force_coefficient": force_coeff,
-                "torque_coefficient_per_pad": torque_coeff_per_pad,
-            },
+            derived=derived,
             notes=notes,
         )

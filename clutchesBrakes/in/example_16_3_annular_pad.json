@@ -3,16 +3,18 @@
   "problem_type": "annular_pad",
   "meta": {
     "name": "example_16_3_annular_pad",
-    "reference": "Shigley Example 16-3, solved from Eqs. 16-33 to 16-36"
+    "reference": "Shigley Example 16-3"
   },
-  "model": "uniform_wear",
-  "mu": 0.37,
-  "ri": 3.875,
-  "ro": 5.50,
-  "theta1_deg": 0.0,
-  "theta2_deg": 108.0,
-  "n_pads": 2,
-  "torque_total": 13000.0,
-  "cylinder_diameter": 1.5,
-  "n_cylinders": 2
+  "givens": {
+    "model": "uniform_wear",
+    "mu": 0.37,
+    "ri": 3.875,
+    "ro": 5.50,
+    "theta1_deg": 36.0,
+    "theta2_deg": 144.0,
+    "n_pads": 2,
+    "torque_total": 13000.0,
+    "cylinder_diameter": 1.5,
+    "n_cylinders": 2
+  }
 }

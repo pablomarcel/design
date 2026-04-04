@@ -152,10 +152,11 @@ python -m cli annular_pad \
   --mu 0.37 \
   --ri 3.875 \
   --ro 5.50 \
-  --theta2-deg 108 \
+  --theta1-deg 36 \
+  --theta2-deg 144 \
   --n-pads 2 \
   --torque-total 13000 \
   --cylinder-diameter 1.5 \
   --n-cylinders 2 \
-  --outfile annular_cli.json
+  --outfile annular_cli_example_16_3.json
 ```
