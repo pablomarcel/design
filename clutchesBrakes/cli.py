@@ -113,7 +113,7 @@ FLYWHEEL_TEMPLATE = {
     "meta": {
         "name": "flywheel_example_16_6",
         "reference": "Shigley Example 16-6",
-        "note": "Clean givens-only input. The torque-angle table is supplied separately as a CSV file."
+        "note": "Clean givens-only input. The torque-angle table is supplied separately as a CSV file. For textbook part (c), pin the fluctuation interval under analysis.fluctuation_interval_deg."
     },
     "givens": {
         "nominal_angular_speed_rad_per_s": 250.0,
@@ -121,6 +121,12 @@ FLYWHEEL_TEMPLATE = {
     },
     "data_sources": {
         "torque_table_csv": "table_16_6.csv"
+    },
+    "analysis": {
+        "fluctuation_interval_deg": {
+            "start": 0.0,
+            "end": 180.0
+        }
     }
 }
 TEMPERATURE_RISE_CALIPER_TEMPLATE = {

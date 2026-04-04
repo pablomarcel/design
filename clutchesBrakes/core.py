@@ -1274,11 +1274,21 @@ class FlywheelSolver(SolverBase):
             )
         else:
             notes.append("The fluctuation interval was taken from analysis.fluctuation_interval_deg.")
+            notes.append(
+                "For textbook-style part (c), use part_c_selected_energy_fluctuation_lbf_in. "
+                "The separate field part_c_largest_energy_excursion_between_extrema_lbf_in is only the full spread of the cumulative-energy curve."
+            )
 
         outputs = {
             "part_a_energy_per_cycle_lbf_in": energy_per_cycle,
             "part_b_mean_torque_lbf_in": mean_torque,
-            "part_c_greatest_energy_fluctuation_lbf_in": greatest_energy_fluctuation,
+            "part_c_energy_deviation_curve_extrema": {
+                "minimum_cumulative_energy_from_start_lbf_in": min_energy,
+                "minimum_at_theta_deg": theta_deg[idx_min],
+                "maximum_cumulative_energy_from_start_lbf_in": max_energy,
+                "maximum_at_theta_deg": theta_deg[idx_max],
+            },
+            "part_c_largest_energy_excursion_between_extrema_lbf_in": greatest_energy_fluctuation,
             "part_c_selected_energy_fluctuation_lbf_in": selected_fluctuation,
             "part_c_selected_interval": {
                 "mode": selected_mode,
