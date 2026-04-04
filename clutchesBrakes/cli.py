@@ -116,6 +116,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_r.add_argument("--Fx", type=float, default=0.0)
     p_r.add_argument("--Fy", type=float, default=0.0)
     p_r.add_argument("--actuator-force-units", choices=["auto", "N", "kN"], default="auto")
+    p_r.add_argument("--pair-enable", action="store_true", help="Enable paired-shoe backsolve using the shared actuator force from the main shoe.")
+    p_r.add_argument("--pair-mu", type=float)
+    p_r.add_argument("--pair-b", type=float)
+    p_r.add_argument("--pair-r", type=float)
+    p_r.add_argument("--pair-a", type=float)
+    p_r.add_argument("--pair-c", type=float)
+    p_r.add_argument("--pair-theta1-deg", type=float)
+    p_r.add_argument("--pair-theta2-deg", type=float)
+    p_r.add_argument("--pair-theta-a-deg", type=float)
+    p_r.add_argument("--pair-rotation", choices=["clockwise", "counterclockwise"])
+    p_r.add_argument("--pair-Fx", type=float)
+    p_r.add_argument("--pair-Fy", type=float)
+    p_r.add_argument("--pair-actuator-force-units", choices=["auto", "N", "kN"])
     p_r.add_argument("--outfile")
 
     p_a = sub.add_parser("annular_pad", help="Solve annular-pad caliper brake")
@@ -196,6 +209,22 @@ def main(argv: list[str] | None = None) -> int:
                 "Fy": args.Fy,
                 "actuator_force_units": args.actuator_force_units,
             }
+            if args.pair_enable:
+                pair_payload = {
+                    "mu": args.pair_mu if args.pair_mu is not None else args.mu,
+                    "b": args.pair_b if args.pair_b is not None else args.b,
+                    "r": args.pair_r if args.pair_r is not None else args.r,
+                    "a": args.pair_a if args.pair_a is not None else args.a,
+                    "c": args.pair_c if args.pair_c is not None else args.c,
+                    "theta1_deg": args.pair_theta1_deg if args.pair_theta1_deg is not None else args.theta1_deg,
+                    "theta2_deg": args.pair_theta2_deg if args.pair_theta2_deg is not None else args.theta2_deg,
+                    "theta_a_deg": args.pair_theta_a_deg if args.pair_theta_a_deg is not None else args.theta_a_deg,
+                    "rotation": args.pair_rotation if args.pair_rotation is not None else ("counterclockwise" if args.rotation == "clockwise" else "clockwise"),
+                    "Fx": args.pair_Fx if args.pair_Fx is not None else -args.Fx,
+                    "Fy": args.pair_Fy if args.pair_Fy is not None else args.Fy,
+                    "actuator_force_units": args.pair_actuator_force_units if args.pair_actuator_force_units is not None else args.actuator_force_units,
+                }
+                payload["paired_shoe"] = pair_payload
             result = API.solve("rim_brake", payload)
             maybe_write(result, args.outfile)
             print(result)

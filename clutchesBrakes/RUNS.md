@@ -79,6 +79,31 @@ python -m cli doorstop \
   --outfile doorstop_cli.json
 ```
 
+## CLI-only rim brake solve
+
+```bash
+python -m cli rim_brake \
+  --mu 0.32 \
+  --p-a 1000000 \
+  --b 0.032 \
+  --r 0.150 \
+  --a 0.1227 \
+  --c 0.212 \
+  --theta1-deg 0 \
+  --theta2-deg 126 \
+  --theta-a-deg 90 \
+  --rotation clockwise \
+  --Fx 0.927281 \
+  --Fy 2.082942 \
+  --actuator-force-units kN \
+  --pair-enable \
+  --pair-rotation counterclockwise \
+  --pair-Fx -0.927281 \
+  --pair-Fy 2.082942 \
+  --pair-actuator-force-units kN \
+  --outfile rim_brake_pair_example_16_2.json
+```
+
 ## CLI-only rim brake (main shoe) solve
 
 ```bash
