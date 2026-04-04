@@ -1,0 +1,22 @@
+{
+  "schema": "clutchesBrakes.v1",
+  "problem_type": "button_pad_caliper",
+  "meta": {
+    "name": "ex_16_4_button_pad_caliper_corrected",
+    "reference": "Shigley Example 16-4",
+    "note": "Textbook-aligned input. In the printed solution, the working pressure used in the average-pressure calculation is one-half of 350 psi, so this file encodes 350 psi as the allowable maximum and applies a 0.5 operating fraction."
+  },
+  "givens": {
+    "mu": 0.31,
+    "pad_radius": 0.5,
+    "eccentricity": 2.0,
+    "disk_diameter": 3.5,
+    "pmax_allowable": 350.0,
+    "operating_fraction_of_allowable": 0.5,
+    "n_active_sides": 1
+  },
+  "solve_for": [
+    "actuating_force_F",
+    "torque_one_side"
+  ]
+}

@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from typing import Any, Dict
 
-from core import AnnularPadCaliperSolver, DoorstopSolver, InternalExpandingRimBrakeSolver, SolveResult
+from core import (
+    AnnularPadCaliperSolver,
+    ButtonPadCaliperSolver,
+    DoorstopSolver,
+    InternalExpandingRimBrakeSolver,
+    SolveResult,
+)
 from utils import ValidationError
 
 
@@ -12,6 +18,7 @@ class ClutchesBrakesApp:
             "doorstop": DoorstopSolver(),
             "rim_brake": InternalExpandingRimBrakeSolver(),
             "annular_pad": AnnularPadCaliperSolver(),
+            "button_pad_caliper": ButtonPadCaliperSolver(),
         }
 
     def solve(self, problem_type: str, payload: Dict[str, Any]) -> SolveResult:

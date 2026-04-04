@@ -63,6 +63,14 @@ python -m cli run \
   --outfile example_16_3_annular_pad_out.json
 ```
 
+## Solve Example 16-4 from JSON
+
+```bash
+python -m cli run \
+  --infile example_16_4_button_pad_caliper.json \
+  --outfile example_16_4_button_pad_caliper_out.json
+```
+
 ## CLI-only doorstop solve
 
 ```bash

@@ -83,6 +83,29 @@ ANNULAR_TEMPLATE = {
     }
 }
 
+BUTTON_PAD_TEMPLATE = {
+    "schema": "clutchesBrakes.v1",
+    "problem_type": "button_pad_caliper",
+    "meta": {
+        "name": "button_pad_caliper_example_16_4",
+        "reference": "Shigley Example 16-4",
+        "note": "Clean givens-only input. The solver interpolates Table 16-1 internally and then applies Eqs. 16-41, 16-42, and 16-43."
+    },
+    "givens": {
+        "mu": 0.31,
+        "pad_radius": 0.5,
+        "eccentricity": 2.0,
+        "disk_diameter": 3.5,
+        "pmax_allowable": 700.0,
+        "operating_fraction_of_allowable": 0.5,
+        "n_active_sides": 1
+    },
+    "solve_for": [
+        "actuating_force_F",
+        "torque_one_side"
+    ]
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="CLI app for selected Shigley clutches and brakes problems.")
@@ -93,7 +116,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--outfile", required=True)
 
     p_tpl = sub.add_parser("template", help="Write a template JSON into ./out")
-    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad"])
+    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad", "button_pad_caliper"])
     p_tpl.add_argument("--outfile", required=True)
 
     p_d = sub.add_parser("doorstop", help="Solve doorstop problem with CLI flags")
@@ -152,6 +175,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_a.add_argument("--n-cylinders", type=int, default=1)
     p_a.add_argument("--outfile")
 
+    p_b = sub.add_parser("button_pad_caliper", help="Solve circular button-pad caliper brake from Table 16-1 and Eqs. 16-41 to 16-43")
+    p_b.add_argument("--mu", type=float, required=True)
+    p_b.add_argument("--pad-radius", type=float, required=True)
+    p_b.add_argument("--eccentricity", type=float, required=True)
+    p_b.add_argument("--disk-diameter", type=float)
+    p_b.add_argument("--pmax-operating", type=float)
+    p_b.add_argument("--pmax-allowable", type=float)
+    p_b.add_argument("--operating-fraction-of-allowable", type=float)
+    p_b.add_argument("--p-avg", type=float)
+    p_b.add_argument("--n-active-sides", type=int, default=1)
+    p_b.add_argument("--outfile")
+
     return parser
 
 
@@ -177,6 +212,7 @@ def main(argv: list[str] | None = None) -> int:
                 "doorstop": DOORSTOP_TEMPLATE,
                 "rim_brake": RIM_BRAKE_TEMPLATE,
                 "annular_pad": ANNULAR_TEMPLATE,
+                "button_pad_caliper": BUTTON_PAD_TEMPLATE,
             }
             outpath = IO.write_json(template_map[args.problem_type], args.outfile)
             print(f"Wrote template {outpath}")
@@ -258,6 +294,25 @@ def main(argv: list[str] | None = None) -> int:
                 }
             }
             result = API.solve("annular_pad", payload)
+            maybe_write(result, args.outfile)
+            print(result)
+            return 0
+
+        if args.command == "button_pad_caliper":
+            payload = {
+                "givens": {
+                    "mu": args.mu,
+                    "pad_radius": args.pad_radius,
+                    "eccentricity": args.eccentricity,
+                    "disk_diameter": args.disk_diameter,
+                    "pmax_operating": args.pmax_operating,
+                    "pmax_allowable": args.pmax_allowable,
+                    "operating_fraction_of_allowable": args.operating_fraction_of_allowable,
+                    "p_avg": args.p_avg,
+                    "n_active_sides": args.n_active_sides,
+                }
+            }
+            result = API.solve("button_pad_caliper", payload)
             maybe_write(result, args.outfile)
             print(result)
             return 0

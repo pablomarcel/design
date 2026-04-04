@@ -71,8 +71,6 @@ class DoorstopSolver(SolverBase):
                 "p_max": "p_avg",
             }
         else:
-            # Shigley Example 16-1(c),(d): p(u) = C2 (c + u)
-            # The moment contribution of the friction term includes mu and was the source of the old scaling bug.
             normal_moment_coeff = c * c + c * w1 + (w1 * w1) / 3.0
             friction_moment_coeff = mu * a * (c + 0.5 * w1)
             denom = (w2 / b) * (normal_moment_coeff + sign * friction_moment_coeff)
@@ -156,14 +154,12 @@ class InternalExpandingRimBrakeSolver(SolverBase):
         ensure(abs(math.sin(tha)) > 1e-12, "sin(theta_a) cannot be zero.")
         stha = math.sin(tha)
 
-        # Eqs. (16-8), (16-2), (16-3)
         A = 0.5 * (math.sin(th2) ** 2 - math.sin(th1) ** 2)
         B = (th2 - th1) / 2.0 - (math.sin(2.0 * th2) - math.sin(2.0 * th1)) / 4.0
         D = p_a * b * r / stha
         M_f = mu * D * (r * (math.cos(th1) - math.cos(th2)) - a * A)
         M_n = D * a * B
 
-        # Eq. (16-4)
         if rotation == "clockwise":
             F = (M_n - M_f) / c
             force_equation = "F = (M_n - M_f) / c"
@@ -179,10 +175,8 @@ class InternalExpandingRimBrakeSolver(SolverBase):
             default_y_sign=1,
         )
 
-        # Eq. (16-6)
         T = mu * p_a * b * (r ** 2) * (math.cos(th1) - math.cos(th2)) / stha
 
-        # Eqs. (16-9) and (16-10) force-resultant forms.
         if rotation == "clockwise":
             R_x = D * (A - mu * B) - Fx
             R_y = D * (B + mu * A) - Fy
@@ -283,7 +277,6 @@ class InternalExpandingRimBrakeSolver(SolverBase):
     ) -> tuple[float, float, Dict[str, Any], list[str]]:
         notes: list[str] = []
         if "Fx" in givens or "Fy" in givens:
-            # Backward-compatible path for legacy payloads.
             force_units = givens.get("actuator_force_units", givens.get("force_units", "auto"))
             Fx_raw = float(givens.get("Fx", 0.0))
             Fy_raw = float(givens.get("Fy", 0.0))
@@ -505,7 +498,6 @@ class AnnularPadCaliperSolver(SolverBase):
             ensure(d_cyl > 0 and n_cylinders >= 1, "Invalid hydraulic cylinder definition.")
             cyl_area_each = math.pi * d_cyl ** 2 / 4.0
             cyl_area_total = n_cylinders * cyl_area_each
-            # Example 16-3 states each cylinder supplies the pad actuating force F.
             hydraulic_pressure = F_per_pad / cyl_area_each
             if n_cylinders != n_pads:
                 notes.append(
@@ -565,4 +557,164 @@ class AnnularPadCaliperSolver(SolverBase):
             outputs=outputs,
             derived=derived,
             notes=notes,
+        )
+
+
+class ButtonPadCaliperSolver(SolverBase):
+    problem_type = "button_pad_caliper"
+    title = "Circular button-pad caliper brake"
+
+    TABLE_16_1 = {
+        "R_over_e": [0.0, 0.1, 0.2, 0.3, 0.4, 0.5],
+        "delta": [1.000, 0.983, 0.969, 0.957, 0.947, 0.938],
+        "pmax_over_pav": [1.000, 1.093, 1.212, 1.367, 1.578, 1.875],
+    }
+
+    def solve(self, payload: Dict[str, Any]) -> SolveResult:
+        raw_inputs = dict(payload)
+        givens = dict(payload.get("givens", payload))
+
+        mu = float(givens["mu"])
+        R = float(givens["pad_radius"])
+        e = float(givens["eccentricity"])
+
+        ensure(mu >= 0.0, "mu must be nonnegative.")
+        ensure(R > 0.0 and e > 0.0, "pad_radius and eccentricity must be positive.")
+
+        ratio = R / e
+        table = self.TABLE_16_1
+        x = table["R_over_e"]
+        ensure(x[0] <= ratio <= x[-1], f"R/e = {ratio:.6f} is outside Table 16-1 range [{x[0]}, {x[-1]}].")
+
+        delta = self._interp(ratio, x, table["delta"])
+        pmax_over_pav = self._interp(ratio, x, table["pmax_over_pav"])
+
+        pmax_operating, pressure_mode_note, pressure_inputs = self._resolve_pmax_operating(givens, pmax_over_pav)
+        ensure(pmax_operating > 0.0, "Operating maximum pressure must be positive.")
+
+        re = delta * e
+        pav = pmax_operating / pmax_over_pav
+        F = math.pi * R * R * pav
+        T_one_side = mu * F * re
+
+        n_active_sides = int(givens.get("n_active_sides", 1))
+        ensure(n_active_sides >= 1, "n_active_sides must be >= 1.")
+        T_total = n_active_sides * T_one_side
+
+        disk_diameter = givens.get("disk_diameter")
+        disk_radius = None
+        outer_contact_radius = e + R
+        notes: list[str] = []
+        if pressure_mode_note:
+            notes.append(pressure_mode_note)
+        notes.append("Table 16-1 was interpolated linearly in R/e.")
+        notes.append("Eq. (16-41), Eq. (16-42), and Eq. (16-43) were applied in sequence.")
+        if n_active_sides == 1:
+            notes.append("Returned torque is for one active friction side, matching Example 16-4.")
+        else:
+            notes.append("Returned total torque multiplies one-side torque by n_active_sides.")
+
+        if disk_diameter is not None:
+            disk_diameter = float(disk_diameter)
+            ensure(disk_diameter > 0.0, "disk_diameter must be positive when provided.")
+            disk_radius = 0.5 * disk_diameter
+            if outer_contact_radius > disk_radius:
+                notes.append(
+                    "Provided disk_diameter was not used in Eqs. (16-41) to (16-43). "
+                    "Also, e + R exceeds the stated disk radius, so the disk geometry appears inconsistent with the pressure-law example data."
+                )
+
+        outputs = {
+            "R_over_e": ratio,
+            "delta": delta,
+            "pmax_over_pav": pmax_over_pav,
+            "effective_radius_re": re,
+            "average_pressure_pav": pav,
+            "actuating_force_F": F,
+            "torque_one_side": T_one_side,
+            "torque_total": T_total,
+            "operating_max_pressure_pmax": pmax_operating,
+            "n_active_sides": n_active_sides,
+        }
+
+        derived = {
+            "givens": {
+                "mu": mu,
+                "pad_radius": R,
+                "eccentricity": e,
+                "disk_diameter": disk_diameter,
+                "n_active_sides": n_active_sides,
+                **pressure_inputs,
+            },
+            "table_16_1": {
+                "R_over_e": x,
+                "delta": table["delta"],
+                "pmax_over_pav": table["pmax_over_pav"],
+                "interpolation_ratio": ratio,
+            },
+            "equations": {
+                "eq_16_41": "r_e = delta * e",
+                "eq_16_42": "F = pi * R^2 * p_av",
+                "eq_16_43": "T = f * F * r_e",
+            },
+            "intermediate_calculations": {
+                "disk_radius": disk_radius,
+                "outer_contact_radius_e_plus_R": outer_contact_radius,
+                "average_pressure_pav": pav,
+                "effective_radius_re": re,
+                "friction_force_muF": mu * F,
+            },
+        }
+
+        return SolveResult(
+            problem_type=self.problem_type,
+            title=self.title,
+            inputs={"givens": givens},
+            outputs=outputs,
+            derived=derived,
+            notes=notes,
+        )
+
+    @staticmethod
+    def _interp(xi: float, xs: list[float], ys: list[float]) -> float:
+        for i in range(len(xs) - 1):
+            x0 = xs[i]
+            x1 = xs[i + 1]
+            if abs(xi - x0) <= 1e-12:
+                return ys[i]
+            if x0 <= xi <= x1:
+                y0 = ys[i]
+                y1 = ys[i + 1]
+                if abs(x1 - x0) <= 1e-12:
+                    return y0
+                return y0 + (xi - x0) * (y1 - y0) / (x1 - x0)
+        return ys[-1]
+
+    @staticmethod
+    def _resolve_pmax_operating(givens: Dict[str, Any], pmax_over_pav: float) -> tuple[float, str | None, Dict[str, Any]]:
+        if givens.get("pmax_operating") is not None:
+            return float(givens["pmax_operating"]), "Used provided operating maximum pressure pmax_operating.", {
+                "pmax_operating": float(givens["pmax_operating"]),
+            }
+
+        pmax_allowable = givens.get("pmax_allowable")
+        operating_fraction = givens.get("operating_fraction_of_allowable")
+        if pmax_allowable is not None and operating_fraction is not None:
+            pmax_operating = float(pmax_allowable) * float(operating_fraction)
+            return pmax_operating, "Computed operating maximum pressure from pmax_allowable * operating_fraction_of_allowable.", {
+                "pmax_allowable": float(pmax_allowable),
+                "operating_fraction_of_allowable": float(operating_fraction),
+                "pmax_operating": pmax_operating,
+            }
+
+        p_avg = givens.get("p_avg")
+        if p_avg is not None:
+            pmax_operating = float(p_avg) * pmax_over_pav
+            return pmax_operating, "Back-computed pmax_operating from provided p_avg and interpolated pmax/pav.", {
+                "p_avg": float(p_avg),
+                "pmax_operating": pmax_operating,
+            }
+
+        raise ValidationError(
+            "Button-pad caliper input must provide either pmax_operating, or both pmax_allowable and operating_fraction_of_allowable, or p_avg."
         )
