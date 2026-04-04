@@ -1,0 +1,17 @@
+{
+  "schema": "clutchesBrakes.v1",
+  "problem_type": "doorstop",
+  "meta": {
+    "name": "example_16_1_linear_leftward",
+    "reference": "Shigley Example 16-1(c),(d)"
+  },
+  "F": 10.0,
+  "a": 4.0,
+  "b": 2.0,
+  "c": 1.6,
+  "w1": 1.0,
+  "w2": 0.75,
+  "mu": 0.4,
+  "pressure_model": "linear",
+  "motion": "leftward"
+}

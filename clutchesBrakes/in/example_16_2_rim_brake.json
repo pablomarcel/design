@@ -1,0 +1,35 @@
+{
+  "schema": "clutchesBrakes.v1",
+  "problem_type": "rim_brake",
+  "meta": {
+    "name": "example_16_2_rim_brake",
+    "reference": "Shigley Example 16-2"
+  },
+  "mu": 0.32,
+  "p_a": 1000000.0,
+  "b": 0.032,
+  "r": 0.15,
+  "a": 0.1227,
+  "c": 0.212,
+  "theta1_deg": 0.0,
+  "theta2_deg": 126.0,
+  "theta_a_deg": 90.0,
+  "rotation": "clockwise",
+  "actuator_force_units": "kN",
+  "Fx": 0.927281,
+  "Fy": 2.082942,
+  "paired_shoe": {
+    "mu": 0.32,
+    "b": 0.032,
+    "r": 0.15,
+    "a": 0.1227,
+    "c": 0.212,
+    "theta1_deg": 0.0,
+    "theta2_deg": 126.0,
+    "theta_a_deg": 90.0,
+    "rotation": "counterclockwise",
+    "actuator_force_units": "kN",
+    "Fx": -0.927281,
+    "Fy": 2.082942
+  }
+}
