@@ -1,0 +1,4 @@
+duty_cycle,typical_applications,band_and_drum_brakes_ratio_min_in2_per_Btu_per_s,band_and_drum_brakes_ratio_max_in2_per_Btu_per_s,plate_disk_brakes_ratio_in2_per_Btu_per_s,caliper_disk_brakes_ratio_in2_per_Btu_per_s
+Infrequent,Emergency brakes,0.85,0.85,2.8,0.28
+Intermittent,"Elevators, cranes, and winches",2.8,2.8,7.1,0.7
+Heavy-duty,"Excavators, presses",5.6,6.9,13.6,1.41

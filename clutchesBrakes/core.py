@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import csv
 import math
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any, Dict
 
 from utils import ValidationError, deg_to_rad, ensure
@@ -718,3 +720,328 @@ class ButtonPadCaliperSolver(SolverBase):
         raise ValidationError(
             "Button-pad caliper input must provide either pmax_operating, or both pmax_allowable and operating_fraction_of_allowable, or p_avg."
         )
+
+
+class TemperatureRiseCaliperSolver(SolverBase):
+    problem_type = "temperature_rise_caliper"
+    title = "Caliper brake steady-state temperature rise"
+
+    DEFAULT_FIGURE_16_24_A = "data/figure_16_24_a.csv"
+    DEFAULT_FIGURE_16_24_B = "data/figure_16_24_b.csv"
+    DEFAULT_TABLE_16_3 = "data/table_16_3.csv"
+
+    def solve(self, payload: Dict[str, Any]) -> SolveResult:
+        raw_inputs = dict(payload)
+        givens = dict(payload.get("givens", payload))
+        data_sources = dict(payload.get("data_sources", {}))
+        iteration_cfg = dict(payload.get("iteration", {}))
+        meta = dict(payload.get("meta", {}))
+
+        n_uses_per_hour = float(givens["number_of_brake_uses_per_hour"])
+        speed_initial_rpm = float(givens["initial_speed_rev_per_min"])
+        speed_final_rpm = float(givens.get("final_speed_rev_per_min", 0.0))
+        mean_air_speed_ft_s = float(givens["mean_air_speed_ft_per_s"])
+        inertia = float(givens["equivalent_rotary_inertia_lbm_in_s2"])
+        gamma = float(givens["disk_density_lbm_per_in3"])
+        cp = float(givens["specific_heat_capacity_Btu_per_lbm_F"])
+        disk_diameter_in = float(givens["disk_diameter_in"])
+        disk_thickness_in = float(givens["disk_thickness_in"])
+        lateral_area_in2 = float(givens["lateral_area_in2"])
+        ambient_temp_F = float(givens["ambient_temperature_F"])
+        friction_material = str(givens["pad_material"])
+
+        ensure(n_uses_per_hour > 0.0, "number_of_brake_uses_per_hour must be positive.")
+        ensure(speed_initial_rpm >= 0.0 and speed_final_rpm >= 0.0, "Speeds must be nonnegative.")
+        ensure(speed_initial_rpm >= speed_final_rpm, "initial_speed_rev_per_min must be >= final_speed_rev_per_min.")
+        ensure(mean_air_speed_ft_s >= 0.0, "mean_air_speed_ft_per_s must be nonnegative.")
+        ensure(inertia > 0.0 and gamma > 0.0 and cp > 0.0, "Inertia, density, and specific heat must be positive.")
+        ensure(disk_diameter_in > 0.0 and disk_thickness_in > 0.0 and lateral_area_in2 > 0.0, "Disk geometry and area must be positive.")
+
+        guess_rise_F = float(iteration_cfg.get("initial_temperature_rise_guess_F", 200.0))
+        tolerance_F = float(iteration_cfg.get("tolerance_temperature_rise_F", 0.5))
+        max_iterations = int(iteration_cfg.get("max_iterations", 50))
+        ensure(guess_rise_F > 0.0, "Initial temperature rise guess must be positive.")
+        ensure(tolerance_F > 0.0, "Temperature rise tolerance must be positive.")
+        ensure(max_iterations >= 1, "max_iterations must be at least 1.")
+
+        base_dir = Path(__file__).resolve().parent
+        fig_a_path = self._resolve_data_path(data_sources.get("figure_16_24_a", self.DEFAULT_FIGURE_16_24_A), base_dir)
+        fig_b_path = self._resolve_data_path(data_sources.get("figure_16_24_b", self.DEFAULT_FIGURE_16_24_B), base_dir)
+        table_16_3_path = self._resolve_data_path(data_sources.get("table_16_3", self.DEFAULT_TABLE_16_3), base_dir)
+
+        fig_a = self._load_xy_csv(
+            fig_a_path,
+            x_keys=("temperature_rise_F", "delta_T_F", "temperature_rise", "x"),
+            y_keys=(("hr", "h_r"), ("hc", "h_c")),
+            y_scale=1.0e-6,
+        )
+        fig_b = self._load_xy_csv(
+            fig_b_path,
+            x_keys=("air_speed_ft_per_s", "velocity_ft_per_s", "forced_ventilation_velocity_ft_per_s", "v_ft_s", "x"),
+            y_keys=(("fv", "f_v", "ventilation_factor"),),
+            y_scale=1.0,
+        )
+        material_limits = self._load_material_limits(table_16_3_path)
+
+        t1_s = 3600.0 / n_uses_per_hour
+        disk_mass_lbm = math.pi * gamma * (disk_diameter_in ** 2) * disk_thickness_in / 4.0
+        omega_initial = (2.0 * math.pi / 60.0) * speed_initial_rpm
+        omega_final = (2.0 * math.pi / 60.0) * speed_final_rpm
+        E_Btu = 0.5 * inertia * (omega_initial ** 2 - omega_final ** 2) / 9336.0
+        delta_T_single_stop_F = E_Btu / (disk_mass_lbm * cp)
+        fv = self._interp(mean_air_speed_ft_s, fig_b["x"], fig_b["y_0"], "Figure 16-24b air-speed axis")
+
+        iteration_rows: list[Dict[str, Any]] = []
+        rise_guess = guess_rise_F
+        converged = False
+
+        for i in range(1, max_iterations + 1):
+            hr = self._interp(rise_guess, fig_a["x"], fig_a["y_0"], "Figure 16-24a temperature-rise axis for hr")
+            hc = self._interp(rise_guess, fig_a["x"], fig_a["y_1"], "Figure 16-24a temperature-rise axis for hc")
+            hcr = hr + fv * hc
+            beta = (hcr * lateral_area_in2) / (disk_mass_lbm * cp)
+            exp_term = math.exp(-beta * t1_s)
+            denom = 1.0 - exp_term
+            ensure(abs(denom) > 1e-12, "Eq. (16-60) denominator collapsed to zero.")
+            Tmax_F = ambient_temp_F + delta_T_single_stop_F / denom
+            Tmin_F = Tmax_F - delta_T_single_stop_F
+            predicted_rise_F = Tmax_F - ambient_temp_F
+            residual_F = predicted_rise_F - rise_guess
+
+            iteration_rows.append({
+                "iteration": i,
+                "guess_temperature_rise_F": rise_guess,
+                "hr_Btu_per_in2_s_F": hr,
+                "hc_Btu_per_in2_s_F": hc,
+                "fv": fv,
+                "hcr_Btu_per_in2_s_F": hcr,
+                "beta_per_s": beta,
+                "exp_minus_beta_t1": exp_term,
+                "Tmax_F": Tmax_F,
+                "Tmin_F": Tmin_F,
+                "predicted_temperature_rise_F": predicted_rise_F,
+                "residual_F": residual_F,
+            })
+
+            if abs(residual_F) <= tolerance_F:
+                converged = True
+                break
+            rise_guess = predicted_rise_F
+
+        ensure(iteration_rows, "Iteration did not run.")
+        final_iter = iteration_rows[-1]
+        Tmax_F = final_iter["Tmax_F"]
+        Tmin_F = final_iter["Tmin_F"]
+        final_rise_F = final_iter["predicted_temperature_rise_F"]
+        hr = final_iter["hr_Btu_per_in2_s_F"]
+        hc = final_iter["hc_Btu_per_in2_s_F"]
+        hcr = final_iter["hcr_Btu_per_in2_s_F"]
+        beta = final_iter["beta_per_s"]
+
+        overheat_check = self._evaluate_overheat(material_limits, friction_material, Tmax_F)
+
+        notes = [
+            "Figure 16-24a hr and hc values were multiplied by 1e-6, as required by the digitized data convention.",
+            "Figure 16-24b air-speed input is treated in ft/s.",
+            "Eq. (16-58), Eq. (16-59), and Eq. (16-60) were applied with fixed-point iteration on Tmax - Tinf.",
+        ]
+        if converged:
+            notes.append(f"Iteration converged in {len(iteration_rows)} iteration(s) with |predicted rise - guess| <= {tolerance_F}°F.")
+        else:
+            notes.append(f"Iteration reached max_iterations={max_iterations} without satisfying the requested tolerance.")
+        if overheat_check["material_found"]:
+            if overheat_check["within_continuous_range"]:
+                notes.append("Final continuous-temperature check indicates no danger of overheating for the stated friction material.")
+            else:
+                notes.append("Final continuous-temperature check indicates the brake exceeds the digitized continuous operating limit for the stated friction material.")
+        else:
+            notes.append("Material name was not found in the digitized Table 16-3, so the overheating check could not be completed.")
+
+        outputs = {
+            "t1_s": t1_s,
+            "disk_mass_lbm": disk_mass_lbm,
+            "E_Btu": E_Btu,
+            "delta_T_single_stop_F": delta_T_single_stop_F,
+            "fv": fv,
+            "hr_Btu_per_in2_s_F": hr,
+            "hc_Btu_per_in2_s_F": hc,
+            "hcr_Btu_per_in2_s_F": hcr,
+            "beta_per_s": beta,
+            "Tmax_F": Tmax_F,
+            "Tmin_F": Tmin_F,
+            "steady_state_temperature_rise_F": final_rise_F,
+            "iteration_count": len(iteration_rows),
+            "converged": converged,
+            "overheat_check": overheat_check,
+        }
+
+        derived = {
+            "meta": meta,
+            "givens": {
+                "number_of_brake_uses_per_hour": n_uses_per_hour,
+                "initial_speed_rev_per_min": speed_initial_rpm,
+                "final_speed_rev_per_min": speed_final_rpm,
+                "mean_air_speed_ft_per_s": mean_air_speed_ft_s,
+                "equivalent_rotary_inertia_lbm_in_s2": inertia,
+                "disk_density_lbm_per_in3": gamma,
+                "specific_heat_capacity_Btu_per_lbm_F": cp,
+                "disk_diameter_in": disk_diameter_in,
+                "disk_thickness_in": disk_thickness_in,
+                "lateral_area_in2": lateral_area_in2,
+                "ambient_temperature_F": ambient_temp_F,
+                "pad_material": friction_material,
+            },
+            "data_sources": {
+                "figure_16_24_a": str(fig_a_path),
+                "figure_16_24_b": str(fig_b_path),
+                "table_16_3": str(table_16_3_path),
+            },
+            "equations": {
+                "step_0": "t1 = 3600 / uses_per_hour",
+                "eq_16_57": "h_CR = h_r + f_v h_c",
+                "disk_mass": "W = pi * gamma * D^2 * h / 4",
+                "eq_16_58": "E = (1/2)(I/9336)(omega_o^2 - omega_f^2)",
+                "eq_16_59": "delta_T = E / (W C_p)",
+                "beta": "beta = h_CR A / (W C_p)",
+                "eq_16_60": "Tmax = T_inf + delta_T / (1 - exp(-beta t1))",
+                "valley": "Tmin = Tmax - delta_T",
+            },
+            "intermediate_calculations": {
+                "omega_initial_rad_per_s": omega_initial,
+                "omega_final_rad_per_s": omega_final,
+                "disk_mass_formula_inputs": {
+                    "gamma_lbm_per_in3": gamma,
+                    "diameter_in": disk_diameter_in,
+                    "thickness_in": disk_thickness_in,
+                },
+            },
+            "iteration": {
+                "initial_temperature_rise_guess_F": guess_rise_F,
+                "tolerance_temperature_rise_F": tolerance_F,
+                "max_iterations": max_iterations,
+                "history": iteration_rows,
+            },
+        }
+
+        return SolveResult(
+            problem_type=self.problem_type,
+            title=self.title,
+            inputs={"givens": givens, "data_sources": data_sources, "iteration": iteration_cfg},
+            outputs=outputs,
+            derived=derived,
+            notes=notes,
+        )
+
+    @staticmethod
+    def _resolve_data_path(value: str, base_dir: Path) -> Path:
+        path = Path(value)
+        return path if path.is_absolute() else (base_dir / path).resolve()
+
+    @staticmethod
+    def _numeric_from_row(row: dict[str, str], key_options: tuple[str, ...]) -> float | None:
+        for key in key_options:
+            if key in row and row[key] not in (None, ""):
+                try:
+                    return float(str(row[key]).strip())
+                except ValueError:
+                    return None
+        return None
+
+    def _load_xy_csv(
+        self,
+        path: Path,
+        x_keys: tuple[str, ...],
+        y_keys: tuple[tuple[str, ...], ...],
+        y_scale: float,
+    ) -> dict[str, list[float]]:
+        ensure(path.exists(), f"Required data file not found: {path}")
+        xs: list[float] = []
+        ys: list[list[float]] = [[] for _ in y_keys]
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            ensure(reader.fieldnames is not None, f"CSV file has no header row: {path}")
+            for row in reader:
+                x = self._numeric_from_row(row, x_keys)
+                if x is None:
+                    continue
+                y_values: list[float] = []
+                valid = True
+                for group in y_keys:
+                    y = self._numeric_from_row(row, group)
+                    if y is None:
+                        valid = False
+                        break
+                    y_values.append(y * y_scale)
+                if not valid:
+                    continue
+                xs.append(x)
+                for i, y in enumerate(y_values):
+                    ys[i].append(y)
+        ensure(len(xs) >= 2, f"Need at least two valid rows in {path}")
+        combined = sorted(zip(xs, *ys), key=lambda item: item[0])
+        out = {"x": [row[0] for row in combined]}
+        for i in range(len(y_keys)):
+            out[f"y_{i}"] = [row[i + 1] for row in combined]
+        return out
+
+    def _load_material_limits(self, path: Path) -> list[dict[str, Any]]:
+        ensure(path.exists(), f"Required data file not found: {path}")
+        rows: list[dict[str, Any]] = []
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            ensure(reader.fieldnames is not None, f"CSV file has no header row: {path}")
+            for row in reader:
+                material = str(row.get("material", row.get("friction_material", ""))).strip()
+                if not material:
+                    continue
+                min_temp = self._numeric_from_row(row, ("continuous_min_temp_F", "continuous_operating_min_temp_F", "continuous_min_F"))
+                max_temp = self._numeric_from_row(row, ("continuous_max_temp_F", "continuous_operating_max_temp_F", "continuous_max_F"))
+                rows.append({
+                    "material": material,
+                    "continuous_min_temp_F": min_temp,
+                    "continuous_max_temp_F": max_temp,
+                })
+        ensure(rows, f"No material rows found in {path}")
+        return rows
+
+    def _evaluate_overheat(self, materials: list[dict[str, Any]], material_name: str, Tmax_F: float) -> dict[str, Any]:
+        wanted = material_name.strip().casefold()
+        for row in materials:
+            name = str(row["material"]).strip()
+            if wanted == name.casefold():
+                max_temp = row.get("continuous_max_temp_F")
+                min_temp = row.get("continuous_min_temp_F")
+                within = (max_temp is None) or (Tmax_F <= max_temp)
+                return {
+                    "material_found": True,
+                    "matched_material": name,
+                    "continuous_min_temp_F": min_temp,
+                    "continuous_max_temp_F": max_temp,
+                    "within_continuous_range": within,
+                    "overheating_risk": not within,
+                    "margin_to_continuous_max_F": None if max_temp is None else (max_temp - Tmax_F),
+                }
+        return {
+            "material_found": False,
+            "matched_material": None,
+            "continuous_min_temp_F": None,
+            "continuous_max_temp_F": None,
+            "within_continuous_range": None,
+            "overheating_risk": None,
+            "margin_to_continuous_max_F": None,
+        }
+
+    @staticmethod
+    def _interp(xi: float, xs: list[float], ys: list[float], label: str) -> float:
+        ensure(len(xs) == len(ys) and len(xs) >= 2, f"Interpolation data for {label} is invalid.")
+        ensure(xs[0] <= xi <= xs[-1], f"{label}: value {xi:.6f} is outside digitized range [{xs[0]}, {xs[-1]}].")
+        for i in range(len(xs) - 1):
+            x0 = xs[i]
+            x1 = xs[i + 1]
+            if abs(xi - x0) <= 1e-12:
+                return ys[i]
+            if x0 <= xi <= x1:
+                y0 = ys[i]
+                y1 = ys[i + 1]
+                return y0 + (xi - x0) * (y1 - y0) / (x1 - x0)
+        return ys[-1]

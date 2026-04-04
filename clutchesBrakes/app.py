@@ -8,6 +8,7 @@ from core import (
     DoorstopSolver,
     InternalExpandingRimBrakeSolver,
     SolveResult,
+    TemperatureRiseCaliperSolver,
 )
 from utils import ValidationError
 
@@ -19,6 +20,7 @@ class ClutchesBrakesApp:
             "rim_brake": InternalExpandingRimBrakeSolver(),
             "annular_pad": AnnularPadCaliperSolver(),
             "button_pad_caliper": ButtonPadCaliperSolver(),
+            "temperature_rise_caliper": TemperatureRiseCaliperSolver(),
         }
 
     def solve(self, problem_type: str, payload: Dict[str, Any]) -> SolveResult:

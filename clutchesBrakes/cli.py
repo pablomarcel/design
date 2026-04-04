@@ -106,6 +106,40 @@ BUTTON_PAD_TEMPLATE = {
     ]
 }
 
+TEMPERATURE_RISE_CALIPER_TEMPLATE = {
+    "schema": "clutchesBrakes.v1",
+    "problem_type": "temperature_rise_caliper",
+    "meta": {
+        "name": "temperature_rise_caliper_example_16_5",
+        "reference": "Shigley Example 16-5",
+        "note": "Clean givens-only problem definition. Digitized figures and table are referenced separately under data_sources."
+    },
+    "givens": {
+        "number_of_brake_uses_per_hour": 24.0,
+        "initial_speed_rev_per_min": 250.0,
+        "final_speed_rev_per_min": 0.0,
+        "mean_air_speed_ft_per_s": 25.0,
+        "equivalent_rotary_inertia_lbm_in_s2": 289.0,
+        "disk_density_lbm_per_in3": 0.282,
+        "specific_heat_capacity_Btu_per_lbm_F": 0.108,
+        "disk_diameter_in": 6.0,
+        "disk_thickness_in": 0.25,
+        "pad_material": "dry sintered metal",
+        "lateral_area_in2": 50.0,
+        "ambient_temperature_F": 70.0
+    },
+    "iteration": {
+        "initial_temperature_rise_guess_F": 200.0,
+        "tolerance_temperature_rise_F": 0.5,
+        "max_iterations": 50
+    },
+    "data_sources": {
+        "figure_16_24_a": "data/figure_16_24_a.csv",
+        "figure_16_24_b": "data/figure_16_24_b.csv",
+        "table_16_3": "data/table_16_3.csv"
+    }
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="CLI app for selected Shigley clutches and brakes problems.")
@@ -116,7 +150,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--outfile", required=True)
 
     p_tpl = sub.add_parser("template", help="Write a template JSON into ./out")
-    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad", "button_pad_caliper"])
+    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad", "button_pad_caliper", "temperature_rise_caliper"])
     p_tpl.add_argument("--outfile", required=True)
 
     p_d = sub.add_parser("doorstop", help="Solve doorstop problem with CLI flags")
@@ -187,6 +221,27 @@ def build_parser() -> argparse.ArgumentParser:
     p_b.add_argument("--n-active-sides", type=int, default=1)
     p_b.add_argument("--outfile")
 
+    p_t = sub.add_parser("temperature_rise_caliper", help="Solve Example 16-5 style steady-state temperature rise in a caliper brake")
+    p_t.add_argument("--uses-per-hour", type=float, required=True)
+    p_t.add_argument("--initial-speed-rpm", type=float, required=True)
+    p_t.add_argument("--final-speed-rpm", type=float, default=0.0)
+    p_t.add_argument("--mean-air-speed-ft-s", type=float, required=True)
+    p_t.add_argument("--inertia-lbm-in-s2", type=float, required=True)
+    p_t.add_argument("--density-lbm-in3", type=float, required=True)
+    p_t.add_argument("--cp-btu-lbm-f", type=float, required=True)
+    p_t.add_argument("--disk-diameter-in", type=float, required=True)
+    p_t.add_argument("--disk-thickness-in", type=float, required=True)
+    p_t.add_argument("--lateral-area-in2", type=float, required=True)
+    p_t.add_argument("--ambient-temp-f", type=float, required=True)
+    p_t.add_argument("--pad-material", required=True)
+    p_t.add_argument("--guess-rise-f", type=float, default=200.0)
+    p_t.add_argument("--tol-rise-f", type=float, default=0.5)
+    p_t.add_argument("--max-iterations", type=int, default=50)
+    p_t.add_argument("--figure-16-24-a", default="data/figure_16_24_a.csv")
+    p_t.add_argument("--figure-16-24-b", default="data/figure_16_24_b.csv")
+    p_t.add_argument("--table-16-3", default="data/table_16_3.csv")
+    p_t.add_argument("--outfile")
+
     return parser
 
 
@@ -213,6 +268,7 @@ def main(argv: list[str] | None = None) -> int:
                 "rim_brake": RIM_BRAKE_TEMPLATE,
                 "annular_pad": ANNULAR_TEMPLATE,
                 "button_pad_caliper": BUTTON_PAD_TEMPLATE,
+                "temperature_rise_caliper": TEMPERATURE_RISE_CALIPER_TEMPLATE,
             }
             outpath = IO.write_json(template_map[args.problem_type], args.outfile)
             print(f"Wrote template {outpath}")
@@ -313,6 +369,38 @@ def main(argv: list[str] | None = None) -> int:
                 }
             }
             result = API.solve("button_pad_caliper", payload)
+            maybe_write(result, args.outfile)
+            print(result)
+            return 0
+
+        if args.command == "temperature_rise_caliper":
+            payload = {
+                "givens": {
+                    "number_of_brake_uses_per_hour": args.uses_per_hour,
+                    "initial_speed_rev_per_min": args.initial_speed_rpm,
+                    "final_speed_rev_per_min": args.final_speed_rpm,
+                    "mean_air_speed_ft_per_s": args.mean_air_speed_ft_s,
+                    "equivalent_rotary_inertia_lbm_in_s2": args.inertia_lbm_in_s2,
+                    "disk_density_lbm_per_in3": args.density_lbm_in3,
+                    "specific_heat_capacity_Btu_per_lbm_F": args.cp_btu_lbm_f,
+                    "disk_diameter_in": args.disk_diameter_in,
+                    "disk_thickness_in": args.disk_thickness_in,
+                    "lateral_area_in2": args.lateral_area_in2,
+                    "ambient_temperature_F": args.ambient_temp_f,
+                    "pad_material": args.pad_material,
+                },
+                "iteration": {
+                    "initial_temperature_rise_guess_F": args.guess_raise_f if hasattr(args, 'guess_raise_f') else args.guess_rise_f,
+                    "tolerance_temperature_rise_F": args.tol_rise_f,
+                    "max_iterations": args.max_iterations,
+                },
+                "data_sources": {
+                    "figure_16_24_a": args.figure_16_24_a,
+                    "figure_16_24_b": args.figure_16_24_b,
+                    "table_16_3": args.table_16_3,
+                },
+            }
+            result = API.solve("temperature_rise_caliper", payload)
             maybe_write(result, args.outfile)
             print(result)
             return 0

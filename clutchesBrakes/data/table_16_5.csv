@@ -1,0 +1,12 @@
+material,friction_coefficient_wet_min,friction_coefficient_wet_max,friction_coefficient_dry_min,friction_coefficient_dry_max,max_temperature_F_min,max_temperature_F_max,max_temperature_C_min,max_temperature_C_max,max_pressure_psi_min,max_pressure_psi_max,max_pressure_kPa_min,max_pressure_kPa_max,footnote_starred_material
+Cast iron on cast iron,0.05,0.05,0.15,0.2,600,600,320,320,150,250,1000,1750,False
+Powdered metal on cast iron,0.05,0.1,0.1,0.4,1000,1000,540,540,150,150,1000,1000,True
+Powdered metal on hard steel,0.05,0.1,0.1,0.3,1000,1000,540,540,300,300,2100,2100,True
+Wood on steel or cast iron,0.16,0.16,0.2,0.35,300,300,150,150,60,90,400,620,False
+Leather on steel or cast iron,0.12,0.12,0.3,0.5,200,200,100,100,10,40,70,280,False
+Cork on steel or cast iron,0.15,0.25,0.3,0.5,200,200,100,100,8,14,50,100,False
+Felt on steel or cast iron,0.18,0.18,0.22,0.22,280,280,140,140,5,10,35,70,False
+Woven asbestos on steel or cast iron,0.1,0.2,0.3,0.6,350,500,175,260,50,100,350,700,True
+Molded asbestos on steel or cast iron,0.08,0.12,0.2,0.5,500,500,260,260,50,150,350,1000,True
+Impregnated asbestos on steel or cast iron,0.12,0.12,0.32,0.32,500,750,260,400,150,150,1000,1000,True
+Carbon graphite on steel,0.05,0.1,0.25,0.25,700,1000,370,540,300,300,2100,2100,False

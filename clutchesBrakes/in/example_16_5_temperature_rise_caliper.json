@@ -1,0 +1,33 @@
+{
+  "schema": "clutchesBrakes.v1",
+  "problem_type": "temperature_rise_caliper",
+  "meta": {
+    "name": "temperature_rise_caliper_example_16_5",
+    "reference": "Shigley Example 16-5",
+    "note": "Clean givens-only problem definition. Digitized figures and table are referenced separately under data_sources."
+  },
+  "givens": {
+    "number_of_brake_uses_per_hour": 24.0,
+    "initial_speed_rev_per_min": 250.0,
+    "final_speed_rev_per_min": 0.0,
+    "mean_air_speed_ft_per_s": 25.0,
+    "equivalent_rotary_inertia_lbm_in_s2": 289.0,
+    "disk_density_lbm_per_in3": 0.282,
+    "specific_heat_capacity_Btu_per_lbm_F": 0.108,
+    "disk_diameter_in": 6.0,
+    "disk_thickness_in": 0.25,
+    "pad_material": "Sintered metal (dry)",
+    "lateral_area_in2": 50.0,
+    "ambient_temperature_F": 70.0
+  },
+  "iteration": {
+    "initial_temperature_rise_guess_F": 200.0,
+    "tolerance_temperature_rise_F": 0.5,
+    "max_iterations": 50
+  },
+  "data_sources": {
+    "figure_16_24_a": "data/figure_16_24_a.csv",
+    "figure_16_24_b": "data/figure_16_24_b.csv",
+    "table_16_3": "data/table_16_3.csv"
+  }
+}

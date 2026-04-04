@@ -1,0 +1,12 @@
+property,units,woven_lining_min,woven_lining_max,molded_lining_min,molded_lining_max,rigid_block_min,rigid_block_max
+Compressive strength,kpsi,10,15,10,18,10,15
+Compressive strength,MPa,70,100,70,125,70,100
+Tensile strength,kpsi,2.5,3.0,4.0,5.0,3.0,4.0
+Tensile strength,MPa,17,21,27,35,21,27
+Max. temperature,F,400,500,500,500,750,750
+Max. temperature,C,200,260,260,260,400,400
+Max. speed,ft/min,7500,7500,5000,5000,7500,7500
+Max. speed,m/s,38,38,25,25,38,38
+Max. pressure,psi,50,100,100,100,150,150
+Max. pressure,kPa,340,690,690,690,1000,1000
+"Frictional coefficient, mean",-,0.45,0.45,0.47,0.47,0.4,0.45
