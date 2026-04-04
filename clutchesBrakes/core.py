@@ -131,22 +131,22 @@ class InternalExpandingRimBrakeSolver(SolverBase):
     title = "Internal expanding rim brake / shoe brake"
 
     def solve(self, payload: Dict[str, Any]) -> SolveResult:
-        mu = float(payload["mu"])
-        p_a = float(payload["p_a"])
-        b = float(payload["b"])
-        r = float(payload["r"])
-        a = float(payload["a"])
-        c = float(payload["c"])
-        theta1_deg = float(payload["theta1_deg"])
-        theta2_deg = float(payload["theta2_deg"])
-        theta_a_deg = float(payload.get("theta_a_deg", 90.0))
-        rotation = payload.get("rotation", "clockwise")
-        force_units = payload.get("actuator_force_units", payload.get("force_units", "auto"))
-        Fx_raw = float(payload.get("Fx", 0.0))
-        Fy_raw = float(payload.get("Fy", 0.0))
+        raw_inputs = dict(payload)
+        givens = dict(payload.get("givens", payload))
         paired_shoe = payload.get("paired_shoe")
 
-        ensure(mu >= 0 and p_a > 0 and b > 0 and r > 0 and a > 0 and c > 0, "Invalid rim-brake inputs.")
+        mu = float(givens["mu"])
+        p_a = float(givens["p_a"])
+        b = float(givens["b"])
+        r = float(givens["r"])
+        a = float(givens["a"])
+        c = float(givens["c"])
+        theta1_deg = float(givens["theta1_deg"])
+        theta2_deg = float(givens["theta2_deg"])
+        theta_a_deg = float(givens.get("theta_a_deg", 90.0))
+        rotation = givens.get("rotation", "clockwise")
+
+        ensure(mu >= 0 and p_a > 0 and b > 0 and r > 0 and a > 0 and c > 0, "Invalid rim-brake givens.")
         ensure(rotation in {"clockwise", "counterclockwise"}, "rotation must be clockwise or counterclockwise.")
 
         th1 = deg_to_rad(theta1_deg)
@@ -156,25 +156,91 @@ class InternalExpandingRimBrakeSolver(SolverBase):
         ensure(abs(math.sin(tha)) > 1e-12, "sin(theta_a) cannot be zero.")
         stha = math.sin(tha)
 
+        # Eqs. (16-8), (16-2), (16-3)
         A = 0.5 * (math.sin(th2) ** 2 - math.sin(th1) ** 2)
         B = (th2 - th1) / 2.0 - (math.sin(2.0 * th2) - math.sin(2.0 * th1)) / 4.0
         D = p_a * b * r / stha
-        Fx, Fy, force_unit_note = self._normalize_force_components(Fx_raw, Fy_raw, D, force_units)
-
         M_f = mu * D * (r * (math.cos(th1) - math.cos(th2)) - a * A)
         M_n = D * a * B
+
+        # Eq. (16-4)
         if rotation == "clockwise":
             F = (M_n - M_f) / c
-            R_x = D * (A - mu * B) - Fx
-            R_y = D * (B + mu * A) - Fy
+            force_equation = "F = (M_n - M_f) / c"
         else:
             F = (M_n + M_f) / c
+            force_equation = "F = (M_n + M_f) / c"
+        ensure(F > 0, "Solved actuating force F must be positive.")
+
+        Fx, Fy, actuator_resolution, actuator_notes = self._resolve_actuator_components(
+            givens=givens,
+            solved_force=F,
+            default_x_sign=1 if rotation == "clockwise" else -1,
+            default_y_sign=1,
+        )
+
+        # Eq. (16-6)
+        T = mu * p_a * b * (r ** 2) * (math.cos(th1) - math.cos(th2)) / stha
+
+        # Eqs. (16-9) and (16-10) force-resultant forms.
+        if rotation == "clockwise":
+            R_x = D * (A - mu * B) - Fx
+            R_y = D * (B + mu * A) - Fy
+            reaction_equation = "Right/self-energizing shoe: Eq. (16-9)"
+        else:
             R_x = D * (A + mu * B) + Fx
             R_y = D * (B - mu * A) - Fy
+            reaction_equation = "Left/de-energized shoe: Eq. (16-10)"
 
-        T = mu * p_a * b * (r ** 2) * (math.cos(th1) - math.cos(th2)) / stha
         resultant = math.hypot(R_x, R_y)
         self_locking_margin = M_n - M_f
+
+        notes = []
+        if rotation == "clockwise":
+            notes.append("Clockwise rotation uses the self-energizing form F = (M_n - M_f)/c.")
+        else:
+            notes.append("Counterclockwise rotation uses the de-energized form F = (M_n + M_f)/c.")
+        notes.extend(actuator_notes)
+
+        derived = {
+            "givens": {
+                "main_shoe": {
+                    "mu": mu,
+                    "p_a": p_a,
+                    "b": b,
+                    "r": r,
+                    "a": a,
+                    "c": c,
+                    "theta1_deg": theta1_deg,
+                    "theta2_deg": theta2_deg,
+                    "theta_a_deg": theta_a_deg,
+                    "rotation": rotation,
+                    "actuation_angle_deg": actuator_resolution["actuation_angle_deg"],
+                    "actuation_x_sign": actuator_resolution["actuation_x_sign"],
+                    "actuation_y_sign": actuator_resolution["actuation_y_sign"],
+                }
+            },
+            "geometry_and_coefficients": {
+                "theta1_rad": th1,
+                "theta2_rad": th2,
+                "theta_a_rad": tha,
+                "A": A,
+                "B": B,
+                "D": D,
+            },
+            "intermediate_calculations": {
+                "M_f": M_f,
+                "M_n": M_n,
+                "force_equation": force_equation,
+                "reaction_equation": reaction_equation,
+                "actuator_force_resolved": {
+                    "F": F,
+                    "Fx": Fx,
+                    "Fy": Fy,
+                    **actuator_resolution,
+                },
+            },
+        }
 
         outputs = {
             "A": A,
@@ -191,36 +257,68 @@ class InternalExpandingRimBrakeSolver(SolverBase):
             "is_self_locking": self_locking_margin <= 0 if rotation == "clockwise" else False,
         }
 
-        notes = []
-        if rotation == "clockwise":
-            notes.append("Clockwise rotation uses the self-energizing form F = (M_n - M_f)/c.")
-        else:
-            notes.append("Counterclockwise rotation uses the de-energized form F = (M_n + M_f)/c.")
-        if force_unit_note:
-            notes.append(force_unit_note)
-
-        derived = {
-            "theta1_rad": th1,
-            "theta2_rad": th2,
-            "theta_a_rad": tha,
-            "Fx_used": Fx,
-            "Fy_used": Fy,
-            "actuator_force_units_used": "N",
-        }
-
         if paired_shoe:
-            pair = self._solve_paired_shoe(F, paired_shoe)
-            outputs["paired_shoe"] = pair
-            outputs["total_torque_pair"] = T + pair["torque_T"]
+            pair = self._solve_paired_shoe(target_F=F, pair_payload=paired_shoe, main_rotation=rotation)
+            outputs["paired_shoe"] = pair["outputs"]
+            outputs["total_torque_pair"] = T + pair["outputs"]["torque_T"]
+            derived["givens"]["paired_shoe"] = pair["givens"]
+            derived["paired_shoe_intermediate_calculations"] = pair["derived"]
+            notes.extend(pair["notes"])
 
         return SolveResult(
             problem_type=self.problem_type,
             title=self.title,
-            inputs=payload,
+            inputs=raw_inputs,
             outputs=outputs,
             derived=derived,
             notes=notes,
         )
+
+    def _resolve_actuator_components(
+        self,
+        givens: Dict[str, Any],
+        solved_force: float,
+        default_x_sign: int,
+        default_y_sign: int,
+    ) -> tuple[float, float, Dict[str, Any], list[str]]:
+        notes: list[str] = []
+        if "Fx" in givens or "Fy" in givens:
+            # Backward-compatible path for legacy payloads.
+            force_units = givens.get("actuator_force_units", givens.get("force_units", "auto"))
+            Fx_raw = float(givens.get("Fx", 0.0))
+            Fy_raw = float(givens.get("Fy", 0.0))
+            D_force_scale = max(abs(solved_force), 1.0)
+            Fx, Fy, force_unit_note = self._normalize_force_components(Fx_raw, Fy_raw, D_force_scale, force_units)
+            if force_unit_note:
+                notes.append(force_unit_note)
+            notes.append("Legacy actuator component inputs Fx/Fy were used. Prefer actuation_angle_deg plus sign conventions for new work.")
+            resolution = {
+                "component_source": "legacy_components",
+                "actuation_angle_deg": None,
+                "actuation_x_sign": None,
+                "actuation_y_sign": None,
+                "actuator_force_units_used": "N",
+            }
+            return Fx, Fy, resolution, notes
+
+        ensure(givens.get("actuation_angle_deg") is not None, "Rim-brake givens must include actuation_angle_deg when Fx/Fy are not provided.")
+        actuation_angle_deg = float(givens["actuation_angle_deg"])
+        x_sign = int(givens.get("actuation_x_sign", default_x_sign))
+        y_sign = int(givens.get("actuation_y_sign", default_y_sign))
+        ensure(x_sign in {-1, 1}, "actuation_x_sign must be either -1 or 1.")
+        ensure(y_sign in {-1, 1}, "actuation_y_sign must be either -1 or 1.")
+        angle_rad = deg_to_rad(actuation_angle_deg)
+        Fx = x_sign * solved_force * math.sin(angle_rad)
+        Fy = y_sign * solved_force * math.cos(angle_rad)
+        notes.append("Actuator force components were derived internally from the solved actuating force and actuation angle.")
+        resolution = {
+            "component_source": "derived_from_force_and_angle",
+            "actuation_angle_deg": actuation_angle_deg,
+            "actuation_x_sign": x_sign,
+            "actuation_y_sign": y_sign,
+            "actuator_force_units_used": "N",
+        }
+        return Fx, Fy, resolution, notes
 
     def _normalize_force_components(self, Fx_raw: float, Fy_raw: float, D_force_scale: float, force_units: str) -> tuple[float, float, str | None]:
         ensure(force_units in {"auto", "N", "kN"}, "actuator_force_units must be one of: auto, N, kN.")
@@ -228,74 +326,113 @@ class InternalExpandingRimBrakeSolver(SolverBase):
             return Fx_raw, Fy_raw, None
         if force_units == "kN":
             return 1000.0 * Fx_raw, 1000.0 * Fy_raw, "Converted actuator force components from kN to N."
-
-        # Auto-detect for textbook-style inputs where p_a is in Pa and geometry in meters,
-        # but actuator components are often entered from the textbook in kN.
         force_mag = max(abs(Fx_raw), abs(Fy_raw))
         if D_force_scale > 100.0 and force_mag < 50.0:
             return 1000.0 * Fx_raw, 1000.0 * Fy_raw, "Auto-detected actuator force components as kN and converted to N."
         return Fx_raw, Fy_raw, None
 
-    def _solve_paired_shoe(self, target_F: float, pair_payload: Dict[str, Any]) -> Dict[str, Any]:
-        mu = float(pair_payload["mu"])
-        b = float(pair_payload["b"])
-        r = float(pair_payload["r"])
-        a = float(pair_payload["a"])
-        c = float(pair_payload["c"])
-        theta1_deg = float(pair_payload["theta1_deg"])
-        theta2_deg = float(pair_payload["theta2_deg"])
-        theta_a_deg = float(pair_payload.get("theta_a_deg", 90.0))
-        rotation = pair_payload.get("rotation", "counterclockwise")
-        force_units = pair_payload.get("actuator_force_units", pair_payload.get("force_units", "auto"))
-        Fx_raw = float(pair_payload.get("Fx", 0.0))
-        Fy_raw = float(pair_payload.get("Fy", 0.0))
+    def _solve_paired_shoe(self, target_F: float, pair_payload: Dict[str, Any], main_rotation: str) -> Dict[str, Any]:
+        givens = dict(pair_payload.get("givens", pair_payload))
+        mu = float(givens["mu"])
+        b = float(givens["b"])
+        r = float(givens["r"])
+        a = float(givens["a"])
+        c = float(givens["c"])
+        theta1_deg = float(givens["theta1_deg"])
+        theta2_deg = float(givens["theta2_deg"])
+        theta_a_deg = float(givens.get("theta_a_deg", 90.0))
+        rotation = givens.get("rotation", "counterclockwise" if main_rotation == "clockwise" else "clockwise")
+        ensure(rotation in {"clockwise", "counterclockwise"}, "paired_shoe rotation must be clockwise or counterclockwise.")
 
         th1 = deg_to_rad(theta1_deg)
         th2 = deg_to_rad(theta2_deg)
         tha = deg_to_rad(theta_a_deg)
+        ensure(th2 > th1, "paired_shoe theta2 must exceed theta1.")
+        ensure(abs(math.sin(tha)) > 1e-12, "paired_shoe sin(theta_a) cannot be zero.")
         stha = math.sin(tha)
+
         A = 0.5 * (math.sin(th2) ** 2 - math.sin(th1) ** 2)
         B = (th2 - th1) / 2.0 - (math.sin(2.0 * th2) - math.sin(2.0 * th1)) / 4.0
-
         coeff_Mf = mu * b * r / stha * (r * (math.cos(th1) - math.cos(th2)) - a * A)
         coeff_Mn = b * r / stha * a * B
         if rotation == "clockwise":
             coeff_F = (coeff_Mn - coeff_Mf) / c
+            force_equation = "F = (M_n - M_f) / c"
         else:
             coeff_F = (coeff_Mn + coeff_Mf) / c
+            force_equation = "F = (M_n + M_f) / c"
         ensure(abs(coeff_F) > 1e-12, "Paired shoe produces zero F coefficient; cannot back-solve pressure.")
         p_a = target_F / coeff_F
+        ensure(p_a > 0, "Paired shoe solved p_a must be positive.")
 
         D = p_a * b * r / stha
-        Fx, Fy, force_unit_note = self._normalize_force_components(Fx_raw, Fy_raw, D, force_units)
         M_f = coeff_Mf * p_a
         M_n = coeff_Mn * p_a
+        Fx, Fy, actuator_resolution, notes = self._resolve_actuator_components(
+            givens=givens,
+            solved_force=target_F,
+            default_x_sign=-1 if main_rotation == "clockwise" else 1,
+            default_y_sign=1,
+        )
         if rotation == "clockwise":
             R_x = D * (A - mu * B) - Fx
             R_y = D * (B + mu * A) - Fy
+            reaction_equation = "Right/self-energizing shoe: Eq. (16-9)"
         else:
             R_x = D * (A + mu * B) + Fx
             R_y = D * (B - mu * A) - Fy
+            reaction_equation = "Left/de-energized shoe: Eq. (16-10)"
         T = mu * p_a * b * (r ** 2) * (math.cos(th1) - math.cos(th2)) / stha
-        out = {
-            "solved_p_a": p_a,
-            "A": A,
-            "B": B,
-            "D": D,
-            "M_f": M_f,
-            "M_n": M_n,
-            "actuating_force_F": target_F,
-            "torque_T": T,
-            "R_x": R_x,
-            "R_y": R_y,
-            "hinge_reaction_resultant": math.hypot(R_x, R_y),
-            "Fx_used": Fx,
-            "Fy_used": Fy,
-            "actuator_force_units_used": "N",
+
+        return {
+            "givens": {
+                "mu": mu,
+                "b": b,
+                "r": r,
+                "a": a,
+                "c": c,
+                "theta1_deg": theta1_deg,
+                "theta2_deg": theta2_deg,
+                "theta_a_deg": theta_a_deg,
+                "rotation": rotation,
+                "actuation_angle_deg": actuator_resolution["actuation_angle_deg"],
+                "actuation_x_sign": actuator_resolution["actuation_x_sign"],
+                "actuation_y_sign": actuator_resolution["actuation_y_sign"],
+                "solve_mode": "match_actuating_force",
+            },
+            "derived": {
+                "theta1_rad": th1,
+                "theta2_rad": th2,
+                "theta_a_rad": tha,
+                "A": A,
+                "B": B,
+                "D": D,
+                "M_f": M_f,
+                "M_n": M_n,
+                "force_equation": force_equation,
+                "reaction_equation": reaction_equation,
+                "actuator_force_resolved": {
+                    "F": target_F,
+                    "Fx": Fx,
+                    "Fy": Fy,
+                    **actuator_resolution,
+                },
+            },
+            "outputs": {
+                "solved_p_a": p_a,
+                "A": A,
+                "B": B,
+                "D": D,
+                "M_f": M_f,
+                "M_n": M_n,
+                "actuating_force_F": target_F,
+                "torque_T": T,
+                "R_x": R_x,
+                "R_y": R_y,
+                "hinge_reaction_resultant": math.hypot(R_x, R_y),
+            },
+            "notes": notes,
         }
-        if force_unit_note:
-            out["force_unit_note"] = force_unit_note
-        return out
 
 
 class AnnularPadCaliperSolver(SolverBase):

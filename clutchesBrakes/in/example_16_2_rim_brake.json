@@ -5,21 +5,9 @@
     "name": "example_16_2_rim_brake",
     "reference": "Shigley Example 16-2"
   },
-  "mu": 0.32,
-  "p_a": 1000000.0,
-  "b": 0.032,
-  "r": 0.15,
-  "a": 0.1227,
-  "c": 0.212,
-  "theta1_deg": 0.0,
-  "theta2_deg": 126.0,
-  "theta_a_deg": 90.0,
-  "rotation": "clockwise",
-  "actuator_force_units": "kN",
-  "Fx": 0.927281,
-  "Fy": 2.082942,
-  "paired_shoe": {
+  "givens": {
     "mu": 0.32,
+    "p_a": 1000000.0,
     "b": 0.032,
     "r": 0.15,
     "a": 0.1227,
@@ -27,9 +15,25 @@
     "theta1_deg": 0.0,
     "theta2_deg": 126.0,
     "theta_a_deg": 90.0,
-    "rotation": "counterclockwise",
-    "actuator_force_units": "kN",
-    "Fx": -0.927281,
-    "Fy": 2.082942
+    "rotation": "clockwise",
+    "actuation_angle_deg": 24.0,
+    "actuation_x_sign": 1,
+    "actuation_y_sign": 1
+  },
+  "paired_shoe": {
+    "givens": {
+      "mu": 0.32,
+      "b": 0.032,
+      "r": 0.15,
+      "a": 0.1227,
+      "c": 0.212,
+      "theta1_deg": 0.0,
+      "theta2_deg": 126.0,
+      "theta_a_deg": 90.0,
+      "rotation": "counterclockwise",
+      "actuation_angle_deg": 24.0,
+      "actuation_x_sign": -1,
+      "actuation_y_sign": 1
+    }
   }
 }

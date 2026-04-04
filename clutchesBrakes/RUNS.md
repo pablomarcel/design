@@ -93,14 +93,14 @@ python -m cli rim_brake \
   --theta2-deg 126 \
   --theta-a-deg 90 \
   --rotation clockwise \
-  --Fx 0.927281 \
-  --Fy 2.082942 \
-  --actuator-force-units kN \
+  --actuation-angle-deg 24 \
+  --actuation-x-sign 1 \
+  --actuation-y-sign 1 \
   --pair-enable \
   --pair-rotation counterclockwise \
-  --pair-Fx -0.927281 \
-  --pair-Fy 2.082942 \
-  --pair-actuator-force-units kN \
+  --pair-actuation-angle-deg 24 \
+  --pair-actuation-x-sign -1 \
+  --pair-actuation-y-sign 1 \
   --outfile rim_brake_pair_example_16_2.json
 ```
 
@@ -118,9 +118,9 @@ python -m cli rim_brake \
   --theta2-deg 126 \
   --theta-a-deg 90 \
   --rotation clockwise \
-  --Fx 0.927281 \
-  --Fy 2.082942 \
-  --actuator-force-units kN \
+  --actuation-angle-deg 24 \
+  --actuation-x-sign 1 \
+  --actuation-y-sign 1 \
   --outfile rim_brake_main_shoe.json
 ```
 
@@ -138,9 +138,9 @@ python -m cli rim_brake \
   --theta2-deg 126 \
   --theta-a-deg 90 \
   --rotation counterclockwise \
-  --Fx -0.927281 \
-  --Fy 2.082942 \
-  --actuator-force-units kN \
+  --actuation-angle-deg 24 \
+  --actuation-x-sign -1 \
+  --actuation-y-sign 1 \
   --outfile rim_brake_other_shoe.json
 ```
 
