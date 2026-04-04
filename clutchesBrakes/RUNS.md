@@ -79,6 +79,14 @@ python -m cli run \
   --outfile example_16_5_temperature_rise_caliper_out.json
 ```
 
+## Solve Example 16-6 from JSON
+
+```bash
+python -m cli run \
+  --infile example_16_6_flywheel.json \
+  --outfile example_16_6_flywheel_out.json
+```
+
 ## CLI-only doorstop solve
 
 ```bash

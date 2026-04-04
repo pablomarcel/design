@@ -1167,3 +1167,250 @@ class TemperatureRiseCaliperSolver(SolverBase):
                 y1 = ys[i + 1]
                 return y0 + (xi - x0) * (y1 - y0) / (x1 - x0)
         return ys[-1]
+
+
+class FlywheelSolver(SolverBase):
+    problem_type = "flywheel"
+    title = "Flywheel energy fluctuation from torque-angle data"
+
+    def solve(self, payload: Dict[str, Any]) -> SolveResult:
+        raw_inputs = dict(payload)
+        givens = dict(payload.get("givens", payload))
+        data_sources = dict(payload.get("data_sources", {}))
+        analysis_cfg = dict(payload.get("analysis", {}))
+        meta = dict(payload.get("meta", {}))
+
+        nominal_angular_speed = float(givens["nominal_angular_speed_rad_per_s"])
+        coefficient_of_speed_fluctuation = float(givens["coefficient_of_speed_fluctuation"])
+        ensure(nominal_angular_speed > 0.0, "nominal_angular_speed_rad_per_s must be positive.")
+        ensure(coefficient_of_speed_fluctuation > 0.0, "coefficient_of_speed_fluctuation must be positive.")
+
+        torque_table_path_value = data_sources.get("torque_table_csv") or givens.get("torque_table_csv")
+        ensure(torque_table_path_value is not None, "Flywheel input must provide data_sources.torque_table_csv or givens.torque_table_csv.")
+        base_dir = Path(__file__).resolve().parent
+        torque_table_path = self._resolve_data_path(str(torque_table_path_value), base_dir)
+        theta_deg, torque = self._load_torque_table(torque_table_path)
+
+        theta_rad = [deg_to_rad(v) for v in theta_deg]
+        cycle_angle_deg = theta_deg[-1] - theta_deg[0]
+        cycle_angle_rad = theta_rad[-1] - theta_rad[0]
+        ensure(cycle_angle_rad > 0.0, "Torque table must span a nonzero cycle angle.")
+
+        interval_count = len(theta_deg) - 1
+        dtheta_deg = [theta_deg[i + 1] - theta_deg[i] for i in range(interval_count)]
+        dtheta_rad = [theta_rad[i + 1] - theta_rad[i] for i in range(interval_count)]
+        uniform_spacing = max(dtheta_deg) - min(dtheta_deg) <= 1e-9
+
+        energy_per_cycle = self._trapz(theta_rad, torque)
+        mean_torque = energy_per_cycle / cycle_angle_rad
+        delta_torque = [t - mean_torque for t in torque]
+
+        cumulative_energy = [0.0]
+        for i in range(interval_count):
+            area = 0.5 * (delta_torque[i] + delta_torque[i + 1]) * (theta_rad[i + 1] - theta_rad[i])
+            cumulative_energy.append(cumulative_energy[-1] + area)
+
+        max_energy = max(cumulative_energy)
+        min_energy = min(cumulative_energy)
+        idx_max = cumulative_energy.index(max_energy)
+        idx_min = cumulative_energy.index(min_energy)
+        greatest_energy_fluctuation = max_energy - min_energy
+
+        fluctuation_override = analysis_cfg.get("fluctuation_interval_deg")
+        selected_fluctuation = None
+        if fluctuation_override is not None:
+            ensure(isinstance(fluctuation_override, dict), "analysis.fluctuation_interval_deg must be an object with start and end.")
+            start_deg = float(fluctuation_override["start"])
+            end_deg = float(fluctuation_override["end"])
+            selected_fluctuation = self._integrate_between(theta_deg, delta_torque, start_deg, end_deg)
+            selected_start_deg = start_deg
+            selected_end_deg = end_deg
+            selected_start_index = None
+            selected_end_index = None
+            selected_mode = "user_specified_interval"
+        else:
+            selected_fluctuation = greatest_energy_fluctuation
+            selected_start_deg = theta_deg[idx_min]
+            selected_end_deg = theta_deg[idx_max]
+            selected_start_index = idx_min
+            selected_end_index = idx_max
+            selected_mode = "largest_cumulative_energy_excursion"
+
+        flywheel_inertia = selected_fluctuation / (coefficient_of_speed_fluctuation * nominal_angular_speed ** 2)
+        omega2 = 0.5 * nominal_angular_speed * (2.0 + coefficient_of_speed_fluctuation)
+        omega1 = 0.5 * nominal_angular_speed * (2.0 - coefficient_of_speed_fluctuation)
+
+        energy_extrema = {
+            "minimum_cumulative_energy_lbf_in": min_energy,
+            "minimum_at_theta_deg": theta_deg[idx_min],
+            "maximum_cumulative_energy_lbf_in": max_energy,
+            "maximum_at_theta_deg": theta_deg[idx_max],
+        }
+
+        table_rows = []
+        for i in range(len(theta_deg)):
+            row = {
+                "theta_deg": theta_deg[i],
+                "theta_rad": theta_rad[i],
+                "T_lbf_in": torque[i],
+                "T_minus_Tm_lbf_in": delta_torque[i],
+                "cumulative_energy_from_start_lbf_in": cumulative_energy[i],
+            }
+            table_rows.append(row)
+
+        notes = [
+            "Part (a): integrated the torque-displacement curve numerically over one full cycle using the trapezoidal rule.",
+            "Part (b): computed mean torque as total cycle energy divided by total cycle angle.",
+            "Part (c): formed the energy-deviation curve by integrating T - T_m with respect to crank angle.",
+            "Part (d): used Eq. (16-64) together with Eqs. (16-62) and (16-63) to compute flywheel inertia and speed limits.",
+        ]
+        if uniform_spacing:
+            notes.append(f"The torque table uses {interval_count} equal intervals of Δθ = {dtheta_deg[0]:.6g} deg.")
+        else:
+            notes.append("The torque table spacing is nonuniform; trapezoidal integration was still applied directly in radians.")
+        if selected_mode == "largest_cumulative_energy_excursion":
+            notes.append(
+                "The fluctuation interval was selected automatically as the largest difference between cumulative-energy extrema of the T - T_m diagram."
+            )
+        else:
+            notes.append("The fluctuation interval was taken from analysis.fluctuation_interval_deg.")
+
+        outputs = {
+            "part_a_energy_per_cycle_lbf_in": energy_per_cycle,
+            "part_b_mean_torque_lbf_in": mean_torque,
+            "part_c_greatest_energy_fluctuation_lbf_in": greatest_energy_fluctuation,
+            "part_c_selected_energy_fluctuation_lbf_in": selected_fluctuation,
+            "part_c_selected_interval": {
+                "mode": selected_mode,
+                "start_theta_deg": selected_start_deg,
+                "end_theta_deg": selected_end_deg,
+                "start_index": selected_start_index,
+                "end_index": selected_end_index,
+            },
+            "part_d_flywheel_inertia_lbf_s2_in": flywheel_inertia,
+            "part_d_omega2_rad_per_s": omega2,
+            "part_d_omega1_rad_per_s": omega1,
+            "speed_extrema_locations": {
+                "omega2_occurs_at_theta_deg": theta_deg[idx_max],
+                "omega1_occurs_at_theta_deg": theta_deg[idx_min],
+            },
+        }
+
+        derived = {
+            "meta": meta,
+            "givens": {
+                "nominal_angular_speed_rad_per_s": nominal_angular_speed,
+                "coefficient_of_speed_fluctuation": coefficient_of_speed_fluctuation,
+            },
+            "data_sources": {
+                "torque_table_csv": str(torque_table_path),
+            },
+            "cycle_geometry": {
+                "theta_start_deg": theta_deg[0],
+                "theta_end_deg": theta_deg[-1],
+                "cycle_angle_deg": cycle_angle_deg,
+                "cycle_angle_rad": cycle_angle_rad,
+                "interval_count": interval_count,
+                "uniform_spacing": uniform_spacing,
+                "delta_theta_deg_values": dtheta_deg,
+            },
+            "equations": {
+                "part_a": "E = integral(T dtheta)",
+                "part_b": "T_m = E / theta_cycle",
+                "eq_16_61": "E_2 - E_1 = (1/2) I (omega_2^2 - omega_1^2)",
+                "eq_16_62": "C_s = (omega_2 - omega_1) / omega",
+                "eq_16_63": "omega = (omega_2 + omega_1) / 2",
+                "eq_16_64": "E_2 - E_1 = C_s I omega^2",
+            },
+            "intermediate_calculations": {
+                "energy_extrema": energy_extrema,
+                "selected_energy_fluctuation_lbf_in": selected_fluctuation,
+                "delta_torque_values_lbf_in": delta_torque,
+                "cumulative_energy_values_lbf_in": cumulative_energy,
+            },
+            "table_evaluation": table_rows,
+        }
+
+        return SolveResult(
+            problem_type=self.problem_type,
+            title=self.title,
+            inputs={"givens": givens, "data_sources": data_sources, "analysis": analysis_cfg},
+            outputs=outputs,
+            derived=derived,
+            notes=notes,
+        )
+
+    @staticmethod
+    def _resolve_data_path(value: str, base_dir: Path) -> Path:
+        path = Path(value)
+        return path if path.is_absolute() else (base_dir / path).resolve()
+
+    def _load_torque_table(self, path: Path) -> tuple[list[float], list[float]]:
+        ensure(path.exists(), f"Required torque table CSV not found: {path}")
+        theta: list[float] = []
+        torque: list[float] = []
+        with path.open("r", encoding="utf-8-sig", newline="") as f:
+            reader = csv.DictReader(f)
+            ensure(reader.fieldnames is not None, f"CSV file has no header row: {path}")
+            theta_key = None
+            torque_key = None
+            normalized = {self._normalize_header(name): name for name in reader.fieldnames if name}
+            for alias in ("theta_deg", "theta", "crank_angle_deg"):
+                if alias in normalized:
+                    theta_key = normalized[alias]
+                    break
+            for alias in ("t_lbf_in", "torque_lbf_in", "T_lbf_in", "torque"):
+                alias_n = self._normalize_header(alias)
+                if alias_n in normalized:
+                    torque_key = normalized[alias_n]
+                    break
+            ensure(theta_key is not None and torque_key is not None, f"Could not identify theta and torque columns in {path}")
+            for row in reader:
+                theta_raw = row.get(theta_key)
+                torque_raw = row.get(torque_key)
+                if theta_raw in (None, "") or torque_raw in (None, ""):
+                    continue
+                theta.append(float(str(theta_raw).strip()))
+                torque.append(float(str(torque_raw).strip()))
+        ensure(len(theta) >= 2, "Torque table must contain at least two valid rows.")
+        combined = sorted(zip(theta, torque), key=lambda x: x[0])
+        theta = [a for a, _ in combined]
+        torque = [b for _, b in combined]
+        for i in range(len(theta) - 1):
+            ensure(theta[i + 1] > theta[i], "Torque table crank angles must be strictly increasing.")
+        return theta, torque
+
+    @staticmethod
+    def _normalize_header(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", str(value).strip().casefold()).strip("_")
+
+    @staticmethod
+    def _trapz(xs: list[float], ys: list[float]) -> float:
+        ensure(len(xs) == len(ys) and len(xs) >= 2, "Trapezoidal integration requires equal-length vectors with at least two points.")
+        total = 0.0
+        for i in range(len(xs) - 1):
+            total += 0.5 * (ys[i] + ys[i + 1]) * (xs[i + 1] - xs[i])
+        return total
+
+    def _integrate_between(self, theta_deg: list[float], values: list[float], start_deg: float, end_deg: float) -> float:
+        ensure(theta_deg[0] <= start_deg < end_deg <= theta_deg[-1], "Requested fluctuation interval must lie inside the torque-table domain.")
+        sample_theta = []
+        sample_values = []
+        all_breaks = [start_deg] + [x for x in theta_deg if start_deg < x < end_deg] + [end_deg]
+        for deg in all_breaks:
+            sample_theta.append(deg_to_rad(deg))
+            sample_values.append(self._interp_piecewise(theta_deg, values, deg))
+        return self._trapz(sample_theta, sample_values)
+
+    @staticmethod
+    def _interp_piecewise(xs: list[float], ys: list[float], xq: float) -> float:
+        ensure(len(xs) == len(ys) and len(xs) >= 2, "Piecewise interpolation vectors are invalid.")
+        ensure(xs[0] <= xq <= xs[-1], "Interpolation query lies outside the data domain.")
+        for i in range(len(xs) - 1):
+            x0, x1 = xs[i], xs[i + 1]
+            if abs(xq - x0) <= 1e-12:
+                return ys[i]
+            if x0 <= xq <= x1:
+                y0, y1 = ys[i], ys[i + 1]
+                return y0 + (xq - x0) * (y1 - y0) / (x1 - x0)
+        return ys[-1]

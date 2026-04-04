@@ -6,6 +6,7 @@ from core import (
     AnnularPadCaliperSolver,
     ButtonPadCaliperSolver,
     DoorstopSolver,
+    FlywheelSolver,
     InternalExpandingRimBrakeSolver,
     SolveResult,
     TemperatureRiseCaliperSolver,
@@ -21,6 +22,7 @@ class ClutchesBrakesApp:
             "annular_pad": AnnularPadCaliperSolver(),
             "button_pad_caliper": ButtonPadCaliperSolver(),
             "temperature_rise_caliper": TemperatureRiseCaliperSolver(),
+            "flywheel": FlywheelSolver(),
         }
 
     def solve(self, problem_type: str, payload: Dict[str, Any]) -> SolveResult:

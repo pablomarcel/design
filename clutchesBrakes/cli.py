@@ -106,6 +106,23 @@ BUTTON_PAD_TEMPLATE = {
     ]
 }
 
+
+FLYWHEEL_TEMPLATE = {
+    "schema": "clutchesBrakes.v1",
+    "problem_type": "flywheel",
+    "meta": {
+        "name": "flywheel_example_16_6",
+        "reference": "Shigley Example 16-6",
+        "note": "Clean givens-only input. The torque-angle table is supplied separately as a CSV file."
+    },
+    "givens": {
+        "nominal_angular_speed_rad_per_s": 250.0,
+        "coefficient_of_speed_fluctuation": 0.1
+    },
+    "data_sources": {
+        "torque_table_csv": "table_16_6.csv"
+    }
+}
 TEMPERATURE_RISE_CALIPER_TEMPLATE = {
     "schema": "clutchesBrakes.v1",
     "problem_type": "temperature_rise_caliper",
@@ -150,7 +167,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_run.add_argument("--outfile", required=True)
 
     p_tpl = sub.add_parser("template", help="Write a template JSON into ./out")
-    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad", "button_pad_caliper", "temperature_rise_caliper"])
+    p_tpl.add_argument("problem_type", choices=["doorstop", "rim_brake", "annular_pad", "button_pad_caliper", "temperature_rise_caliper", "flywheel"])
     p_tpl.add_argument("--outfile", required=True)
 
     p_d = sub.add_parser("doorstop", help="Solve doorstop problem with CLI flags")
@@ -242,6 +259,15 @@ def build_parser() -> argparse.ArgumentParser:
     p_t.add_argument("--table-16-3", default="data/table_16_3.csv")
     p_t.add_argument("--outfile")
 
+
+    p_f = sub.add_parser("flywheel", help="Solve flywheel energy-fluctuation problem from torque-angle table")
+    p_f.add_argument("--nominal-angular-speed-rad-s", type=float, required=True)
+    p_f.add_argument("--coefficient-of-speed-fluctuation", type=float, required=True)
+    p_f.add_argument("--torque-table-csv", required=True)
+    p_f.add_argument("--fluctuation-start-deg", type=float)
+    p_f.add_argument("--fluctuation-end-deg", type=float)
+    p_f.add_argument("--outfile")
+
     return parser
 
 
@@ -269,6 +295,7 @@ def main(argv: list[str] | None = None) -> int:
                 "annular_pad": ANNULAR_TEMPLATE,
                 "button_pad_caliper": BUTTON_PAD_TEMPLATE,
                 "temperature_rise_caliper": TEMPERATURE_RISE_CALIPER_TEMPLATE,
+                "flywheel": FLYWHEEL_TEMPLATE,
             }
             outpath = IO.write_json(template_map[args.problem_type], args.outfile)
             print(f"Wrote template {outpath}")
@@ -401,6 +428,31 @@ def main(argv: list[str] | None = None) -> int:
                 },
             }
             result = API.solve("temperature_rise_caliper", payload)
+            maybe_write(result, args.outfile)
+            print(result)
+            return 0
+
+
+        if args.command == "flywheel":
+            payload = {
+                "givens": {
+                    "nominal_angular_speed_rad_per_s": args.nominal_angular_speed_rad_s,
+                    "coefficient_of_speed_fluctuation": args.coefficient_of_speed_fluctuation,
+                },
+                "data_sources": {
+                    "torque_table_csv": args.torque_table_csv,
+                },
+            }
+            if args.fluctuation_start_deg is not None or args.fluctuation_end_deg is not None:
+                if args.fluctuation_start_deg is None or args.fluctuation_end_deg is None:
+                    raise ClutchesBrakesError("Provide both --fluctuation-start-deg and --fluctuation-end-deg, or neither.")
+                payload["analysis"] = {
+                    "fluctuation_interval_deg": {
+                        "start": args.fluctuation_start_deg,
+                        "end": args.fluctuation_end_deg,
+                    }
+                }
+            result = API.solve("flywheel", payload)
             maybe_write(result, args.outfile)
             print(result)
             return 0

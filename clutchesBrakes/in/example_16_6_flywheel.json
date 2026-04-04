@@ -1,0 +1,22 @@
+{
+  "schema": "clutchesBrakes.v1",
+  "problem_type": "flywheel",
+  "meta": {
+    "name": "flywheel_example_16_6",
+    "reference": "Shigley Example 16-6",
+    "note": "Example-specific setup. The fluctuation interval is pinned to 0 to 180 deg to reproduce the textbook's approximate loop selection for part (c)."
+  },
+  "givens": {
+    "nominal_angular_speed_rad_per_s": 250.0,
+    "coefficient_of_speed_fluctuation": 0.1
+  },
+  "data_sources": {
+    "torque_table_csv": "data/table_16_6.csv"
+  },
+  "analysis": {
+    "fluctuation_interval_deg": {
+      "start": 0.0,
+      "end": 180.0
+    }
+  }
+}
