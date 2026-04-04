@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import csv
 import math
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict
@@ -850,10 +851,13 @@ class TemperatureRiseCaliperSolver(SolverBase):
         else:
             notes.append(f"Iteration reached max_iterations={max_iterations} without satisfying the requested tolerance.")
         if overheat_check["material_found"]:
-            if overheat_check["within_continuous_range"]:
-                notes.append("Final continuous-temperature check indicates no danger of overheating for the stated friction material.")
+            if overheat_check.get("continuous_limits_available"):
+                if overheat_check["within_continuous_range"]:
+                    notes.append("Final continuous-temperature check indicates no danger of overheating for the stated friction material.")
+                else:
+                    notes.append("Final continuous-temperature check indicates the brake exceeds the digitized continuous operating limit for the stated friction material.")
             else:
-                notes.append("Final continuous-temperature check indicates the brake exceeds the digitized continuous operating limit for the stated friction material.")
+                notes.append("The friction material was matched in Table 16-3, but continuous-temperature limits were unavailable, so the overheating check is inconclusive.")
         else:
             notes.append("Material name was not found in the digitized Table 16-3, so the overheating check could not be completed.")
 
@@ -990,46 +994,164 @@ class TemperatureRiseCaliperSolver(SolverBase):
         with path.open("r", encoding="utf-8-sig", newline="") as f:
             reader = csv.DictReader(f)
             ensure(reader.fieldnames is not None, f"CSV file has no header row: {path}")
+            header_map = {self._normalize_header(name): name for name in reader.fieldnames if name}
+            material_key = self._first_matching_header(
+                header_map,
+                "material",
+                "friction_material",
+                "pad_material",
+                "lining_material",
+            )
+            ensure(material_key is not None, f"Could not find a material-name column in {path}")
+            min_key = self._first_matching_header(
+                header_map,
+                "continuous_temp_F_min",
+                "continuous_min_temp_F",
+                "continuous_operating_temp_F_min",
+                "continuous_operating_min_temp_F",
+                "continuous_min_F",
+                "min_continuous_temp_F",
+            )
+            max_key = self._first_matching_header(
+                header_map,
+                "continuous_temp_F_max",
+                "continuous_max_temp_F",
+                "continuous_operating_temp_F_max",
+                "continuous_operating_max_temp_F",
+                "continuous_max_F",
+                "max_continuous_temp_F",
+            )
+
             for row in reader:
-                material = str(row.get("material", row.get("friction_material", ""))).strip()
+                material = str(row.get(material_key, "")).strip()
                 if not material:
                     continue
-                min_temp = self._numeric_from_row(row, ("continuous_min_temp_F", "continuous_operating_min_temp_F", "continuous_min_F"))
-                max_temp = self._numeric_from_row(row, ("continuous_max_temp_F", "continuous_operating_max_temp_F", "continuous_max_F"))
+                min_temp = self._numeric_from_any(row, (min_key,) if min_key else ())
+                max_temp = self._numeric_from_any(row, (max_key,) if max_key else ())
                 rows.append({
                     "material": material,
+                    "material_normalized": self._normalize_material_name(material),
                     "continuous_min_temp_F": min_temp,
                     "continuous_max_temp_F": max_temp,
+                    "temperature_limits_present": (min_temp is not None) or (max_temp is not None),
                 })
         ensure(rows, f"No material rows found in {path}")
         return rows
 
     def _evaluate_overheat(self, materials: list[dict[str, Any]], material_name: str, Tmax_F: float) -> dict[str, Any]:
-        wanted = material_name.strip().casefold()
-        for row in materials:
-            name = str(row["material"]).strip()
-            if wanted == name.casefold():
-                max_temp = row.get("continuous_max_temp_F")
-                min_temp = row.get("continuous_min_temp_F")
-                within = (max_temp is None) or (Tmax_F <= max_temp)
-                return {
-                    "material_found": True,
-                    "matched_material": name,
-                    "continuous_min_temp_F": min_temp,
-                    "continuous_max_temp_F": max_temp,
-                    "within_continuous_range": within,
-                    "overheating_risk": not within,
-                    "margin_to_continuous_max_F": None if max_temp is None else (max_temp - Tmax_F),
-                }
+        wanted_original = material_name.strip()
+        wanted = self._normalize_material_name(wanted_original)
+
+        exact_candidates = [row for row in materials if row.get("material_normalized") == wanted]
+        token_candidates = []
+        wanted_tokens = set(self._material_tokens(wanted_original))
+        if wanted_tokens:
+            for row in materials:
+                row_tokens = set(self._material_tokens(str(row.get("material", ""))))
+                overlap = len(wanted_tokens & row_tokens)
+                if overlap > 0:
+                    token_candidates.append((overlap, len(row_tokens), row))
+
+        chosen = None
+        match_method = None
+        candidate_materials = [str(row.get("material", "")) for row in materials]
+        if exact_candidates:
+            exact_candidates.sort(key=lambda row: (not row.get("temperature_limits_present", False), str(row.get("material", ""))))
+            chosen = exact_candidates[0]
+            match_method = "normalized_exact"
+        elif token_candidates:
+            token_candidates.sort(key=lambda item: (-item[0], item[1], not item[2].get("temperature_limits_present", False), str(item[2].get("material", ""))))
+            chosen = token_candidates[0][2]
+            match_method = "token_overlap"
+
+        if chosen is None:
+            return {
+                "material_found": False,
+                "matched_material": None,
+                "match_method": None,
+                "input_material": wanted_original,
+                "continuous_min_temp_F": None,
+                "continuous_max_temp_F": None,
+                "continuous_limits_available": False,
+                "within_continuous_range": None,
+                "overheating_risk": None,
+                "margin_to_continuous_max_F": None,
+                "candidate_materials": candidate_materials,
+            }
+
+        max_temp = chosen.get("continuous_max_temp_F")
+        min_temp = chosen.get("continuous_min_temp_F")
+        limits_available = (min_temp is not None) or (max_temp is not None)
+        upper_ok = True if max_temp is None else (Tmax_F <= max_temp)
+        within = upper_ok if limits_available else None
+
         return {
-            "material_found": False,
-            "matched_material": None,
-            "continuous_min_temp_F": None,
-            "continuous_max_temp_F": None,
-            "within_continuous_range": None,
-            "overheating_risk": None,
-            "margin_to_continuous_max_F": None,
+            "material_found": True,
+            "matched_material": chosen.get("material"),
+            "match_method": match_method,
+            "input_material": wanted_original,
+            "continuous_min_temp_F": min_temp,
+            "continuous_max_temp_F": max_temp,
+            "continuous_limits_available": limits_available,
+            "within_continuous_range": within,
+            "overheating_risk": (not within) if within is not None else None,
+            "margin_to_continuous_max_F": None if max_temp is None else (max_temp - Tmax_F),
+            "margin_above_continuous_min_F": None if min_temp is None else (Tmax_F - min_temp),
         }
+
+    @staticmethod
+    def _normalize_header(value: str) -> str:
+        return re.sub(r"[^a-z0-9]+", "_", str(value).strip().casefold()).strip("_")
+
+    @staticmethod
+    def _first_matching_header(header_map: dict[str, str], *aliases: str) -> str | None:
+        for alias in aliases:
+            normalized_alias = TemperatureRiseCaliperSolver._normalize_header(alias)
+            if normalized_alias in header_map:
+                return header_map[normalized_alias]
+        return None
+
+    @staticmethod
+    def _numeric_from_any(row: dict[str, Any], key_options: tuple[str, ...]) -> float | None:
+        for key in key_options:
+            if not key:
+                continue
+            value = row.get(key)
+            if value in (None, ""):
+                continue
+            try:
+                return float(str(value).strip())
+            except ValueError:
+                continue
+        return None
+
+    @staticmethod
+    def _normalize_material_name(value: str) -> str:
+        text = str(value).strip().casefold()
+        replacements = {
+            "non asbestos": "nonasbestos",
+            "non-asbestos": "nonasbestos",
+            "disk": "disc",
+            "caliper disk brakes": "caliper disc brakes",
+        }
+        for src, dst in replacements.items():
+            text = text.replace(src, dst)
+        text = re.sub(r"\(.*?\)", lambda m: " " + m.group(0)[1:-1] + " ", text)
+        tokens = TemperatureRiseCaliperSolver._material_tokens(text)
+        synonyms = {
+            "dry sintered metal": "sintered metal dry",
+            "sintered metal dry": "sintered metal dry",
+            "wet sintered metal": "sintered metal wet",
+            "sintered metal wet": "sintered metal wet",
+        }
+        normalized = " ".join(tokens)
+        return synonyms.get(normalized, normalized)
+
+    @staticmethod
+    def _material_tokens(value: str) -> list[str]:
+        raw = re.split(r"[^a-z0-9]+", str(value).casefold())
+        stop = {"and", "for", "the", "of", "material", "materials"}
+        return [tok for tok in raw if tok and tok not in stop]
 
     @staticmethod
     def _interp(xi: float, xs: list[float], ys: list[float], label: str) -> float:
