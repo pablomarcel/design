@@ -1,6 +1,6 @@
 # flexibleElements RUNS
 
-Run these commands from inside the `flexibleElements` folder.
+Run these commands from inside the `flexible_elements` folder.
 
 ## List solve paths
 
@@ -83,3 +83,7 @@ python -m cli metal_flat_selection \
   --required-belt-passes 1000000 \
   --available-widths-in 0.25 0.375 0.5 0.75 1.0
 ```
+
+### RipGrep
+
+rg "flexibleElements" flexibleElements

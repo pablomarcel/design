@@ -1,0 +1,6 @@
+belt_section,width_fraction,width_decimal_in,thickness_fraction,thickness_decimal_in,minimum_sheave_diameter_in,hp_range_text,hp_min,hp_max,hp_range_open_ended
+A,1/2,0.5,11/32,0.34375,3.0,1/4-10,0.25,10.0,False
+B,21/32,0.65625,7/16,0.4375,5.4,1-25,1.0,25.0,False
+C,7/8,0.875,17/32,0.53125,9.0,15-100,15.0,100.0,False
+D,1 1/4,1.25,3/4,0.75,13.0,50-250,50.0,250.0,False
+E,1 1/2,1.5,1,1.0,21.6,100 and up,100.0,,True
