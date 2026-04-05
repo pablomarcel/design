@@ -245,8 +245,15 @@ class FlatBeltDriveDesignSolver(BaseSolver):
             weight_per_foot_lbf_ft(material.gamma_lbf_in3, 1.0, material.thickness_in),
             V,
         )
-        numerator = delta
-        denominator = (allowable_per_width - fc_per_width) * exp_fphi - allowable_per_width
+        # Example 17-2 full-friction width solve.
+        # With F1a = a*b, Fc = c*b, and F2 = a*b - delta,
+        # Eq. (17-7) at full friction development gives
+        #   exp(f*phi) = (F1a - Fc) / (F2 - Fc)
+        #              = ((a-c)b) / (((a-c)b) - delta)
+        # which solves to
+        #   b = delta * exp(f*phi) / ((a-c) * (exp(f*phi) - 1)).
+        numerator = delta * exp_fphi
+        denominator = (allowable_per_width - fc_per_width) * (exp_fphi - 1.0)
         if denominator <= 0:
             raise IterationError(
                 "Width equation denominator is non-positive. Check geometry, material, or load assumptions."

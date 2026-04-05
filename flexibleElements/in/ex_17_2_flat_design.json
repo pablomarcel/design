@@ -15,5 +15,5 @@
   "velocity_ratio": 2.25,
   "driver_is_small_pulley": true,
   "shock_condition": "very_light",
-  "notes": "Corrected Example 17-2 style input. This input is already textbook-aligned; added explicit velocity ratio and context fields for clarity."
+  "notes": "Corrected Example 17-2 style input. Width solve uses the full friction-development rearrangement of Example 17-2."
 }

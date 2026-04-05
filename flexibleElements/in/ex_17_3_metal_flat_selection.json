@@ -12,5 +12,5 @@
     1.0
   ],
   "preferred_selected_width_in": 0.75,
-  "notes": "Corrected Example 17-3 style input. Adds explicit life requirement wording and constrains commercial widths so the current app can reproduce the textbook-selected 0.75 in belt."
+  "notes": "Corrected Example 17-3 style input. Poisson ratio is fetched from table_17_8.csv."
 }
