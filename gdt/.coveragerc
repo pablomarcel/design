@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = gdt
-
-[html]
-directory = gdt/out/htmlcov
-
-[report]
-show_missing = True

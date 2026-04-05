@@ -1,5 +1,5 @@
-pytest flexible/tests \
+pytest flexible_elements/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=flexible/.coveragerc \
+  --cov-config=flexible_elements/.coveragerc \
   --cov-report=term-missing

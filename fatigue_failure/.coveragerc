@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = failureDynamic
+source = fatigue_failure
 
 [html]
-directory = failureDynamic/out/htmlcov
+directory = fatigue_failure/out/htmlcov
 
 [report]
 show_missing = True

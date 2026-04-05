@@ -1,5 +1,0 @@
-pytest gdt/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=gdt/.coveragerc \
-  --cov-report=term-missing

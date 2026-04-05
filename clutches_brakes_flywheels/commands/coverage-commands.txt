@@ -1,5 +1,5 @@
-pytest clutches/tests \
+pytest clutches_brakes_flywheels/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=clutches/.coveragerc \
+  --cov-config=clutches_brakes_flywheels/.coveragerc \
   --cov-report=term-missing

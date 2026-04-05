@@ -1,5 +1,5 @@
-pytest failureDynamic/tests \
+pytest fatigue_failure/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=failureDynamic/.coveragerc \
+  --cov-config=fatigue_failure/.coveragerc \
   --cov-report=term-missing

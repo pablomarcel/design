@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = flexible
+source = flexible_elements
 
 [html]
-directory = flexible/out/htmlcov
+directory = flexible_elements/out/htmlcov
 
 [report]
 show_missing = True

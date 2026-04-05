@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = clutches
+source = clutches_brakes_flywheels
 
 [html]
-directory = clutches/out/htmlcov
+directory = clutches_brakes_flywheels/out/htmlcov
 
 [report]
 show_missing = True
