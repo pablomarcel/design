@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = mechanical_springs
+
+[html]
+directory = mechanical_springs/out/htmlcov
+
+[report]
+show_missing = True

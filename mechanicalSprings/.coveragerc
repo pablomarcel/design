@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = mechanicalSprings
-
-[html]
-directory = mechanicalSprings/out/htmlcov
-
-[report]
-show_missing = True

@@ -82,3 +82,4 @@ python -m cli run \
 ## RipGrep
 
 rg "music wire" mechanicalSprings
+rg "mechanicalSprings" mechanicalSprings

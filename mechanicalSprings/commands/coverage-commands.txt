@@ -1,5 +1,0 @@
-pytest springs/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=springs/.coveragerc \
-  --cov-report=term-missing

@@ -1,0 +1,5 @@
+pytest mechanical_springs/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=mechanical_springs/.coveragerc \
+  --cov-report=term-missing
