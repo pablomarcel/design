@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = rollingBearings
-
-[html]
-directory = rollingBearings/out/htmlcov
-
-[report]
-show_missing = True

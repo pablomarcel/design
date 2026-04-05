@@ -1,0 +1,5 @@
+pytest rolling_contact_bearings/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=rolling_contact_bearings/.coveragerc \
+  --cov-report=term-missing

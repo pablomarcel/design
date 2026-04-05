@@ -1,5 +1,0 @@
-pytest rollingBearings/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=rollingBearings/.coveragerc \
-  --cov-report=term-missing

@@ -14,7 +14,7 @@ except ImportError:
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(prog="rollingBearings")
+    parser = argparse.ArgumentParser(prog="rolling_contact_bearings")
     sub = parser.add_subparsers(dest="command", required=True)
     run = sub.add_parser("run", help="Solve a problem from an input JSON file")
     run.add_argument("--infile", required=True)

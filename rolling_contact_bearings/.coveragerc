@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = rolling_contact_bearings
+
+[html]
+directory = rolling_contact_bearings/out/htmlcov
+
+[report]
+show_missing = True

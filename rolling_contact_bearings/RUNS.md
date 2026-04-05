@@ -1,6 +1,6 @@
 # rollingBearings
 
-Run these commands from inside the `rollingBearings` package directory.
+Run these commands from inside the `rolling_contact_bearings` package directory.
 
 ## Example 11-1 style: required catalog C10
 
@@ -84,3 +84,4 @@ rg "figure_11_15_timken_straight_bore_partial" rollingBearings
 rg "table_11_3_cylindrical_roller" rollingBearings
 rg "table_11_2_ball_bearings" rollingBearings
 rg "table_11_1_ball_equivalent_factors" rollingBearings
+rg "rollingBearings" rolling_contact_bearings

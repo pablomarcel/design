@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 # Import shim:
 # - supports package execution
-# - supports local module execution from inside rollingBearings/
+# - supports local module execution from inside rolling_contact_bearings/
 try:
     from .app import RollingBearingsApp
 except ImportError:
