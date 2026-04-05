@@ -1,6 +1,6 @@
-# journalBearings RUNS
+# journal_bearings RUNS
 
-Run these commands from inside the `journalBearings` package directory.
+Run these commands from inside the `journal_bearings` package directory.
 
 ## Minimum film thickness
 
@@ -301,3 +301,5 @@ python -m cli run \
 ## RipGrep
 
 rg "foreign_matter" journalBearings
+rg "journalBearings" journalBearings
+rg "journalBearings" journal_bearings

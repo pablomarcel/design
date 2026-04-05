@@ -1,0 +1,5 @@
+pytest journal_beearings/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=journal_bearings/.coveragerc \
+  --cov-report=term-missing

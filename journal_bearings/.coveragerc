@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = journal_bearings
+
+[html]
+directory = journal_bearings/out/htmlcov
+
+[report]
+show_missing = True

@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = journalBearings
-
-[html]
-directory = journalBearings/out/htmlcov
-
-[report]
-show_missing = True

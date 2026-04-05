@@ -1,0 +1,28 @@
+application_category,application_subcategory,speed_ft_per_min,mine_shaft_depth_ft_min,mine_shaft_depth_ft_max,minimum_factor_of_safety
+general,Track cables,,,,3.2
+general,Guys,,,,3.5
+mine shafts,Up to 500 ft,,,500,8.0
+mine shafts,1000-2000 ft,,1000,2000,7.0
+mine shafts,2000-3000 ft,,2000,3000,6.0
+mine shafts,Over 3000 ft,,3000,,5.0
+general,Hoisting,,,,5.0
+general,Haulage,,,,6.0
+general,Cranes and derricks,,,,6.0
+general,Electric hoists,,,,7.0
+general,Hand elevators,,,,5.0
+general,Private elevators,,,,7.5
+general,Hand dumbwaiter,,,,4.5
+general,Grain elevators,,,,7.5
+passenger elevators,Passenger elevators,50,,,7.6
+passenger elevators,Passenger elevators,300,,,9.2
+passenger elevators,Passenger elevators,800,,,11.25
+passenger elevators,Passenger elevators,1200,,,11.8
+passenger elevators,Passenger elevators,1500,,,11.9
+freight elevators,Freight elevators,50,,,6.65
+freight elevators,Freight elevators,300,,,8.2
+freight elevators,Freight elevators,800,,,10.0
+freight elevators,Freight elevators,1200,,,10.5
+freight elevators,Freight elevators,1500,,,10.55
+powered dumbwaiters,Powered dumbwaiters,50,,,4.8
+powered dumbwaiters,Powered dumbwaiters,300,,,6.6
+powered dumbwaiters,Powered dumbwaiters,500,,,8.0

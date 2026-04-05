@@ -1,4 +1,4 @@
-"""journalBearings package.
+"""journal_bearings package.
 
 CLI app for journal-bearing selection workflows.
 Current scope:

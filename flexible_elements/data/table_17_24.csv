@@ -1,0 +1,17 @@
+rope,material,weight_per_foot_formula_lbf,minimum_sheave_diameter_formula_in,standard_size_min_in,standard_size_max_in,standard_size_range_text,size_of_outer_wires_formula,modulus_of_elasticity_mpsi,strength_kpsi
+6 x 7 haulage,Monitor steel,1.50*d^2,42*d,0.25,1.5,1/4-1 1/2,d/9,14,100
+6 x 7 haulage,Plow steel,1.50*d^2,42*d,0.25,1.5,1/4-1 1/2,d/9,14,88
+6 x 7 haulage,Mild plow steel,1.50*d^2,42*d,0.25,1.5,1/4-1 1/2,d/9,14,76
+6 x 19 standard hoisting,Monitor steel,1.60*d^2,26*d-34*d,0.25,2.75,1/4-2 3/4,d/13-d/16,12,106
+6 x 19 standard hoisting,Plow steel,1.60*d^2,26*d-34*d,0.25,2.75,1/4-2 3/4,d/13-d/16,12,93
+6 x 19 standard hoisting,Mild plow steel,1.60*d^2,26*d-34*d,0.25,2.75,1/4-2 3/4,d/13-d/16,12,80
+6 x 37 special flexible,Monitor steel,1.55*d^2,18*d,0.25,3.5,1/4-3 1/2,d/22,11,100
+6 x 37 special flexible,Plow steel,1.55*d^2,18*d,0.25,3.5,1/4-3 1/2,d/22,11,88
+8 x 19 extra flexible,Monitor steel,1.45*d^2,21*d-26*d,0.25,1.5,1/4-1 1/2,d/15-d/19,10,92
+8 x 19 extra flexible,Plow steel,1.45*d^2,21*d-26*d,0.25,1.5,1/4-1 1/2,d/15-d/19,10,80
+7 x 7 aircraft,Corrosion-resistant steel,1.70*d^2,,0.0625,0.375,1/16-3/8,,,124
+7 x 7 aircraft,Carbon steel,1.70*d^2,,0.0625,0.375,1/16-3/8,,,124
+7 x 9 aircraft,Corrosion-resistant steel,1.75*d^2,,0.125,1.375,1/8-1 3/8,,,135
+7 x 9 aircraft,Carbon steel,1.75*d^2,,0.125,1.375,1/8-1 3/8,,,143
+19-wire aircraft,Corrosion-resistant steel,2.15*d^2,,0.03125,0.3125,1/32-5/16,,,165
+19-wire aircraft,Carbon steel,2.15*d^2,,0.03125,0.3125,1/32-5/16,,,165
