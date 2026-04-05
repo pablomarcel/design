@@ -1,0 +1,18 @@
+{
+  "solve_path": "flat_analysis",
+  "material": "Polyamide",
+  "specification": "A-3",
+  "belt_width_in": 6.0,
+  "driver_pulley_diameter_in": 6.0,
+  "driven_pulley_diameter_in": 18.0,
+  "center_distance_ft": 8.0,
+  "driver_rpm": 1750.0,
+  "nominal_power_hp": 15.0,
+  "service_factor": 1.25,
+  "design_factor": 1.1,
+  "velocity_correction_factor": 1.0,
+  "required_factor_of_safety": 1.09,
+  "shaft_orientation": "parallel_horizontal",
+  "loose_side_position": "top",
+  "notes": "Corrected Example 17-1 style input. Uses design_factor = 1.1 so the design load chain matches the textbook treatment."
+}

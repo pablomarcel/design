@@ -1,0 +1,9 @@
+material,small_pulley_diameter_1_6_to_4_in,small_pulley_diameter_4_5_to_8_in,small_pulley_diameter_9_to_12_5_in,small_pulley_diameter_14_16_in,small_pulley_diameter_18_to_31_5_in,small_pulley_diameter_over_31_5_in,note
+Leather,0.5,0.6,0.7,0.8,0.9,1.0,
+"Polyamide, F-0",0.95,1.0,1.0,1.0,1.0,1.0,
+"Polyamide, F-1",0.70,0.92,0.95,1.0,1.0,1.0,
+"Polyamide, F-2",0.73,0.86,0.96,1.0,1.0,1.0,
+"Polyamide, A-2",0.73,0.86,0.96,1.0,1.0,1.0,
+"Polyamide, A-3",,0.70,0.87,0.94,0.96,1.0,Blank cell in source shown as dash
+"Polyamide, A-4",,,0.71,0.80,0.85,0.92,Blank cells in source shown as dash
+"Polyamide, A-5",,,,0.72,0.77,0.91,Blank cells in source shown as dash

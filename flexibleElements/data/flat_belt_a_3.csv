@@ -1,0 +1,32 @@
+metric_base_mm,decimal_inches,fractional_approx,status
+10,0.39,3/8,Stock
+15,0.59,19/32,Stock
+20,0.79,25/32,Stock
+25,0.98,1,Stock
+30,1.18,1 3/16,Stock
+35,1.38,1 3/8,Stock
+40,1.57,1 9/16,Stock
+50,1.97,2,Stock
+60,2.36,2 3/8,Stock
+70,2.76,2 3/4,Stock
+75,2.95,3,Stock
+80,3.15,3 1/8,Stock
+90,3.54,3 1/2,Stock
+100,3.94,4,Stock
+125,4.92,5,Stock
+150,5.91,6,Stock
+175,6.89,6 7/8,Stock
+200,7.87,8,Stock
+250,10,10,Stock
+300,11.81,12,Common Slit
+350,13.78,13 3/4,Common Slit
+400,15.75,15 3/4,Common Slit
+450,17.72,17 3/4,Common Slit
+500,19.69,20,Common Slit
+600,23.62,23 5/8,Custom Slit
+700,27.56,27 9/16,Custom Slit
+800,31.5,31 1/2,Custom Slit
+900,35.43,35 7/16,Custom Slit
+1000,39.37,39 3/8,Custom Slit
+1100,43.31,43 5/16,Custom Slit
+1140,44.88,44 7/8,MAX ROLL

@@ -1,0 +1,3 @@
+alloy,yield_strength_kpsi,youngs_modulus_mpsi,poissons_ratio,notes
+301 or 302 stainless steel,140,28.0,0.30,Starter material row aligned to example-style stainless flat metal belt selection
+heat-treated 1095 steel,250,30.0,0.29,Starter material row for future extension

@@ -1,0 +1,19 @@
+{
+  "solve_path": "flat_design",
+  "material": "Polyamide",
+  "specification": "A-3",
+  "small_pulley_diameter_in": 16.0,
+  "large_pulley_diameter_in": 36.0,
+  "center_distance_ft": 16.0,
+  "small_pulley_rpm": 860.0,
+  "nominal_power_hp": 60.0,
+  "service_factor": 1.15,
+  "design_factor": 1.05,
+  "velocity_correction_factor": 1.0,
+  "initial_tension_maintenance": "catenary",
+  "stock_widths_source": "flat_belt_a_3.csv",
+  "velocity_ratio": 2.25,
+  "driver_is_small_pulley": true,
+  "shock_condition": "very_light",
+  "notes": "Corrected Example 17-2 style input. This input is already textbook-aligned; added explicit velocity ratio and context fields for clarity."
+}

@@ -1,0 +1,16 @@
+{
+  "solve_path": "metal_flat_selection",
+  "alloy": "301 or 302 stainless steel",
+  "thickness_in": 0.003,
+  "pulley_diameter_in": 4.0,
+  "friction_coefficient": 0.35,
+  "torque_lbf_in": 30.0,
+  "required_belt_passes": 1000000.0,
+  "life_requirement": "exceed_1e6_belt_passes",
+  "available_widths_in": [
+    0.75,
+    1.0
+  ],
+  "preferred_selected_width_in": 0.75,
+  "notes": "Corrected Example 17-3 style input. Adds explicit life requirement wording and constrains commercial widths so the current app can reproduce the textbook-selected 0.75 in belt."
+}
