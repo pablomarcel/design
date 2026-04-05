@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = intro
-
-[html]
-directory = intro/out/htmlcov
-
-[report]
-show_missing = True

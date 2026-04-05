@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = introduction
+
+[html]
+directory = introduction/out/htmlcov
+
+[report]
+show_missing = True
