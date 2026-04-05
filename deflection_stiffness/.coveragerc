@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = deflection_stiffness
+
+[html]
+directory = deflection_stiffness/out/htmlcov
+
+[report]
+show_missing = True

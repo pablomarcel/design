@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = deflection
-
-[html]
-directory = deflection/out/htmlcov
-
-[report]
-show_missing = True

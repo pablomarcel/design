@@ -1,0 +1,5 @@
+pytest deflection_stiffness/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=deflection_stiffness/.coveragerc \
+  --cov-report=term-missing

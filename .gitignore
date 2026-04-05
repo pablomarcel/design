@@ -94,7 +94,7 @@ Thumbs.db
 intro/out/
 materials/out/
 load/out/
-deflection/out/
+deflection_stiffness/out/
 staticFailure/out/
 fatigue_failure/out/
 shafts/out/

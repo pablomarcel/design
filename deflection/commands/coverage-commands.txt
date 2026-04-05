@@ -1,5 +1,0 @@
-pytest deflection/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=deflection/.coveragerc \
-  --cov-report=term-missing
