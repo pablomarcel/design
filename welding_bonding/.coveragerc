@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = welding_bonding
+
+[html]
+directory = welding_bonding/out/htmlcov
+
+[report]
+show_missing = True

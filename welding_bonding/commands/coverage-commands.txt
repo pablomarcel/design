@@ -1,0 +1,5 @@
+pytest welding_bonding/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=welding_bonding/.coveragerc \
+  --cov-report=term-missing
