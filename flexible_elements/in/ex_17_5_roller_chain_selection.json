@@ -1,0 +1,25 @@
+{
+  "solve_path": "roller_chain_selection",
+  "problem": "roller_chain_selection",
+  "title": "Shigley Example 17-5 style roller-chain selection",
+  "nominal_power_hp": 90.0,
+  "input_speed_rpm": 300.0,
+  "reduction_ratio": 2.0,
+  "service_factor": 1.3,
+  "design_factor": 1.5,
+  "driving_sprocket_teeth": 17,
+  "driven_sprocket_teeth": 34,
+  "target_center_distance_over_pitch": 25.0,
+  "candidate_number_of_strands": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "driver_condition": "moderate shock",
+  "operating_schedule": "abnormally long 18-hour day",
+  "lubrication_condition": "poor lubrication",
+  "temperature_condition": "cold temperatures",
+  "environment_condition": "dirty surroundings",
+  "notes": "Implements Example 17-5 selection logic using tables 17-19 to 17-23 and equations 17-34 to 17-38."
+}

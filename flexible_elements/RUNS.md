@@ -42,6 +42,14 @@ python -m cli run \
   --outfile ex_17_4_v_belt_analysis_out.json
 ```
 
+### Example 17-5 style: Roller Chain
+
+```bash
+python -m cli run \
+  --infile ex_17_5_roller_chain_selection.json \
+  --outfile ex_17_5_roller_chain_selection_out.json
+```
+
 ## CLI-flag runs
 
 ### Flat-belt analysis

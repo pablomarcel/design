@@ -93,6 +93,18 @@ def build_parser() -> argparse.ArgumentParser:
     p_v.add_argument("--effective-friction-coefficient", type=float, default=0.5123)
     _add_common_output_arg(p_v)
 
+    p_r = sub.add_parser("roller_chain_selection", help="Selection of a roller-chain drive via CLI flags.")
+    p_r.add_argument("--nominal-power-hp", required=True, type=float)
+    p_r.add_argument("--input-speed-rpm", required=True, type=float)
+    p_r.add_argument("--reduction-ratio", required=True, type=float)
+    p_r.add_argument("--service-factor", required=True, type=float)
+    p_r.add_argument("--design-factor", required=True, type=float)
+    p_r.add_argument("--driving-sprocket-teeth", required=True, type=int)
+    p_r.add_argument("--driven-sprocket-teeth", required=True, type=int)
+    p_r.add_argument("--target-center-distance-over-pitch", required=True, type=float)
+    p_r.add_argument("--candidate-number-of-strands", nargs="*", type=int, default=[1, 2, 3, 4])
+    _add_common_output_arg(p_r)
+
     return parser
 
 
@@ -158,6 +170,19 @@ def _payload_from_args(ns: argparse.Namespace) -> dict[str, Any]:
             "specified_number_of_belts": ns.specified_number_of_belts,
             "design_factor": ns.design_factor,
             "effective_friction_coefficient": ns.effective_friction_coefficient,
+        }
+    if ns.command == "roller_chain_selection":
+        return {
+            "solve_path": "roller_chain_selection",
+            "nominal_power_hp": ns.nominal_power_hp,
+            "input_speed_rpm": ns.input_speed_rpm,
+            "reduction_ratio": ns.reduction_ratio,
+            "service_factor": ns.service_factor,
+            "design_factor": ns.design_factor,
+            "driving_sprocket_teeth": ns.driving_sprocket_teeth,
+            "driven_sprocket_teeth": ns.driven_sprocket_teeth,
+            "target_center_distance_over_pitch": ns.target_center_distance_over_pitch,
+            "candidate_number_of_strands": ns.candidate_number_of_strands,
         }
     raise ValueError(f"Unsupported command: {ns.command}")
 

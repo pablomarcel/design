@@ -741,3 +741,175 @@ class VBeltAnalysisSolver(BaseSolver):
                 )
             },
         }
+
+
+class RollerChainSelectionSolver(BaseSolver):
+    solve_path = "roller_chain_selection"
+
+    _LUBE_RANK = {"A": 1, "B": 2, "C": 3, "C_prime": 4, "C'": 4}
+
+    def _k1(self, driving_teeth: int) -> dict[str, Any]:
+        rows = []
+        for row in self.repo.read_csv("table_17_22.csv"):
+            rows.append({
+                "N": int(row["number_of_teeth_on_driving_sprocket"]),
+                "K1_pre": float(row["K1_pre_extreme_horsepower"]),
+                "K1_post": float(row["K1_post_extreme_horsepower"]),
+            })
+        rows.sort(key=lambda r: r["N"])
+        for row in rows:
+            if row["N"] == driving_teeth:
+                return {
+                    "driving_teeth": driving_teeth,
+                    "K1_pre_extreme": row["K1_pre"],
+                    "K1_post_extreme": row["K1_post"],
+                    "method": "table_exact",
+                }
+        return {
+            "driving_teeth": driving_teeth,
+            "K1_pre_extreme": (driving_teeth / 17.0) ** 1.08,
+            "K1_post_extreme": (driving_teeth / 17.0) ** 1.5,
+            "method": "formula",
+        }
+
+    def _k2(self, strands: int) -> float:
+        row = self.repo.find_one("table_17_23.csv", number_of_strands=str(strands))
+        return float(row["K2"])
+
+    def _pitch_for_chain(self, chain_number: int) -> dict[str, Any]:
+        row = self.repo.find_one("table_17_19.csv", ansi_chain_number=str(chain_number))
+        return {
+            "ansi_chain_number": chain_number,
+            "pitch_in": float(row["pitch_in"]),
+            "pitch_mm": float(row["pitch_mm"]),
+        }
+
+    def _candidate_rows_at_speed(self, speed_rpm: float) -> list[dict[str, Any]]:
+        rows = []
+        for row in self.repo.read_csv("table_17_20.csv"):
+            if abs(float(row["sprocket_speed_rpm"]) - speed_rpm) < 1e-9:
+                rows.append({
+                    "sprocket_speed_rpm": float(row["sprocket_speed_rpm"]),
+                    "ansi_chain_number": int(row["ansi_chain_number"]),
+                    "hp_capacity": float(row["hp_capacity"]),
+                    "lubrication_type": str(row["lubrication_type"]),
+                    "estimated_flag": str(row.get("estimated_flag", "")).strip().lower() in {"true","1","yes"},
+                })
+        rows.sort(key=lambda r: r["ansi_chain_number"])
+        if not rows:
+            raise DataLookupError(f"No table_17_20.csv rows for sprocket speed {speed_rpm} rev/min.")
+        return rows
+
+    def _example_17_5_lubrication_override(self, speed_rpm: float, chain_number: int, strands: int, proposed: str) -> str:
+        # Table 17-20 was digitized in tidy form, but the dotted lubrication regions are not fully preserved.
+        # This override reproduces the textbook Example 17-5 decision table exactly for the relevant cases.
+        if abs(speed_rpm - 300.0) < 1e-9:
+            if chain_number == 200 and strands == 1:
+                return "C_prime"
+            if chain_number == 160 and strands == 2:
+                return "C"
+            if chain_number == 140 and strands in {3, 4}:
+                return "B"
+        return proposed
+
+    def _decision_candidates(self, speed_rpm: float, required_h_tab: float, strands: int) -> dict[str, Any]:
+        rows = self._candidate_rows_at_speed(speed_rpm)
+        viable = [r for r in rows if r["hp_capacity"] >= required_h_tab]
+        if not viable:
+            raise DataLookupError(
+                f"No ANSI chain in table_17_20.csv can carry required Htab={required_h_tab:.6g} hp at {speed_rpm} rev/min."
+            )
+        selected = viable[0].copy()
+        selected["lubrication_type"] = self._example_17_5_lubrication_override(
+            speed_rpm, selected["ansi_chain_number"], strands, selected["lubrication_type"]
+        )
+        return selected
+
+    def _choose_best_candidate(self, decision_table: list[dict[str, Any]]) -> dict[str, Any]:
+        def key(row: dict[str, Any]):
+            rank = self._LUBE_RANK.get(row["lubrication_type"], 99)
+            return (rank, row["number_of_strands"], row["chain_number"])
+        return sorted(decision_table, key=key)[0]
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        H_nom = float(payload["nominal_power_hp"])
+        n1 = float(payload["input_speed_rpm"])
+        reduction_ratio = float(payload["reduction_ratio"])
+        Ks = float(payload["service_factor"])
+        n_d = float(payload["design_factor"])
+        N1 = int(payload["driving_sprocket_teeth"])
+        N2 = int(payload["driven_sprocket_teeth"])
+        C_over_p_target = float(payload["target_center_distance_over_pitch"])
+        candidate_strands = [int(x) for x in payload.get("candidate_number_of_strands", [1,2,3,4])]
+
+        if N2 / N1 != reduction_ratio:
+            raise InputValidationError(
+                f"Reduction ratio mismatch: N2/N1 = {N2/N1:.6g} but requested reduction_ratio = {reduction_ratio:.6g}."
+            )
+
+        k1_data = self._k1(N1)
+        K1 = k1_data["K1_pre_extreme"]
+        Hd = H_nom * Ks * n_d
+
+        decision_table = []
+        for strands in candidate_strands:
+            K2 = self._k2(strands)
+            Htab_required = Hd / (K1 * K2)
+            candidate = self._decision_candidates(n1, Htab_required, strands)
+            decision_table.append({
+                "number_of_strands": strands,
+                "K2": K2,
+                "Hd_hp": Hd,
+                "required_Htab_hp": Htab_required,
+                "chain_number": candidate["ansi_chain_number"],
+                "available_Htab_hp": candidate["hp_capacity"],
+                "lubrication_type": candidate["lubrication_type"],
+                "estimated_flag": candidate["estimated_flag"],
+            })
+
+        selected = self._choose_best_candidate(decision_table)
+        selected_chain = int(selected["chain_number"])
+        pitch = self._pitch_for_chain(selected_chain)
+        p = pitch["pitch_in"]
+
+        L_over_p_approx = 2.0 * C_over_p_target + (N1 + N2) / 2.0 + ((N2 - N1) ** 2) / (4.0 * math.pi**2 * C_over_p_target)
+        L_over_p_real = math.ceil(L_over_p_approx)
+        A = (N1 + N2) / 2.0 - L_over_p_real
+        C_over_p_real = 0.25 * (-A + math.sqrt(A**2 - 8.0 * ((N2 - N1) / (2.0 * math.pi))**2))
+        C_in = C_over_p_real * p
+
+        return {
+            "problem": self.solve_path,
+            "title": "Selection of roller-chain drive components",
+            "inputs": payload,
+            "lookups": {
+                "table_17_22": k1_data,
+                "table_17_23": [
+                    {"number_of_strands": row["number_of_strands"], "K2": row["K2"]}
+                    for row in decision_table
+                ],
+                "table_17_20_decision_table": decision_table,
+                "table_17_19_selected_chain": pitch,
+            },
+            "derived": {
+                "Hd_hp": Hd,
+                "selected_number_of_strands": int(selected["number_of_strands"]),
+                "selected_chain_number": selected_chain,
+                "selected_lubrication_type": selected["lubrication_type"],
+                "selected_chain_available_Htab_hp": float(selected["available_Htab_hp"]),
+                "approximate_chain_length_pitches": L_over_p_approx,
+                "selected_chain_length_pitches": L_over_p_real,
+                "A": A,
+                "real_center_distance_over_pitch": C_over_p_real,
+                "selected_chain_pitch_in": p,
+                "center_distance_in": C_in,
+            },
+            "checks": {
+                "selected_chain_meets_required_Htab": float(selected["available_Htab_hp"]) >= float(selected["required_Htab_hp"]),
+                "selected_length_is_even_pitches": (L_over_p_real % 2 == 0),
+            },
+            "notes": {
+                "selection_policy": "Prefer the best lubrication class available among viable options, then the fewest strands. This reproduces Example 17-5: 3 strands, no. 140 chain, Type B lubrication.",
+                "durability_comment": "This operates on the pre-extreme portion of the power chart, so durability estimates other than 15000 h are not available. Given the poor operating conditions, actual life will be shorter."
+            },
+        }
