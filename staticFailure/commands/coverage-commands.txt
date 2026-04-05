@@ -1,5 +1,0 @@
-pytest failureStatic/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=failureStatic/.coveragerc \
-  --cov-report=term-missing

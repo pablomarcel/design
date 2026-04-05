@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = static_failure
+
+[html]
+directory = static_failure/out/htmlcov
+
+[report]
+show_missing = True

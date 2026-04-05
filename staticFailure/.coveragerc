@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = failureStatic
-
-[html]
-directory = failureStatic/out/htmlcov
-
-[report]
-show_missing = True

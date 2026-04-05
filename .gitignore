@@ -95,7 +95,7 @@ intro/out/
 materials/out/
 load/out/
 deflection_stiffness/out/
-staticFailure/out/
+static_failure/out/
 fatigue_failure/out/
 shafts/out/
 screwsFasteners/out/
@@ -110,5 +110,5 @@ clutches_brakes_flywheels/out/
 flexible_elements/out/
 transmission/out/
 finite_element_analysis/out/
-gdt/out/
+geometric_dimensioning/out/
 
