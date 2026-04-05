@@ -34,6 +34,14 @@ python -m cli run \
   --outfile ex_17_3_metal_flat_selection_out.json
 ```
 
+### Example 17-4 style: V-Belt Analysis
+
+```bash
+python -m cli run \
+  --infile ex_17_4_v_belt_analysis.json \
+  --outfile ex_17_4_v_belt_analysis_out.json
+```
+
 ## CLI-flag runs
 
 ### Flat-belt analysis

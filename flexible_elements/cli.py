@@ -13,15 +13,12 @@ except ImportError:  # pragma: no cover
 app = FlexibleElementsApp(__file__)
 
 
-
 def _print_json(data: dict[str, Any]) -> None:
     print(json.dumps(data, indent=2))
 
 
-
 def _add_common_output_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--outfile", help="Write JSON result to out/<outfile>.")
-
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -83,18 +80,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_m.add_argument("--contact-angle-rad", type=float)
     _add_common_output_arg(p_m)
 
+    p_v = sub.add_parser("v_belt_analysis", help="Analysis of a V-belt drive via CLI flags.")
+    p_v.add_argument("--belt-section", required=True)
+    p_v.add_argument("--inside-circumference-in", required=True, type=float)
+    p_v.add_argument("--small-sheave-pitch-diameter-in", required=True, type=float)
+    p_v.add_argument("--large-sheave-pitch-diameter-in", required=True, type=float)
+    p_v.add_argument("--driver-rpm", required=True, type=float)
+    p_v.add_argument("--nominal-power-hp", required=True, type=float)
+    p_v.add_argument("--service-factor", required=True, type=float)
+    p_v.add_argument("--specified-number-of-belts", required=True, type=int)
+    p_v.add_argument("--design-factor", type=float, default=1.0)
+    p_v.add_argument("--effective-friction-coefficient", type=float, default=0.5123)
+    _add_common_output_arg(p_v)
+
     return parser
-
-
-
-def _namespace_to_payload(ns: argparse.Namespace) -> dict[str, Any]:
-    d = vars(ns).copy()
-    d.pop("command", None)
-    d.pop("outfile", None)
-    return {
-        k.replace("_", "-"): v for k, v in d.items()
-    }
-
 
 
 def _payload_from_args(ns: argparse.Namespace) -> dict[str, Any]:
@@ -146,8 +145,21 @@ def _payload_from_args(ns: argparse.Namespace) -> dict[str, Any]:
         if ns.contact_angle_rad is not None:
             payload["contact_angle_rad"] = ns.contact_angle_rad
         return payload
+    if ns.command == "v_belt_analysis":
+        return {
+            "solve_path": "v_belt_analysis",
+            "belt_section": ns.belt_section,
+            "inside_circumference_in": ns.inside_circumference_in,
+            "small_sheave_pitch_diameter_in": ns.small_sheave_pitch_diameter_in,
+            "large_sheave_pitch_diameter_in": ns.large_sheave_pitch_diameter_in,
+            "driver_rpm": ns.driver_rpm,
+            "nominal_power_hp": ns.nominal_power_hp,
+            "service_factor": ns.service_factor,
+            "specified_number_of_belts": ns.specified_number_of_belts,
+            "design_factor": ns.design_factor,
+            "effective_friction_coefficient": ns.effective_friction_coefficient,
+        }
     raise ValueError(f"Unsupported command: {ns.command}")
-
 
 
 def main() -> int:

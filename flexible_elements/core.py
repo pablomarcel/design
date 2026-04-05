@@ -12,6 +12,7 @@ try:
         IterationError,
         belt_speed_ft_min,
         centrifugal_tension_lbf,
+        linear_interpolate,
         next_larger_value,
         open_belt_contact_angle_rad,
         transmitted_torque_lbf_in,
@@ -25,6 +26,7 @@ except ImportError:  # pragma: no cover
         IterationError,
         belt_speed_ft_min,
         centrifugal_tension_lbf,
+        linear_interpolate,
         next_larger_value,
         open_belt_contact_angle_rad,
         transmitted_torque_lbf_in,
@@ -239,19 +241,11 @@ class FlatBeltDriveDesignSolver(BaseSolver):
         V = belt_speed_ft_min(d, rpm)
         delta = 2.0 * torque / d
 
-        # Width solve per Ex. 17-2 rearrangement.
         allowable_per_width = material.allowable_tension_600_lbf_per_in * cp * C_v
         fc_per_width = centrifugal_tension_lbf(
             weight_per_foot_lbf_ft(material.gamma_lbf_in3, 1.0, material.thickness_in),
             V,
         )
-        # Example 17-2 full-friction width solve.
-        # With F1a = a*b, Fc = c*b, and F2 = a*b - delta,
-        # Eq. (17-7) at full friction development gives
-        #   exp(f*phi) = (F1a - Fc) / (F2 - Fc)
-        #              = ((a-c)b) / (((a-c)b) - delta)
-        # which solves to
-        #   b = delta * exp(f*phi) / ((a-c) * (exp(f*phi) - 1)).
         numerator = delta * exp_fphi
         denominator = (allowable_per_width - fc_per_width) * (exp_fphi - 1.0)
         if denominator <= 0:
@@ -356,7 +350,6 @@ class MetalFlatBeltSelectionSolver(BaseSolver):
         life_passes = float(payload["required_belt_passes"])
         stock_widths = [float(x) for x in payload["available_widths_in"]]
 
-        # Minimum pulley diameter check.
         min_d_row = self.repo.find_one("table_17_7.csv", belt_thickness_in=f"{thickness_in:.3f}")
         min_pulley_diameter_in = float(min_d_row["minimum_pulley_diameter_in"])
         if small_pulley_diameter_in < min_pulley_diameter_in:
@@ -419,5 +412,324 @@ class MetalFlatBeltSelectionSolver(BaseSolver):
                 "satisfactory": (small_pulley_diameter_in >= min_pulley_diameter_in)
                 and (f_prime < friction)
                 and (F2 > 0.0),
+            },
+        }
+
+
+class VBeltAnalysisSolver(BaseSolver):
+    solve_path = "v_belt_analysis"
+
+    _HP_SPEED_COLUMNS = [
+        ("hp_1000", 1000.0),
+        ("hp_2000", 2000.0),
+        ("hp_3000", 3000.0),
+        ("hp_4000", 4000.0),
+        ("hp_5000", 5000.0),
+    ]
+
+    def _pitch_length_from_belt_code(self, section: str, inside_circumference_in: float) -> tuple[float, float]:
+        row = self.repo.find_one("table_17_11.csv", belt_section=section)
+        add = float(row["quantity_to_be_added_in"])
+        return inside_circumference_in + add, add
+
+    def _hp_table_rows_for_section(self, section: str) -> list[dict[str, Any]]:
+        rows = []
+        for row in self.repo.read_csv("table_17_12.csv"):
+            if str(row["belt_section"]).strip().upper() != section.upper():
+                continue
+            r = dict(row)
+            r["sheave_pitch_diameter_in"] = float(r["sheave_pitch_diameter_in"])
+            r["and_up"] = str(r.get("and_up", "")).strip().lower() in {"true", "1", "yes"}
+            for key, _ in self._HP_SPEED_COLUMNS:
+                raw = str(r.get(key, "")).strip()
+                r[key] = float(raw) if raw != "" else None
+            rows.append(r)
+        rows.sort(key=lambda x: x["sheave_pitch_diameter_in"])
+        if not rows:
+            raise DataLookupError(f"No rows found in table_17_12.csv for belt section {section!r}.")
+        return rows
+
+    def _hp_at_speed_from_row(self, row: dict[str, Any], speed_ft_min: float) -> float:
+        points = [(spd, row[key]) for key, spd in self._HP_SPEED_COLUMNS if row[key] is not None]
+        if not points:
+            raise DataLookupError("Horsepower row has no usable speed points.")
+        if speed_ft_min <= points[0][0]:
+            x0, y0 = points[0]
+            x1, y1 = points[1]
+            return linear_interpolate(speed_ft_min, x0, y0, x1, y1)
+        if speed_ft_min >= points[-1][0]:
+            x0, y0 = points[-2]
+            x1, y1 = points[-1]
+            return linear_interpolate(speed_ft_min, x0, y0, x1, y1)
+        for (x0, y0), (x1, y1) in zip(points[:-1], points[1:]):
+            if x0 <= speed_ft_min <= x1:
+                return linear_interpolate(speed_ft_min, x0, y0, x1, y1)
+        raise DataLookupError(f"Unable to interpolate horsepower for speed {speed_ft_min} ft/min.")
+
+    def _horsepower_rating(self, section: str, pitch_diameter_in: float, speed_ft_min: float) -> tuple[float, dict[str, Any]]:
+        rows = self._hp_table_rows_for_section(section)
+        if pitch_diameter_in <= rows[0]["sheave_pitch_diameter_in"]:
+            selected = rows[0]
+            return self._hp_at_speed_from_row(selected, speed_ft_min), {
+                "diameter_interpolation": "clamped_to_minimum_row",
+                "lower_row_pitch_diameter_in": selected["sheave_pitch_diameter_in"],
+                "upper_row_pitch_diameter_in": selected["sheave_pitch_diameter_in"],
+            }
+
+        for row in rows:
+            if row["and_up"] and pitch_diameter_in >= row["sheave_pitch_diameter_in"]:
+                return self._hp_at_speed_from_row(row, speed_ft_min), {
+                    "diameter_interpolation": "used_and_up_row",
+                    "lower_row_pitch_diameter_in": row["sheave_pitch_diameter_in"],
+                    "upper_row_pitch_diameter_in": row["sheave_pitch_diameter_in"],
+                }
+
+        lower = None
+        upper = None
+        for a, b in zip(rows[:-1], rows[1:]):
+            if a["sheave_pitch_diameter_in"] <= pitch_diameter_in <= b["sheave_pitch_diameter_in"]:
+                lower = a
+                upper = b
+                break
+        if lower is None or upper is None:
+            last = rows[-1]
+            return self._hp_at_speed_from_row(last, speed_ft_min), {
+                "diameter_interpolation": "clamped_to_last_row",
+                "lower_row_pitch_diameter_in": last["sheave_pitch_diameter_in"],
+                "upper_row_pitch_diameter_in": last["sheave_pitch_diameter_in"],
+            }
+        h_lo = self._hp_at_speed_from_row(lower, speed_ft_min)
+        h_hi = self._hp_at_speed_from_row(upper, speed_ft_min)
+        h = linear_interpolate(
+            pitch_diameter_in,
+            lower["sheave_pitch_diameter_in"],
+            h_lo,
+            upper["sheave_pitch_diameter_in"],
+            h_hi,
+        )
+        return h, {
+            "diameter_interpolation": "linear_between_rows",
+            "lower_row_pitch_diameter_in": lower["sheave_pitch_diameter_in"],
+            "upper_row_pitch_diameter_in": upper["sheave_pitch_diameter_in"],
+            "lower_row_hp_at_speed": h_lo,
+            "upper_row_hp_at_speed": h_hi,
+        }
+
+    def _k1_from_wrap(self, wrap_angle_deg: float) -> tuple[float, dict[str, Any]]:
+        rows = []
+        for row in self.repo.read_csv("table_17_13.csv"):
+            rows.append(
+                {
+                    "theta_deg": float(row["theta_deg"]),
+                    "K1_VV": float(row["K1_VV"]),
+                    "D_minus_d_over_C": float(row["D_minus_d_over_C"]),
+                }
+            )
+        rows.sort(key=lambda x: x["theta_deg"])
+        if wrap_angle_deg >= rows[-1]["theta_deg"]:
+            return rows[-1]["K1_VV"], {"method": "clamped_to_max_theta"}
+        if wrap_angle_deg <= rows[0]["theta_deg"]:
+            return rows[0]["K1_VV"], {"method": "clamped_to_min_theta"}
+        for lo, hi in zip(rows[:-1], rows[1:]):
+            if lo["theta_deg"] <= wrap_angle_deg <= hi["theta_deg"]:
+                k1 = linear_interpolate(wrap_angle_deg, lo["theta_deg"], lo["K1_VV"], hi["theta_deg"], hi["K1_VV"])
+                return k1, {
+                    "method": "linear_on_theta",
+                    "lower_theta_deg": lo["theta_deg"],
+                    "upper_theta_deg": hi["theta_deg"],
+                    "lower_K1": lo["K1_VV"],
+                    "upper_K1": hi["K1_VV"],
+                }
+        raise DataLookupError("Unable to interpolate K1 from table_17_13.csv.")
+
+    def _k2_from_nominal_length(self, section: str, nominal_length_in: float) -> tuple[float, dict[str, Any]]:
+        rows = []
+        for row in self.repo.read_csv("table_17_14.csv"):
+            if str(row["belt_section"]).strip().upper() != section.upper():
+                continue
+            min_raw = str(row["min_length_in"]).strip()
+            max_raw = str(row["max_length_in"]).strip()
+            rows.append(
+                {
+                    "length_factor": float(row["length_factor"]),
+                    "type": str(row["type"]).strip().lower(),
+                    "min_length_in": float(min_raw) if min_raw != "" else None,
+                    "max_length_in": float(max_raw) if max_raw != "" else None,
+                }
+            )
+        for row in rows:
+            typ = row["type"]
+            lo = row["min_length_in"]
+            hi = row["max_length_in"]
+            ok = False
+            if typ == "up_to":
+                ok = nominal_length_in <= hi
+            elif typ == "range":
+                ok = lo <= nominal_length_in <= hi
+            elif typ == "single":
+                ok = nominal_length_in == lo == hi
+            elif typ == "and_up":
+                ok = nominal_length_in >= lo
+            if ok:
+                return row["length_factor"], row
+        raise DataLookupError(
+            f"No K2 row found in table_17_14.csv for section {section!r} and nominal length {nominal_length_in} in."
+        )
+
+    def _kb_kc(self, section: str) -> dict[str, float]:
+        row = self.repo.find_one("table_17_16.csv", belt_section=section)
+        return {"Kb": float(row["Kb"]), "Kc": float(row["Kc"])}
+
+    def _durability_constants(self, section: str) -> dict[str, Any]:
+        row = self.repo.find_one("table_17_17.csv", belt_section=section)
+        result = {
+            "minimum_sheave_diameter_in": float(row["minimum_sheave_diameter_in"]),
+            "K_1e8_to_1e9": float(row["K_1e8_to_1e9"]),
+            "b_1e8_to_1e9": float(row["b_1e8_to_1e9"]),
+            "K_1e9_to_1e10": None,
+            "b_1e9_to_1e10": None,
+            "validity_upper_passes": 1.0e9,
+            "validity_note": "standard_sections_A_to_E",
+        }
+        raw_k2 = str(row.get("K_1e9_to_1e10", "")).strip()
+        raw_b2 = str(row.get("b_1e9_to_1e10", "")).strip()
+        if raw_k2 != "" and raw_b2 != "":
+            result["K_1e9_to_1e10"] = float(raw_k2)
+            result["b_1e9_to_1e10"] = float(raw_b2)
+            result["validity_upper_passes"] = 1.0e10
+            result["validity_note"] = "extended_range_available"
+        return result
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        section = str(payload["belt_section"]).strip().upper()
+        inside_circumference_in = float(payload["inside_circumference_in"])
+        d = float(payload["small_sheave_pitch_diameter_in"])
+        D = float(payload["large_sheave_pitch_diameter_in"])
+        n = float(payload["driver_rpm"])
+        H_nom = float(payload["nominal_power_hp"])
+        Ks = float(payload["service_factor"])
+        n_d = float(payload.get("design_factor", 1.0))
+        specified_belts = int(payload["specified_number_of_belts"])
+        friction_effective = float(payload.get("effective_friction_coefficient", 0.5123))
+
+        V = belt_speed_ft_min(d, n)
+        pitch_length_in, Lc_in = self._pitch_length_from_belt_code(section, inside_circumference_in)
+        C_in = 0.25 * (
+            (pitch_length_in - (math.pi / 2.0) * (D + d))
+            + math.sqrt((pitch_length_in - (math.pi / 2.0) * (D + d)) ** 2 - 2.0 * (D - d) ** 2)
+        )
+        phi = math.pi - 2.0 * math.asin((D - d) / (2.0 * C_in))
+        exp_term = math.exp(friction_effective * phi)
+        wrap_angle_deg = phi * 180.0 / math.pi
+
+        H_tab, htab_interp = self._horsepower_rating(section, d, V)
+        K1, K1_interp = self._k1_from_wrap(wrap_angle_deg)
+        K2, K2_row = self._k2_from_nominal_length(section, inside_circumference_in)
+        Ha = K1 * K2 * H_tab
+        Hd = H_nom * Ks * n_d
+        Nb_required = math.ceil(Hd / Ha)
+
+        kbkc = self._kb_kc(section)
+        Kc = kbkc["Kc"]
+        Kb = kbkc["Kb"]
+
+        Fc = Kc * (V / 1000.0) ** 2
+        deltaF = (63025.0 * Hd / Nb_required) / (n * (d / 2.0))
+        F1 = Fc + deltaF * exp_term / (exp_term - 1.0)
+        F2 = F1 - deltaF
+        Fi = (F1 + F2) / 2.0 - Fc
+        nfs = (Ha * specified_belts) / (H_nom * Ks)
+
+        Fb1 = Kb / d
+        Fb2 = Kb / D
+        T1 = F1 + Fb1
+        T2 = F1 + Fb2
+
+        durability = self._durability_constants(section)
+        if d < durability["minimum_sheave_diameter_in"]:
+            raise InputValidationError(
+                f"Small sheave diameter {d} in is below the durability-table minimum "
+                f"{durability['minimum_sheave_diameter_in']} in for section {section}."
+            )
+
+        K_life = durability["K_1e8_to_1e9"]
+        b_life = durability["b_1e8_to_1e9"]
+        Np = ((K_life / T1) ** (-b_life) + (K_life / T2) ** (-b_life)) ** (-1.0)
+        within_validity = Np <= durability["validity_upper_passes"]
+        reported_Np = Np if within_validity else durability["validity_upper_passes"]
+        life_hours = reported_Np * pitch_length_in / (720.0 * V)
+
+        return {
+            "problem": self.solve_path,
+            "title": "Analysis of a V-belt drive",
+            "inputs": payload,
+            "lookups": {
+                "table_17_11": {
+                    "inside_circumference_in": inside_circumference_in,
+                    "pitch_length_addition_in": Lc_in,
+                    "pitch_length_in": pitch_length_in,
+                },
+                "table_17_12": {
+                    "belt_section": section,
+                    "small_sheave_pitch_diameter_in": d,
+                    "belt_speed_ft_min": V,
+                    "interpolation": htab_interp,
+                    "Htab_hp": H_tab,
+                },
+                "table_17_13": {
+                    "wrap_angle_deg": wrap_angle_deg,
+                    "interpolation": K1_interp,
+                    "K1": K1,
+                },
+                "table_17_14": {
+                    "belt_section": section,
+                    "nominal_length_in": inside_circumference_in,
+                    "selected_row": K2_row,
+                    "K2": K2,
+                },
+                "table_17_16": {
+                    "belt_section": section,
+                    "Kb": Kb,
+                    "Kc": Kc,
+                },
+                "table_17_17": durability,
+            },
+            "derived": {
+                "belt_speed_ft_min": V,
+                "pitch_length_in": pitch_length_in,
+                "center_distance_in": C_in,
+                "phi_rad": phi,
+                "wrap_angle_deg": wrap_angle_deg,
+                "exp_0_5123_phi": exp_term,
+                "allowable_power_per_belt_hp": Ha,
+                "design_power_hp": Hd,
+                "required_number_of_belts": Nb_required,
+                "centrifugal_tension_lbf": Fc,
+                "deltaF_lbf": deltaF,
+                "tight_side_tension_F1_lbf": F1,
+                "slack_side_tension_F2_lbf": F2,
+                "initial_tension_Fi_lbf": Fi,
+                "factor_of_safety_nfs_using_specified_belts": nfs,
+                "Fb1_lbf": Fb1,
+                "Fb2_lbf": Fb2,
+                "T1_lbf": T1,
+                "T2_lbf": T2,
+                "calculated_belt_passes": Np,
+                "reported_belt_passes": reported_Np,
+                "reported_life_hours": life_hours,
+            },
+            "checks": {
+                "specified_number_of_belts_meets_requirement": specified_belts >= Nb_required,
+                "positive_slack_tension_ok": F2 > 0.0,
+                "positive_initial_tension_ok": Fi > 0.0,
+                "life_equation_validity_ok": within_validity,
+                "life_reported_as_lower_bound_only": not within_validity,
+            },
+            "notes": {
+                "life_validity_statement": (
+                    "Equation 17-27 validity exceeded; report belt life as greater than the upper validity limit."
+                    if not within_validity
+                    else "Equation 17-27 result is within the stated validity range."
+                )
             },
         }

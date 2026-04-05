@@ -1,0 +1,23 @@
+{
+  "solve_path": "v_belt_analysis",
+  "problem": "v_belt_analysis",
+  "title": "Shigley Example 17-4 style V-belt analysis",
+  "belt_section": "B",
+  "inside_circumference_in": 112.0,
+  "belt_designation": "B112",
+  "small_sheave_pitch_diameter_in": 7.4,
+  "large_sheave_pitch_diameter_in": 11.0,
+  "specified_number_of_belts": 3,
+  "nominal_power_hp": 10.0,
+  "driver_rpm": 1750.0,
+  "driven_machine": "rotary pump",
+  "driver_description": "split-phase motor",
+  "service_factor": 1.3,
+  "design_factor": 1.0,
+  "service_factor_notes": {
+    "base_service_factor": 1.2,
+    "continuous_duty_addition": 0.1
+  },
+  "effective_friction_coefficient": 0.5123,
+  "notes": "Implements the Example 17-4 algorithm using tables 17-11 to 17-17 and equations 17-16b to 17-28."
+}
