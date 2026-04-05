@@ -51,3 +51,7 @@ python -m sandbox.gear_fourbarlinkage_action
 ```bash
 python -m sandbox.gear_profile
 ```
+
+#### RipGrep
+
+rg "gearTrain" gearTrain

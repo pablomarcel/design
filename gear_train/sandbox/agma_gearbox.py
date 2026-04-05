@@ -19,7 +19,7 @@ class AGMAPrototyper:
         # 1. Tangential Force (F_t)
         Ft = (2000 * torque_nm) / self.d
 
-        # 2. Factors (Analytical defaults for commercial steel gearTrain)
+        # 2. Factors (Analytical defaults for commercial steel gear_train)
         Ko, Kv, Ks, Km = 1.25, 1.2, 1.0, 1.3
         J = 0.33  # Bending Geometry Factor
         Cp = 191  # Elastic Coefficient (Steel on Steel)

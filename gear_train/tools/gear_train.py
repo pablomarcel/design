@@ -21,7 +21,7 @@ runs ISO + AGMA pitting/bending calculations.
 References (upstream)
 ---------------------
 The upstream demo uses:
-    from gearbox.transmission.gearTrain import *
+    from gearbox.transmission.gear_train import *
 and builds a Transmission then calls ISO/AGMA calculate(). (See demo/demo.py in repo.)
 """
 
@@ -92,7 +92,7 @@ def import_python_gearbox_primitives():
         probe = probe_gearbox_package()
         msg = (
             "Could not import python-gearbox primitives via:\n"
-            "  from gearbox.transmission.gearTrain import Lubricant, Material, Tool, Gear, Transmission\n\n"
+            "  from gearbox.transmission.gear_train import Lubricant, Material, Tool, Gear, Transmission\n\n"
             f"Import error: {e!r}\n\n"
             "DIAGNOSTIC (which `gearbox` did Python import?):\n"
             f"{_json(probe)}\n\n"
