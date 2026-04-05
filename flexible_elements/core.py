@@ -657,6 +657,12 @@ class VBeltAnalysisSolver(BaseSolver):
         Np = ((K_life / T1) ** (-b_life) + (K_life / T2) ** (-b_life)) ** (-1.0)
         within_validity = Np <= durability["validity_upper_passes"]
         reported_Np = Np if within_validity else durability["validity_upper_passes"]
+        reported_lower_bound = durability["validity_upper_passes"] if not within_validity else None
+        life_in_passes_report = (
+            f"> {durability['validity_upper_passes']:.0e}"
+            if not within_validity
+            else f"{reported_Np:.6f}"
+        )
         life_hours = reported_Np * pitch_length_in / (720.0 * V)
 
         return {
@@ -716,6 +722,8 @@ class VBeltAnalysisSolver(BaseSolver):
                 "T2_lbf": T2,
                 "calculated_belt_passes": Np,
                 "reported_belt_passes": reported_Np,
+                "reported_belt_passes_lower_bound": reported_lower_bound,
+                "life_in_passes_report": life_in_passes_report,
                 "reported_life_hours": life_hours,
             },
             "checks": {
