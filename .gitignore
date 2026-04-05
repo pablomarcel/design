@@ -96,7 +96,7 @@ materials/out/
 load/out/
 deflection/out/
 staticFailure/out/
-fatigueFailure/out/
+fatigue_failure/out/
 shafts/out/
 screwsFasteners/out/
 welding/out/
