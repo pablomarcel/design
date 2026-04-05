@@ -1,9 +1,9 @@
 [run]
 branch = True
-source = load
+source = load_stress
 
 [html]
-directory = load/out/htmlcov
+directory = load_stress/out/htmlcov
 
 [report]
 show_missing = True

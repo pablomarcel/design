@@ -1,5 +1,0 @@
-pytest load/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=load/.coveragerc \
-  --cov-report=term-missing
