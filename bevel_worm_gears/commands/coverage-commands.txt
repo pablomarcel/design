@@ -1,5 +1,5 @@
-pytest bevelGears/tests \
+pytest bevel_worm_gears/tests \
   --override-ini addopts= \
   --cov \
-  --cov-config=bevelGears/.coveragerc \
+  --cov-config=bevel_worm_gears/.coveragerc \
   --cov-report=term-missing
