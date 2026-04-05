@@ -167,9 +167,9 @@ def _topology_text(payload: Mapping[str, Any]) -> str:
                     f"sun={g.get('sun')}, ring={g.get('ring')}, carrier={g.get('carrier')}"
                 )
 
-        clutches = topo.get("clutchesBrakes", [])
+        clutches = topo.get("clutches_brakes_flywheels", [])
         if clutches:
-            lines.append("clutchesBrakes:")
+            lines.append("clutches_brakes_flywheels:")
             for c in clutches:
                 lines.append(f"  {c.get('name', '?')}: {c.get('a')} <-> {c.get('b')}")
 

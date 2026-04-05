@@ -14,7 +14,7 @@ API = ClutchesBrakesAPI()
 
 
 DOORSTOP_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "doorstop",
     "meta": {"name": "doorstop_case"},
     "F": 10.0,
@@ -29,7 +29,7 @@ DOORSTOP_TEMPLATE = {
 }
 
 RIM_BRAKE_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "rim_brake",
     "meta": {"name": "rim_brake_case"},
     "givens": {
@@ -66,7 +66,7 @@ RIM_BRAKE_TEMPLATE = {
 }
 
 ANNULAR_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "annular_pad",
     "meta": {"name": "annular_pad_case"},
     "givens": {
@@ -84,7 +84,7 @@ ANNULAR_TEMPLATE = {
 }
 
 BUTTON_PAD_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "button_pad_caliper",
     "meta": {
         "name": "button_pad_caliper_example_16_4",
@@ -108,7 +108,7 @@ BUTTON_PAD_TEMPLATE = {
 
 
 FLYWHEEL_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "flywheel",
     "meta": {
         "name": "flywheel_example_16_6",
@@ -130,7 +130,7 @@ FLYWHEEL_TEMPLATE = {
     }
 }
 TEMPERATURE_RISE_CALIPER_TEMPLATE = {
-    "schema": "clutchesBrakes.v1",
+    "schema": "clutches_brakes_flywheels.v1",
     "problem_type": "temperature_rise_caliper",
     "meta": {
         "name": "temperature_rise_caliper_example_16_5",

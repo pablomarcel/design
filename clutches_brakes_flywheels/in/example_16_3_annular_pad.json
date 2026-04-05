@@ -1,5 +1,5 @@
 {
-  "schema": "clutchesBrakes.v1",
+  "schema": "clutches_brakes_flywheels.v1",
   "problem_type": "annular_pad",
   "meta": {
     "name": "example_16_3_annular_pad",

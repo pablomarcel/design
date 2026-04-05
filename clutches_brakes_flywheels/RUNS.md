@@ -1,6 +1,6 @@
 # clutchesBrakes RUNS
 
-Run commands are intended to be executed **from inside the `clutchesBrakes` directory**.
+Run commands are intended to be executed **from inside the `clutche_brakes_flywheels` directory**.
 
 ## One-time shell helper
 
@@ -14,7 +14,7 @@ runroot() {
     fi
     d="$(dirname "$d")"
   done
-  echo "Could not locate clutchesBrakes package root." >&2
+  echo "Could not locate clutches_brakes_flywheels package root." >&2
   return 1
 }
 ```
@@ -184,3 +184,7 @@ python -m cli annular_pad \
   --n-cylinders 2 \
   --outfile annular_cli_example_16_3.json
 ```
+
+## RipGrep
+
+rg "clutchesBrakes" clutches_brakes_flywheels

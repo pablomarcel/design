@@ -21,7 +21,7 @@ This solver is still kinematic only. It solves angular-speed relationships for:
 
 - rotating members
 - planetary gearsets
-- clutchesBrakes
+- clutches_brakes_flywheels
 - brakes
 - permanent equalities (e.g. front carrier = rear ring = output)
 - optional shaft-node equalities
@@ -136,7 +136,7 @@ class TransmissionSolver:
     -----------------
     - add rotating members
     - add simple planetary gearsets
-    - add clutchesBrakes and brakes
+    - add clutches_brakes_flywheels and brakes
     - add permanent equalities between members
     - optionally add shaft nodes and tie them by speed
     - solve with a specified input member and speed
@@ -393,7 +393,7 @@ class TransmissionSolver:
 
     def active_constraint_names(self) -> Dict[str, Tuple[str, ...]]:
         return {
-            "clutchesBrakes": tuple(c.name or "" for c in self.clutches if c.engaged),
+            "clutches_brakes_flywheels": tuple(c.name or "" for c in self.clutches if c.engaged),
             "brakes": tuple(b.name or "" for b in self.brakes if b.engaged),
         }
 
@@ -412,7 +412,7 @@ class TransmissionSolver:
                 }
                 for g in self.gearsets
             ],
-            "clutchesBrakes": [
+            "clutches_brakes_flywheels": [
                 {
                     "name": c.name,
                     "member_a": c.member_a.name,

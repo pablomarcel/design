@@ -198,7 +198,7 @@ class SimpsonTransmission:
         self.ring1_brake.release()
         self.ring2_brake.release()
         self.direct_clutch.release()
-        self._log("Released all clutchesBrakes/brakes")
+        self._log("Released all clutches_brakes_flywheels/brakes")
 
     def _apply_state_elements(
         self,
@@ -227,7 +227,7 @@ class SimpsonTransmission:
             clutch_map[clutch_name].engage()
 
         self._log(
-            "Applied state elements: brakes=%s clutchesBrakes=%s",
+            "Applied state elements: brakes=%s clutches_brakes_flywheels=%s",
             list(engaged_brakes),
             list(engaged_clutches),
         )
@@ -413,7 +413,7 @@ class SimpsonTransmission:
         )
 
         self._log(
-            "Solving state '%s': input=%s speed=%s brakes=%s clutchesBrakes=%s",
+            "Solving state '%s': input=%s speed=%s brakes=%s clutches_brakes_flywheels=%s",
             state_name,
             input_member,
             input_speed,

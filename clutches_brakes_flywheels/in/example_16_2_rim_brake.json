@@ -1,5 +1,5 @@
 {
-  "schema": "clutchesBrakes.v1",
+  "schema": "clutches_brakes_flywheels.v1",
   "problem_type": "rim_brake",
   "meta": {
     "name": "example_16_2_rim_brake",

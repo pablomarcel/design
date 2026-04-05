@@ -1,5 +1,5 @@
 {
-  "schema": "clutchesBrakes.v1",
+  "schema": "clutches_brakes_flywheels.v1",
   "problem_type": "temperature_rise_caliper",
   "meta": {
     "name": "temperature_rise_caliper_example_16_5",

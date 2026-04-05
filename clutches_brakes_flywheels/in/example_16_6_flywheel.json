@@ -1,5 +1,5 @@
 {
-  "schema": "clutchesBrakes.v1",
+  "schema": "clutches_brakes_flywheels.v1",
   "problem_type": "flywheel",
   "meta": {
     "name": "flywheel_example_16_6",
