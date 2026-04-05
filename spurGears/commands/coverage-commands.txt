@@ -1,5 +1,0 @@
-pytest spurGears/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=spurGears/.coveragerc \
-  --cov-report=term-missing

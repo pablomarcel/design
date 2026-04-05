@@ -1,0 +1,5 @@
+pytest spur_helical_gears/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=spur_helical_gears/.coveragerc \
+  --cov-report=term-missing

@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = spur_helical_gears
+
+[html]
+directory = spur_helical_gears/out/htmlcov
+
+[report]
+show_missing = True
