@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = fea
-
-[html]
-directory = fea/out/htmlcov
-
-[report]
-show_missing = True

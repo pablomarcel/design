@@ -1,5 +1,0 @@
-pytest fea/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=fea/.coveragerc \
-  --cov-report=term-missing

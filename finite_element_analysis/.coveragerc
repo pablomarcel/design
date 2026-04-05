@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = finite_element_analysis
+
+[html]
+directory = finite_element_analysis/out/htmlcov
+
+[report]
+show_missing = True
