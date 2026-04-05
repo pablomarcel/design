@@ -1,0 +1,9 @@
+[run]
+branch = True
+source = screws_fasteners
+
+[html]
+directory = screws_fasteners/out/htmlcov
+
+[report]
+show_missing = True

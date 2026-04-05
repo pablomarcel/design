@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = screws
-
-[html]
-directory = screws/out/htmlcov
-
-[report]
-show_missing = True

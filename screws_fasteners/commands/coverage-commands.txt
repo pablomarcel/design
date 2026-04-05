@@ -1,0 +1,5 @@
+pytest screws_fasteners/tests \
+  --override-ini addopts= \
+  --cov \
+  --cov-config=screws_fasteners/.coveragerc \
+  --cov-report=term-missing

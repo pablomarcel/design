@@ -98,7 +98,7 @@ deflection_stiffness/out/
 static_failure/out/
 fatigue_failure/out/
 shafts/out/
-screwsFasteners/out/
+screws_fasteners/out/
 welding/out/
 mechanicalSprings/out/
 rollingBearings/out/
