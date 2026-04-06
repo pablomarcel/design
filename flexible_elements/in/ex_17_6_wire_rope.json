@@ -1,0 +1,30 @@
+{
+  "solve_path": "wire_rope_fatigue_analysis",
+  "problem": "wire_rope_fatigue_analysis",
+  "title": "Shigley Example 17-6 style wire-rope fatigue analysis",
+  "bends_to_failure_millions": 1.0,
+  "rope_type": "6 X 19",
+  "material": "Monitor steel",
+  "ultimate_strength_kpsi": 240.0,
+  "rope_diameters_in": [
+    0.25,
+    0.375,
+    0.5,
+    0.625,
+    0.75,
+    0.875,
+    1.0
+  ],
+  "suspended_length_ft": 531.5,
+  "payload_weight_lbf": 2000.0,
+  "acceleration_ft_per_s2": 2.0,
+  "sheave_diameter_in": 72.0,
+  "number_of_supporting_ropes": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "g_ft_per_s2": 32.2,
+  "notes": "Implements Example 17-6 using equations 17-41, 17-44, 17-45, and 17-47 with table_17_24.csv, table_17_27.csv, and figure_17_21.csv."
+}

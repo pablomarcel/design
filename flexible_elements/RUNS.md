@@ -50,6 +50,14 @@ python -m cli run \
   --outfile ex_17_5_roller_chain_selection_out.json
 ```
 
+### Example 17-6 style: Wire Rope
+
+```bash
+python -m cli run \
+  --infile ex_17_6_wire_rope.json \
+  --outfile ex_17_6_wire_rope_out.json
+```
+
 ## CLI-flag runs
 
 ### Flat-belt analysis

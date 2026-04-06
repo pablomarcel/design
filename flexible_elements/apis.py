@@ -10,10 +10,11 @@ try:
         MetalFlatBeltSelectionSolver,
         VBeltAnalysisSolver,
         RollerChainSelectionSolver,
+        WireRopeFatigueAnalysisSolver,
     )
     from .in_out import CsvRepository
 except ImportError:  # pragma: no cover
-    from core import FlatBeltAnalysisSolver, FlatBeltDriveDesignSolver, MetalFlatBeltSelectionSolver, VBeltAnalysisSolver, RollerChainSelectionSolver
+    from core import FlatBeltAnalysisSolver, FlatBeltDriveDesignSolver, MetalFlatBeltSelectionSolver, VBeltAnalysisSolver, RollerChainSelectionSolver, WireRopeFatigueAnalysisSolver
     from in_out import CsvRepository
 
 
@@ -26,6 +27,7 @@ class FlexibleElementsAPI:
             "metal_flat_selection": MetalFlatBeltSelectionSolver(repo),
             "v_belt_analysis": VBeltAnalysisSolver(repo),
             "roller_chain_selection": RollerChainSelectionSolver(repo),
+            "wire_rope_fatigue_analysis": WireRopeFatigueAnalysisSolver(repo),
         }
 
     @property

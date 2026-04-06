@@ -105,6 +105,20 @@ def build_parser() -> argparse.ArgumentParser:
     p_r.add_argument("--candidate-number-of-strands", nargs="*", type=int, default=[1, 2, 3, 4])
     _add_common_output_arg(p_r)
 
+    p_w = sub.add_parser("wire_rope_fatigue_analysis", help="Wire-rope fatigue analysis via CLI flags.")
+    p_w.add_argument("--bends-to-failure-millions", required=True, type=float)
+    p_w.add_argument("--rope-type", required=True)
+    p_w.add_argument("--material", required=True)
+    p_w.add_argument("--ultimate-strength-kpsi", required=True, type=float)
+    p_w.add_argument("--rope-diameters-in", nargs="+", required=True, type=float)
+    p_w.add_argument("--suspended-length-ft", required=True, type=float)
+    p_w.add_argument("--payload-weight-lbf", required=True, type=float)
+    p_w.add_argument("--acceleration-ft-per-s2", required=True, type=float)
+    p_w.add_argument("--sheave-diameter-in", required=True, type=float)
+    p_w.add_argument("--number-of-supporting-ropes", nargs="*", type=int, default=[1, 2, 3, 4])
+    p_w.add_argument("--g-ft-per-s2", type=float, default=32.2)
+    _add_common_output_arg(p_w)
+
     return parser
 
 
@@ -183,6 +197,21 @@ def _payload_from_args(ns: argparse.Namespace) -> dict[str, Any]:
             "driven_sprocket_teeth": ns.driven_sprocket_teeth,
             "target_center_distance_over_pitch": ns.target_center_distance_over_pitch,
             "candidate_number_of_strands": ns.candidate_number_of_strands,
+        }
+    if ns.command == "wire_rope_fatigue_analysis":
+        return {
+            "solve_path": "wire_rope_fatigue_analysis",
+            "bends_to_failure_millions": ns.bends_to_failure_millions,
+            "rope_type": ns.rope_type,
+            "material": ns.material,
+            "ultimate_strength_kpsi": ns.ultimate_strength_kpsi,
+            "rope_diameters_in": ns.rope_diameters_in,
+            "suspended_length_ft": ns.suspended_length_ft,
+            "payload_weight_lbf": ns.payload_weight_lbf,
+            "acceleration_ft_per_s2": ns.acceleration_ft_per_s2,
+            "sheave_diameter_in": ns.sheave_diameter_in,
+            "number_of_supporting_ropes": ns.number_of_supporting_ropes,
+            "g_ft_per_s2": ns.g_ft_per_s2,
         }
     raise ValueError(f"Unsupported command: {ns.command}")
 

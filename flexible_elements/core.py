@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -911,5 +912,210 @@ class RollerChainSelectionSolver(BaseSolver):
             "notes": {
                 "selection_policy": "Use table_17_20.csv directly as the authoritative source for horsepower capacity and lubrication type. Across viable options, prefer the best lubrication class available, then the smallest chain number, then the fewest strands.",
                 "durability_comment": "This operates on the pre-extreme portion of the power chart, so durability estimates other than 15000 h are not available. Given the poor operating conditions, actual life will be shorter."
+            },
+        }
+
+
+class WireRopeFatigueAnalysisSolver(BaseSolver):
+    solve_path = "wire_rope_fatigue_analysis"
+
+    def _normalize_rope_key(self, rope_type: str) -> str:
+        return re.sub(r"[^0-9x]", "", rope_type.lower().replace("×", "x").replace(" ", ""))
+
+    def _figure_rope_key(self, rope_type: str) -> str:
+        key = self._normalize_rope_key(rope_type)
+        aliases = {
+            "6x7": "6x7",
+            "6x12": "6x12",
+            "6x19": "6x19",
+            "6x24": "6x24",
+            "6x37": "6x37",
+        }
+        if key not in aliases:
+            raise DataLookupError(f"Unsupported rope type for figure_17_21.csv: {rope_type!r}")
+        return aliases[key]
+
+    def _table24_row(self, rope_type: str, material: str) -> dict[str, Any]:
+        norm_rope = self._normalize_rope_key(rope_type)
+        norm_mat = material.strip().lower()
+        rows = self.repo.read_csv("table_17_24.csv")
+        for row in rows:
+            row_rope = self._normalize_rope_key(str(row["rope"]))
+            row_mat = str(row["material"]).strip().lower()
+            if row_rope.startswith(norm_rope) and row_mat == norm_mat:
+                return row
+        raise DataLookupError(f"No table_17_24.csv row for rope_type={rope_type!r}, material={material!r}")
+
+    def _table27_row(self, rope_type: str) -> dict[str, Any]:
+        norm_rope = self._normalize_rope_key(rope_type)
+        rows = self.repo.read_csv("table_17_27.csv")
+        for row in rows:
+            row_rope = self._normalize_rope_key(str(row["wire_rope"]))
+            if row_rope == norm_rope:
+                return row
+        raise DataLookupError(f"No table_17_27.csv row for rope_type={rope_type!r}")
+
+    def _extract_d2_coeff(self, formula: str, field_name: str) -> float:
+        text = str(formula).strip().replace(" ", "")
+        m = re.fullmatch(r"([0-9]*\.?[0-9]+)\*?d\^2", text)
+        if not m:
+            raise DataLookupError(f"Cannot parse d^2 coefficient from {field_name}: {formula!r}")
+        return float(m.group(1))
+
+    def _extract_d_coeff(self, formula: str, field_name: str) -> float:
+        text = str(formula).strip().replace(" ", "")
+        m = re.fullmatch(r"([0-9]*\.?[0-9]+)\*?d", text)
+        if not m:
+            raise DataLookupError(f"Cannot parse d coefficient from {field_name}: {formula!r}")
+        return float(m.group(1))
+
+    def _figure_ratio(self, rope_type: str, bends_millions: float) -> dict[str, Any]:
+        key = self._figure_rope_key(rope_type)
+        rows = []
+        for row in self.repo.read_csv("figure_17_21.csv"):
+            if str(row["rope_type"]).strip().lower() != key:
+                continue
+            rows.append((
+                float(row["bends_to_failure_millions"]),
+                float(row["pressure_strength_ratio_1000p_over_Su"]),
+            ))
+        rows.sort(key=lambda x: x[0])
+        if not rows:
+            raise DataLookupError(f"No figure_17_21.csv data for rope_type={rope_type!r}")
+        x = float(bends_millions)
+        if len(rows) == 1:
+            y = rows[0][1]
+            method = 'single_point'
+        elif x <= rows[0][0]:
+            y = linear_interpolate(x, rows[0][0], rows[0][1], rows[1][0], rows[1][1])
+            method = 'linear_extrapolation_low'
+        elif x >= rows[-1][0]:
+            y = linear_interpolate(x, rows[-2][0], rows[-2][1], rows[-1][0], rows[-1][1])
+            method = 'linear_extrapolation_high'
+        else:
+            y = None
+            method = 'linear_interpolation'
+            for (x0, y0), (x1, y1) in zip(rows[:-1], rows[1:]):
+                if x0 <= x <= x1:
+                    y = linear_interpolate(x, x0, y0, x1, y1)
+                    break
+            if y is None:
+                raise DataLookupError('Unable to interpolate figure_17_21.csv')
+        return {
+            'rope_type': key,
+            'bends_to_failure_millions': x,
+            'figure_value_1000p_over_Su': y,
+            'actual_p_over_Su': y / 1000.0,
+            'method': method,
+        }
+
+    def _format_matrix_markdown(self, diameters: list[float], strands: list[int], nf_by_d: dict[float, dict[int, float]]) -> str:
+        header = ['d, in'] + [f'm={m}' for m in strands]
+        lines = ['| ' + ' | '.join(header) + ' |', '|' + '|'.join(['---'] * len(header)) + '|']
+        for d in diameters:
+            row = [f'{d:.3f}'] + [f'{nf_by_d[d][m]:.3f}' for m in strands]
+            lines.append('| ' + ' | '.join(row) + ' |')
+        return "\n".join(lines)
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        bends_millions = float(payload['bends_to_failure_millions'])
+        rope_type = str(payload['rope_type'])
+        material = str(payload['material'])
+        Su_kpsi = float(payload['ultimate_strength_kpsi'])
+        diameters = [float(x) for x in payload['rope_diameters_in']]
+        suspended_length_ft = float(payload['suspended_length_ft'])
+        W_lbf = float(payload['payload_weight_lbf'])
+        acceleration_ft_per_s2 = float(payload['acceleration_ft_per_s2'])
+        D_in = float(payload['sheave_diameter_in'])
+        strands_list = [int(x) for x in payload.get('number_of_supporting_ropes', [1,2,3,4])]
+        g = float(payload.get('g_ft_per_s2', 32.2))
+
+        table24 = self._table24_row(rope_type, material)
+        table27 = self._table27_row(rope_type)
+        fig = self._figure_ratio(rope_type, bends_millions)
+
+        w_coeff = self._extract_d2_coeff(table24['weight_per_foot_formula_lbf'], 'weight_per_foot_formula_lbf')
+        Er_psi = float(table24['modulus_of_elasticity_mpsi']) * 1.0e6
+        dw_coeff = self._extract_d_coeff(table27['diameter_of_wires_formula_in'], 'diameter_of_wires_formula_in')
+        Am_coeff = self._extract_d2_coeff(table27['area_of_metal_formula_in2'], 'area_of_metal_formula_in2')
+        p_over_Su = float(fig['actual_p_over_Su'])
+        Su_psi = Su_kpsi * 1000.0
+
+        detailed_rows = []
+        nf_by_d = {}
+        max_nf_summary = []
+
+        for d in diameters:
+            nf_by_d[d] = {}
+            w_lbf_per_ft = w_coeff * d**2
+            Ff = (p_over_Su * Su_psi * D_in * d) / 2.0
+            dw = dw_coeff * d
+            Am = Am_coeff * d**2
+            Fb = (Er_psi * dw * Am) / D_in
+            for m in strands_list:
+                Ft = ((W_lbf / m) + w_lbf_per_ft * suspended_length_ft) * (1.0 + acceleration_ft_per_s2 / g)
+                nf = (Ff - Fb) / Ft
+                nf_by_d[d][m] = nf
+                detailed_rows.append({
+                    'rope_diameter_in': d,
+                    'number_of_supporting_ropes': m,
+                    'rope_weight_per_foot_lbf_per_ft': w_lbf_per_ft,
+                    'rope_tension_Ft_lbf': Ft,
+                    'fatigue_tension_Ff_lbf': Ff,
+                    'equivalent_bending_load_Fb_lbf': Fb,
+                    'fatigue_factor_of_safety_nf': nf,
+                })
+        for m in strands_list:
+            best_d = max(diameters, key=lambda d: nf_by_d[d][m])
+            max_nf_summary.append({
+                'number_of_supporting_ropes': m,
+                'max_nf': nf_by_d[best_d][m],
+                'best_rope_diameter_in': best_d,
+            })
+        nf_matrix_rows = []
+        for d in diameters:
+            row = {'rope_diameter_in': d}
+            for m in strands_list:
+                row[f'm_{m}'] = nf_by_d[d][m]
+            nf_matrix_rows.append(row)
+
+        return {
+            'problem': self.solve_path,
+            'title': 'Wire-rope fatigue analysis table',
+            'inputs': payload,
+            'lookups': {
+                'table_17_24': {
+                    'rope': table24['rope'],
+                    'material': table24['material'],
+                    'weight_per_foot_formula_lbf': table24['weight_per_foot_formula_lbf'],
+                    'modulus_of_elasticity_mpsi': float(table24['modulus_of_elasticity_mpsi']),
+                },
+                'figure_17_21': fig,
+                'table_17_27': {
+                    'wire_rope': table27['wire_rope'],
+                    'diameter_of_wires_formula_in': table27['diameter_of_wires_formula_in'],
+                    'area_of_metal_formula_in2': table27['area_of_metal_formula_in2'],
+                    'rope_youngs_modulus_psi': float(table27['rope_youngs_modulus_psi']),
+                },
+            },
+            'derived': {
+                'weight_formula_coeff_d2': w_coeff,
+                'Er_psi': Er_psi,
+                'dw_formula_coeff_d': dw_coeff,
+                'Am_formula_coeff_d2': Am_coeff,
+                'actual_p_over_Su': p_over_Su,
+                'nf_table': nf_matrix_rows,
+                'detailed_results': detailed_rows,
+                'max_nf_by_supporting_ropes': max_nf_summary,
+                'nf_table_markdown': self._format_matrix_markdown(diameters, strands_list, nf_by_d),
+            },
+            'checks': {
+                'all_nf_positive': all(row['fatigue_factor_of_safety_nf'] > 0.0 for row in detailed_rows),
+            },
+            'notes': {
+                'equation_17_47': 'Ft = ((W/m) + w*l) * (1 + a/g)',
+                'equation_17_44': 'Ff = ((p/Su) * Su * D * d) / 2',
+                'equation_17_41': 'Fb = (Er * dw * Am) / D',
+                'equation_17_45': 'nf = (Ff - Fb) / Ft',
             },
         }
