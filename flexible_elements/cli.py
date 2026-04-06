@@ -1,8 +1,20 @@
+
 from __future__ import annotations
 
 import argparse
 import json
 from typing import Any
+
+try:
+    from rich.console import Console
+    from rich.table import Table
+    from rich.panel import Panel
+    RICH_AVAILABLE = True
+except Exception:  # pragma: no cover
+    Console = None
+    Table = None
+    Panel = None
+    RICH_AVAILABLE = False
 
 try:
     from .app import FlexibleElementsApp
@@ -19,6 +31,136 @@ def _print_json(data: dict[str, Any]) -> None:
 
 def _add_common_output_arg(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--outfile", help="Write JSON result to out/<outfile>.")
+
+
+def _rich_console() -> Any:
+    if not RICH_AVAILABLE:
+        return None
+    return Console()
+
+
+def _fmt(value: Any, digits: int = 3) -> str:
+    if isinstance(value, float):
+        return f"{value:.{digits}f}"
+    return str(value)
+
+
+def _render_wire_rope_tables(result: dict[str, Any]) -> None:
+    console = _rich_console()
+    if console is None:
+        return
+
+    derived = result.get("derived", {})
+    nf_rows = derived.get("nf_table", [])
+    if nf_rows:
+        table = Table(title="Wire-rope fatigue factor of safety table", show_lines=False)
+        table.add_column("d, in", justify="right")
+        strand_cols = [key for key in nf_rows[0].keys() if key.startswith("m_")]
+        for key in strand_cols:
+            table.add_column(key.replace("_", "="), justify="right")
+        for row in nf_rows:
+            values = [_fmt(row["rope_diameter_in"], 3)] + [_fmt(row[key], 3) for key in strand_cols]
+            table.add_row(*values)
+        console.print(table)
+
+    max_rows = derived.get("max_nf_by_supporting_ropes", [])
+    if max_rows:
+        table = Table(title="Best rope diameter by number of supporting ropes", show_lines=False)
+        table.add_column("Supporting ropes", justify="right")
+        table.add_column("Max nf", justify="right")
+        table.add_column("Best d, in", justify="right")
+        for row in max_rows:
+            table.add_row(
+                str(row["number_of_supporting_ropes"]),
+                _fmt(row["max_nf"], 3),
+                _fmt(row["best_rope_diameter_in"], 3),
+            )
+        console.print(table)
+
+
+def _render_roller_chain_tables(result: dict[str, Any]) -> None:
+    console = _rich_console()
+    if console is None:
+        return
+
+    lookups = result.get("lookups", {})
+    rows = lookups.get("table_17_20_decision_table", [])
+    if rows:
+        table = Table(title="Roller-chain decision table", show_lines=False)
+        table.add_column("Strands", justify="right")
+        table.add_column("K2", justify="right")
+        table.add_column("Hd, hp", justify="right")
+        table.add_column("Required Htab, hp", justify="right")
+        table.add_column("Chain no.", justify="right")
+        table.add_column("Available Htab, hp", justify="right")
+        table.add_column("Lube", justify="center")
+        table.add_column("Estimated", justify="center")
+        for row in rows:
+            table.add_row(
+                str(row["number_of_strands"]),
+                _fmt(row["K2"], 3),
+                _fmt(row["Hd_hp"], 3),
+                _fmt(row["required_Htab_hp"], 3),
+                str(row["chain_number"]),
+                _fmt(row["available_Htab_hp"], 3),
+                str(row["lubrication_type"]),
+                "yes" if row.get("estimated_flag") else "no",
+            )
+        console.print(table)
+
+    derived = result.get("derived", {})
+    summary = Table(title="Selected roller-chain solution", show_lines=False)
+    summary.add_column("Quantity")
+    summary.add_column("Value", justify="right")
+    summary.add_row("Selected strands", str(derived.get("selected_number_of_strands", "")))
+    summary.add_row("Selected chain number", str(derived.get("selected_chain_number", "")))
+    summary.add_row("Lubrication type", str(derived.get("selected_lubrication_type", "")))
+    if "center_distance_in" in derived:
+        summary.add_row("Center distance, in", _fmt(derived["center_distance_in"], 3))
+    if "selected_chain_length_pitches" in derived:
+        summary.add_row("Chain length, pitches", str(derived["selected_chain_length_pitches"]))
+    console.print(summary)
+
+
+def _render_vbelt_tables(result: dict[str, Any]) -> None:
+    console = _rich_console()
+    if console is None:
+        return
+
+    derived = result.get("derived", {})
+    summary = Table(title="V-belt analysis summary", show_lines=False)
+    summary.add_column("Quantity")
+    summary.add_column("Value", justify="right")
+    keys = [
+        ("belt_speed_ft_min", "Belt speed, ft/min"),
+        ("allowable_power_per_belt_hp", "Allowable power per belt, hp"),
+        ("design_power_hp", "Design power, hp"),
+        ("required_number_of_belts", "Required belts"),
+        ("factor_of_safety_nfs_using_specified_belts", "nfs"),
+        ("life_in_passes_report", "Life in passes"),
+        ("reported_life_hours", "Reported life, h"),
+    ]
+    for key, label in keys:
+        if key in derived:
+            summary.add_row(label, _fmt(derived[key], 3) if isinstance(derived[key], float) else str(derived[key]))
+    console.print(summary)
+
+
+def _render_result_tables(result: dict[str, Any]) -> None:
+    if not RICH_AVAILABLE:
+        return
+
+    problem = result.get("problem", "")
+    console = _rich_console()
+    title = result.get("title", problem)
+    console.print(Panel.fit(title, title="CLI table view"))
+
+    if problem == "wire_rope_fatigue_analysis":
+        _render_wire_rope_tables(result)
+    elif problem == "roller_chain_selection":
+        _render_roller_chain_tables(result)
+    elif problem == "v_belt_analysis":
+        _render_vbelt_tables(result)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -228,6 +370,7 @@ def main() -> int:
     if ns.command == "run":
         result, out_path = app.solve_file(ns.infile, ns.outfile)
         _print_json(result)
+        _render_result_tables(result)
         if out_path:
             print(f"\nWrote: {out_path}")
         return 0
@@ -235,6 +378,7 @@ def main() -> int:
     payload = _payload_from_args(ns)
     result = app.solve(payload["solve_path"], payload)
     _print_json(result)
+    _render_result_tables(result)
     if ns.outfile:
         out_path = app.write_output(result, ns.outfile)
         print(f"\nWrote: {out_path}")
