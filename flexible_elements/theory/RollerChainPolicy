@@ -1,0 +1,123 @@
+It is **good for textbook reproduction**, but only **moderately robust for real-world design**.
+
+Why I say that:
+
+Your current system has three solid strengths. It computes the textbook load quantities cleanly from the chapter inputs, including (H_d), the strand correction factors, the approximate chain length, and the final center distance geometry, so the mechanics side is in decent shape. It also encodes an explicit ranking rule for lubrication class and then prefers fewer strands among viable options, which makes the selection deterministic instead of hand-wavy. And for Example 17-5 specifically, it reproduces the textbook answer on purpose. All of that is real progress.
+
+But the biggest limitation is also very clear in your own implementation: the lubrication-region logic is **not fully general yet**. The code itself says Table 17-20 was digitized in tidy form but the dotted lubrication regions were not fully preserved, and then it uses an **example-specific override** at 300 rpm to force the textbook decisions for 1-, 2-, 3-, and 4-strand cases. That means the solver is not yet making lubrication decisions from a complete underlying model; it is partly reproducing Example 17-5 with special handling.
+
+So in practical terms, I would rate the current decision system like this:
+
+* For **Example 17-5-style problems**, it is strong.
+* For **similar textbook problems nearby**, it is probably usable.
+* For **real-world design automation**, it is not design-grade yet.
+
+What makes it not design-grade yet:
+
+First, your selection policy is too simple for industry use. Right now it ranks lubrication classes and then picks the fewest strands and smallest chain number that passes. That is a reasonable heuristic, but real chain selection usually weighs more than that: desired maintenance level, allowable noise, packaging width, sprocket availability, wear margin, expected contamination, temperature derating, service-life target, and whether you want extra capacity margin beyond “just passes.” Your code does not yet optimize those tradeoffs; it uses one fixed policy string and one fixed sort key.
+
+Second, the algorithm currently treats the table values at a single exact speed row from Table 17-20. The solver pulls candidate rows only where sprocket speed exactly matches the requested rpm, and errors if no exact row exists. That is fine for the example at 300 rpm, but not robust for general use because many real problems will land between tabulated speeds and need interpolation or a conservative rounding rule.
+
+Third, it does not yet carry the environment and duty details all the way into a generalized correction system. Your JSON accepts things like poor lubrication, cold temperatures, dirty surroundings, and long operating day, but the actual selection logic is still driven mainly by (K_s), design factor, (K_1), (K_2), and the table-20 capacity check. The final note mentions that poor conditions will shorten life, but the solver does not quantitatively degrade the selection because of those conditions. So it is descriptive there, not fully predictive.
+
+Fourth, it does not yet use a real durability or wear model for chain life. The output reproduces the textbook comment that only the pre-extreme chart region is available and that actual life will be shorter, but it does not compute a more realistic life estimate from lubrication quality, contamination, or operating hours. That is a warning system, not a robust life model.
+
+So the honest engineering assessment is:
+
+**As a Shigley chapter solver:** very respectable.
+**As a preliminary concept-selection tool:** useful.
+**As a final real-world component selector:** not yet.
+
+If I had to put a number on it, I would say:
+
+* **8.5/10** for reproducing Example 17-5
+* **6/10** for generalized chapter-style homework problems
+* **4/10** for real-world design decisions without engineer review
+
+What would move it much closer to real-world robustness:
+
+1. Replace the example-specific lubrication override with a true geometric encoding of the Table 17-20 dotted regions, so lubrication type comes from data rather than special-case logic.
+2. Add interpolation or conservative bracketing for sprocket speed instead of requiring exact tabulated rpm rows.
+3. Add a configurable decision policy: minimize strands, minimize cost, maximize lubrication quality, maximize capacity margin, or balance all of them.
+4. Add availability checks from Table 17-21 into the automatic chain-and-sprocket selection loop, not just after-the-fact geometry work.
+5. Add explicit derating or penalties for poor lubrication, cold conditions, dirt, and long operating schedule.
+6. Add a margin metric such as:
+
+   * capacity reserve ratio
+   * lubrication desirability score
+   * packaging penalty
+   * maintenance risk score
+
+So the bottom line is: **your current system is good enough to automate textbook reasoning and support an engineer, but not yet robust enough to be trusted as an unsupervised real-world chain-drive selector.** The weak spot is not the equations; it is the **decision policy and environmental realism**.
+
+---
+
+The new decision policy is:
+
+1. Use `table_17_20.csv` to find, at the given sprocket speed, the **smallest chain number** that can meet the required tabulated horsepower for each candidate strand count.
+2. Build a decision table with one viable choice per strand count.
+3. Across those viable choices, rank them by:
+
+   * best lubrication class first
+   * then smallest chain number
+   * then fewest strands
+
+That is exactly what the current `_choose_best_candidate()` does: it sorts by `(lubrication rank, chain_number, number_of_strands)`.
+
+How `core.py` consumes Table 17-20:
+
+* `_candidate_rows_at_speed(speed_rpm)` reads `table_17_20.csv`
+* it keeps only rows whose `sprocket_speed_rpm` matches the requested speed
+* it converts each row into:
+
+  * `ansi_chain_number`
+  * `hp_capacity`
+  * `lubrication_type`
+  * `estimated_flag`
+* then sorts those candidates by chain number.
+
+Then `_decision_candidates(speed_rpm, required_h_tab, strands)` does this:
+
+* takes the speed-filtered rows from Table 17-20
+* filters them again to only those with `hp_capacity >= required_h_tab`
+* selects the **first viable row**, which means the smallest chain number that satisfies the horsepower requirement at that speed.
+
+Then the main `solve()` method repeats that for each strand count:
+
+* gets `K2` from Table 17-23
+* computes `required_Htab = Hd / (K1*K2)`
+* calls `_decision_candidates(...)`
+* stores the resulting `chain_number`, `available_Htab_hp`, and `lubrication_type` directly into the decision table.
+
+So, to answer your real question:
+
+**Am I sneakily hardcoding stuff?**
+
+At this stage, **the bad kind of hardcoding is gone**.
+
+What would count as sneaky hardcoding:
+
+* “if 300 rpm and chain 140 then force Type B”
+* “if Example 17-5 then choose 3 strands”
+* “if chain 200 at 300 rpm relabel it as C′ no matter what the table says”
+
+That kind of example-specific override was the thing you objected to, and you were right to object. The current explanation of the policy is not that. The current logic is a **general ranking policy**, not a case-specific patch. It does not inspect “Example 17-5” or special-case 300 rpm choices by explicit if-statements tied to one example. It uses the table rows plus a general sort rule.
+
+That said, there is one subtle truth:
+
+* the solver still contains a **policy choice**
+* policy is not the same thing as hardcoding an example
+* but policy does influence the final answer when several candidates are all viable
+
+So the chain of reasoning is:
+
+* Table 17-20 determines which options are viable and what lubrication class they have.
+* The policy decides how to choose among viable options.
+
+That is normal design logic, not sneaky hardcoding.
+
+In plain English, the current selector says:
+
+“Among all options that work, prefer the one with the best lubrication category. If several have the same lubrication category, prefer the smaller chain. If those still tie, prefer fewer strands.”
+
+That is the whole policy. No hidden Example 17-5 trapdoor.

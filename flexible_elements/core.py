@@ -828,7 +828,7 @@ class RollerChainSelectionSolver(BaseSolver):
     def _choose_best_candidate(self, decision_table: list[dict[str, Any]]) -> dict[str, Any]:
         def key(row: dict[str, Any]):
             rank = self._LUBE_RANK.get(row["lubrication_type"], 99)
-            return (rank, row["number_of_strands"], row["chain_number"])
+            return (rank, row["chain_number"], row["number_of_strands"])
         return sorted(decision_table, key=key)[0]
 
     def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -909,7 +909,7 @@ class RollerChainSelectionSolver(BaseSolver):
                 "selected_length_is_even_pitches": (L_over_p_real % 2 == 0),
             },
             "notes": {
-                "selection_policy": "Prefer the best lubrication class available among viable options, then the fewest strands. This reproduces Example 17-5: 3 strands, no. 140 chain, Type B lubrication.",
+                "selection_policy": "Use table_17_20.csv directly as the authoritative source for horsepower capacity and lubrication type. Across viable options, prefer the best lubrication class available, then the smallest chain number, then the fewest strands.",
                 "durability_comment": "This operates on the pre-extreme portion of the power chart, so durability estimates other than 15000 h are not available. Given the poor operating conditions, actual life will be shorter."
             },
         }
