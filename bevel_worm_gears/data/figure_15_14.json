@@ -1,0 +1,112 @@
+{
+  "figure": "15-14",
+  "title": "Road map summary of principal straight-bevel gear wear equations and their parameters",
+  "source": "Based on ANSI/AGMA 2003-B97 (U.S. customary units)",
+  "sections": {
+    "geometry": [
+      {
+        "name": "pitch_diameter_pinion",
+        "symbol": "d_P",
+        "expression": "N_P / P_d"
+      },
+      {
+        "name": "pinion_pitch_angle",
+        "symbol": "gamma",
+        "expression": "atan(N_P / N_G)"
+      },
+      {
+        "name": "gear_pitch_angle",
+        "symbol": "Gamma",
+        "expression": "atan(N_G / N_P)"
+      },
+      {
+        "name": "mean_or_average_pitch_diameter",
+        "symbol": "d_av",
+        "expression": "d_P - F * cos(Gamma)"
+      }
+    ],
+    "force_analysis": [
+      {
+        "name": "tangential_force",
+        "symbol": "W_t",
+        "expression": "2*T / d_av"
+      },
+      {
+        "name": "radial_force",
+        "symbol": "W_r",
+        "expression": "W_t * tan(phi) * cos(gamma)"
+      },
+      {
+        "name": "axial_force",
+        "symbol": "W_a",
+        "expression": "W_t * tan(phi) * sin(gamma)"
+      }
+    ],
+    "strength_analysis": [
+      {
+        "name": "tangential_force",
+        "symbol": "W_t",
+        "expression": "2*T / d_P"
+      },
+      {
+        "name": "radial_force",
+        "symbol": "W_r",
+        "expression": "W_t * tan(phi) * cos(gamma)"
+      },
+      {
+        "name": "axial_force",
+        "symbol": "W_a",
+        "expression": "W_t * tan(phi) * sin(gamma)"
+      }
+    ],
+    "gear_contact_stress": {
+      "name": "gear_contact_stress",
+      "symbols": [
+        "S_c",
+        "sigma_c"
+      ],
+      "expression": "C_p * sqrt((W_t / (F * d_P * I)) * K_o * K_v * K_m * C_s * C_xc)",
+      "notes": [
+        "At large end of tooth"
+      ],
+      "references": {
+        "K_o": "Table 15-2, p. 783",
+        "K_v": "Eqs. (15-5) to (15-8), p. 784",
+        "K_m": "Eq. (15-11), p. 785",
+        "C_s": "Eq. (15-12), p. 785",
+        "C_xc": "Eq. (15-9), p. 785",
+        "I": "Fig. 15-6, p. 786",
+        "C_p": "Eq. (15-21), p. 790"
+      }
+    },
+    "gear_wear_strength": {
+      "name": "gear_wear_strength",
+      "symbols": [
+        "S_wc",
+        "(sigma_c)_all"
+      ],
+      "expression": "(s_ac * C_L * C_H) / (S_H * K_T * C_R)",
+      "references": {
+        "s_ac": "Tables 15-4, 15-5, Fig. 15-12, Eq. (15-22), pp. 790-792",
+        "C_L": "Fig. 15-8, Eq. (15-14), p. 787",
+        "C_H": "Eqs. (15-16), (15-17), gear only, p. 788",
+        "S_H": "Eqs. (15-19), (15-20), Table 15-3, pp. 789, 790",
+        "K_T": "Eq. (15-18), p. 788",
+        "C_R": "Eq. (15-18), p. 788"
+      }
+    },
+    "wear_factor_of_safety": [
+      {
+        "name": "wear_factor_of_safety_based_on_strength",
+        "symbol": "S_H",
+        "expression": "((sigma_c)_all) / sigma_c"
+      },
+      {
+        "name": "wear_factor_of_safety_based_on_tangential_force",
+        "symbol": "n_w",
+        "expression": "(((sigma_c)_all) / sigma_c)^2",
+        "note": "based on W_t; can be compared directly with S_F"
+      }
+    ]
+  }
+}

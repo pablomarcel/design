@@ -1,0 +1,111 @@
+{
+  "figure": "15-15",
+  "title": "Road map summary of principal straight-bevel gear bending equations and their parameters",
+  "source": "Based on ANSI/AGMA 2003-B97 (U.S. customary units)",
+  "sections": {
+    "geometry": [
+      {
+        "name": "pitch_diameter_pinion",
+        "symbol": "d_P",
+        "expression": "N_P / P_d"
+      },
+      {
+        "name": "pinion_pitch_angle",
+        "symbol": "gamma",
+        "expression": "atan(N_P / N_G)"
+      },
+      {
+        "name": "gear_pitch_angle",
+        "symbol": "Gamma",
+        "expression": "atan(N_G / N_P)"
+      },
+      {
+        "name": "mean_or_average_pitch_diameter",
+        "symbol": "d_av",
+        "expression": "d_P - F * cos(Gamma)"
+      }
+    ],
+    "force_analysis": [
+      {
+        "name": "tangential_force",
+        "symbol": "W_t",
+        "expression": "2*T / d_av"
+      },
+      {
+        "name": "radial_force",
+        "symbol": "W_r",
+        "expression": "W_t * tan(phi) * cos(gamma)"
+      },
+      {
+        "name": "axial_force",
+        "symbol": "W_a",
+        "expression": "W_t * tan(phi) * sin(gamma)"
+      }
+    ],
+    "strength_analysis": [
+      {
+        "name": "tangential_force",
+        "symbol": "W_t",
+        "expression": "2*T / d_P"
+      },
+      {
+        "name": "radial_force",
+        "symbol": "W_r",
+        "expression": "W_t * tan(phi) * cos(gamma)"
+      },
+      {
+        "name": "axial_force",
+        "symbol": "W_a",
+        "expression": "W_t * tan(phi) * sin(gamma)"
+      }
+    ],
+    "gear_bending_stress": {
+      "name": "gear_bending_stress",
+      "symbols": [
+        "S_t",
+        "sigma"
+      ],
+      "expression": "(W_t / F) * P_d * K_o * K_v * (K_s * K_m) / (K_x * J)",
+      "notes": [
+        "At large end of tooth"
+      ],
+      "references": {
+        "K_o": "Table 15-2, p. 783",
+        "K_v": "Eqs. (15-5) to (15-8), p. 784",
+        "K_s": "Eq. (15-10), p. 785",
+        "K_m": "Eq. (15-11), p. 785",
+        "J": "Fig. 15-7, p. 786",
+        "K_x": "Eq. (15-13), p. 785"
+      }
+    },
+    "gear_bending_strength": {
+      "name": "gear_bending_strength",
+      "symbols": [
+        "S_wt",
+        "sigma_all"
+      ],
+      "expression": "(s_at * K_L) / (S_F * K_T * K_R)",
+      "references": {
+        "s_at": "Table 15-6 or 15-7, pp. 791, 792",
+        "K_L": "Fig. 15-9, Eq. (15-15), pp. 788, 787",
+        "S_F": "Eqs. (15-19), (15-20), Table 15-3, pp. 789, 790",
+        "K_T": "Eq. (15-18), p. 788",
+        "K_R": "Eq. (15-18), p. 788"
+      }
+    },
+    "bending_factor_of_safety": [
+      {
+        "name": "bending_factor_of_safety_based_on_strength",
+        "symbol": "S_F",
+        "expression": "sigma_all / sigma",
+        "note": "based on strength"
+      },
+      {
+        "name": "bending_factor_of_safety_based_on_tangential_force",
+        "symbol": "n_B",
+        "expression": "sigma_all / sigma",
+        "note": "based on W_t, same as S_F"
+      }
+    ]
+  }
+}
