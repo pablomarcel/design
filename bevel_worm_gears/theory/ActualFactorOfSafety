@@ -1,0 +1,327 @@
+You are not crazy. Shigley is compressing several steps and hiding the logic in the notation.
+
+What is happening in Example 15-2 is this:
+
+On p. 799 he takes the given **design factor** (n_d = 2) and converts it into the stress safety factors he will use in the equations:
+
+[
+n_d = 2,\qquad S_F = 2,\qquad S_H=\sqrt{2}=1.414
+]
+
+So the factor of 2 is **not arbitrary**. It is the design factor from the problem statement, just rewritten in the form needed by the AGMA-style equations.
+
+## Why bending gets 2, but contact gets (\sqrt{2})
+
+Because the two failure modes scale differently with load.
+
+For **bending**:
+
+* bending stress is proportional to transmitted load
+* so doubling the load doubles the stress
+* therefore the stress safety factor and the load safety factor are the same
+
+So for bending, if the desired design factor is 2, then:
+
+[
+S_F = 2
+]
+
+For **contact/wear**:
+
+* contact stress scales with the square root of load
+* so if you want a load safety factor of 2, the stress safety factor inside the contact-stress equation must be (\sqrt{2})
+
+So:
+
+[
+S_H = \sqrt{n_d} = \sqrt{2}
+]
+
+That is why Shigley writes (S_H=\sqrt{2}) instead of 2.
+
+---
+
+## Where the design factor is actually used
+
+It is used inside the allowable-strength equations.
+
+For gear bending on p. 800:
+
+[
+(s_{wt})*G=\left(\frac{s*{at}K_L}{S_FK_TK_R}\right)_G
+]
+
+Since (S_F=2), the allowable bending stress is already reduced by the design factor.
+
+He gets:
+
+[
+(s_{wt})_G = 11{,}640 \text{ psi}
+]
+
+and the actual bending stress was:
+
+[
+(s_t)_G = 10{,}390 \text{ psi}
+]
+
+So the ratio
+
+[
+\frac{11{,}640}{10{,}390}=1.12
+]
+
+is **not yet** the full actual factor of safety relative to the raw material strength. It is only the margin relative to the already design-factor-reduced allowable stress.
+
+Since that allowable stress already included division by (S_F=2), the true bending safety factor is:
+
+[
+n_{F,\text{actual}} = S_F\left(\frac{s_{wt}}{s_t}\right)=2(1.12)=2.24
+]
+
+So that mysterious multiplication by 2 is just undoing the earlier reduction by (S_F).
+
+---
+
+## Same idea for contact stress
+
+For wear/contact on p. 800, Shigley computes:
+
+[
+(s_{wc})*G=\left(\frac{s*{ac}C_LC_H}{S_HK_TC_R}\right)_G
+]
+
+and then compares it to the actual contact stress:
+
+[
+\frac{136120}{107560}=1.266
+]
+
+But since contact stress goes with the square root of load, the actual load safety factor is the **square** of that stress ratio, times the original design factor:
+
+[
+n_{H,\text{actual}} = S_H^2\left(\frac{s_{wc}}{s_c}\right)^2
+]
+
+Since (S_H^2=2),
+
+[
+n_{H,\text{actual}} = 2(1.266)^2 = 3.21
+]
+
+That is exactly what he writes.
+
+---
+
+## The clean way to think about it
+
+Your instinct is basically right:
+
+> factor of safety = allowable / actual
+
+But in this example, Shigley first defines an **allowable stress that already includes the requested design factor**.
+
+So there are really two layers:
+
+### 1. Design allowable stress
+
+This is the stress limit after dividing by the requested design factor.
+
+For bending:
+
+[
+s_{allow,design} = \frac{s_{strength}}{S_F}\times(\text{life, temp, reliability factors})
+]
+
+### 2. Actual factor of safety
+
+After the design is chosen, you compare the actual stress to that reduced allowable stress.
+If the ratio is above 1, you exceeded the target.
+Then you multiply back by the original design factor to recover the true achieved safety factor.
+
+For bending:
+
+[
+n_{actual} = S_F\left(\frac{s_{allow,design}}{s_{actual}}\right)
+]
+
+For contact:
+
+[
+n_{actual} = S_H^2\left(\frac{s_{allow,design}}{s_{actual}}\right)^2
+]
+
+---
+
+## Why Shigley feels cryptic here
+
+Because he does not stop and say plainly:
+
+* “I already embedded the design factor into (S_F) and (S_H)”
+* “therefore the ratio I just computed is only the excess over the target”
+* “to recover the full actual factor of safety, multiply back by (S_F) for bending or by (S_H^2) for contact”
+
+He just jumps straight to the numbers.
+
+So the book is not wrong here. It is just badly explained.
+
+## Bottom line
+
+The factor of 2 is not arbitrary.
+
+It comes from the given design factor (n_d=2), and it was already inserted earlier as:
+
+* (S_F=2) for bending
+* (S_H=\sqrt{2}) for contact
+
+Then, when Shigley computes the ratio of reduced allowable stress to actual stress, he multiplies back by:
+
+* (2) for bending
+* (2 = (\sqrt{2})^2) for contact
+
+to get the **actual achieved factor of safety**.
+
+If you want, I can rewrite Example 15-2 in a fully transparent step-by-step form with clean notation so the hidden logic becomes obvious.
+
+---
+
+Yes — that is exactly why it feels stupid.
+
+They are doing two different jobs with one notation:
+
+1. **Design check against a required minimum**
+2. **Report the achieved actual safety factor afterward**
+
+Those are not the same task.
+
+## Why reduce the strength first?
+
+Because during design, the practical question is not:
+
+* “What is the actual safety factor?”
+
+The practical design question is:
+
+* “Does this candidate design satisfy the required design factor?”
+
+So Shigley rewrites the material strength into a **design allowable stress**.
+
+For bending, instead of checking
+
+[
+n = \frac{\text{strength}}{\text{stress}} \ge 2
+]
+
+he rearranges it into
+
+[
+\text{stress} \le \frac{\text{strength}}{2}
+]
+
+That is all he is doing.
+
+He divides the strength by 2 so the requirement becomes a simple pass/fail allowable-stress check.
+
+That part is actually normal engineering practice.
+
+## Why it becomes confusing
+
+Because after doing that, he later asks a different question:
+
+* “What safety factor did we actually end up with?”
+
+At that point, yes, you have to “unreduce” it mentally, because the allowable stress you were using was never the raw strength. It was the **strength already divided by the target safety factor**.
+
+So:
+
+* reduced allowable stress = for **design screening**
+* unreduced strength = for **actual achieved factor of safety**
+
+## The cleaner way to think about it
+
+There are really three separate quantities:
+
+### 1. Raw strength
+
+This is the real adjusted capacity of the material/tooth after life, temperature, reliability factors.
+
+Call it:
+
+[
+S_{\text{adj}}
+]
+
+### 2. Design allowable stress
+
+This is the raw adjusted strength divided by the required design factor:
+
+[
+S_{\text{allow}} = \frac{S_{\text{adj}}}{n_d}
+]
+
+This is only a convenience quantity for checking whether the design meets the requirement.
+
+### 3. Actual achieved factor of safety
+
+Once actual stress (\sigma) is known, the real achieved factor of safety is
+
+[
+n_{\text{actual}} = \frac{S_{\text{adj}}}{\sigma}
+]
+
+not
+
+[
+\frac{S_{\text{allow}}}{\sigma}
+]
+
+because (S_{\text{allow}}) was already reduced.
+
+---
+
+## Why books do this
+
+Because in design work you are usually choosing among candidates.
+
+It is convenient to say:
+
+* allowable bending stress = 11.6 ksi
+* actual bending stress = 10.4 ksi
+* passes
+
+instead of repeatedly saying:
+
+* actual safety factor = 2.24
+* requirement = 2.0
+* passes
+
+Both are equivalent. The allowable-stress form is just a rearranged pass/fail format.
+
+## Why Shigley’s presentation annoys people
+
+Because he does not clearly separate:
+
+* **target design factor**
+* **reduced allowable stress**
+* **actual achieved factor of safety**
+
+He jumps between them as if they were obviously the same thing.
+
+They are related, but they are not the same quantity.
+
+## The least confusing interpretation
+
+Think of it like this:
+
+* dividing by 2 creates a **goal line**
+* comparing actual stress to that goal line tells you whether you pass
+* multiplying back by 2 later tells you how far above the minimum you actually are
+
+So yes, the workflow is clunky, but the logic is:
+
+* **reduce first** to make the design requirement easy to check
+* **restore later** only if you want the actual achieved safety factor
+
+Your frustration is justified. The math is fine; the exposition is bad.
+
+If you want, I can rewrite Example 15-2 using a cleaner notation with labels like `adjusted_strength`, `design_allowable`, and `actual_safety_factor` so the whole thing stops looking insane.
