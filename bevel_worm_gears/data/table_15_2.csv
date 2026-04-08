@@ -1,0 +1,5 @@
+character_of_prime_mover,driven_machine_uniform,driven_machine_light_shock,driven_machine_medium_shock,driven_machine_heavy_shock
+Uniform,1.00,1.25,1.50,1.75 or higher
+Light shock,1.10,1.35,1.60,1.85 or higher
+Medium shock,1.25,1.50,1.75,2.00 or higher
+Heavy shock,1.50,1.75,2.00,2.25 or higher

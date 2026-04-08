@@ -1,0 +1,51 @@
+{
+  "figure": "15-8",
+  "title": "Contact stress-cycle factor for pitting resistance for carburized case-hardened steel bevel gears",
+  "source": "ANSI/AGMA 2003-B97",
+  "applies_to": [
+    {
+      "factor_name": "C_L",
+      "description": "Contact stress-cycle factor"
+    },
+    {
+      "factor_name": "Z_NT",
+      "description": "Stress-cycle factor for pitting resistance"
+    }
+  ],
+  "independent_variable": {
+    "symbols": [
+      "N_L",
+      "n_L"
+    ],
+    "description": "Number of load cycles",
+    "scale": "logarithmic",
+    "range_shown": {
+      "min": 1000.0,
+      "max": 10000000000.0
+    }
+  },
+  "piecewise_expressions": [
+    {
+      "range": {
+        "min_inclusive": 1000.0,
+        "max_inclusive": 10000.0
+      },
+      "expressions": {
+        "C_L": "2.0",
+        "Z_NT": "2.0"
+      },
+      "note": "Horizontal plateau shown in the figure."
+    },
+    {
+      "range": {
+        "min_exclusive": 10000.0,
+        "max_inclusive": 10000000000.0
+      },
+      "expressions": {
+        "C_L": "3.4822 * N_L^(-0.0602)",
+        "Z_NT": "3.4822 * n_L^(-0.0602)"
+      },
+      "note": "Printed correlation shown in the figure."
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+material_designation,sub_material_designation,heat_treatment,root_condition,minimum_surface_hardness,bending_stress_grade_1_lbf_per_in2,bending_stress_grade_1_N_per_mm2,bending_stress_grade_2_lbf_per_in2,bending_stress_grade_2_N_per_mm2,bending_stress_grade_3_lbf_per_in2,bending_stress_grade_3_N_per_mm2,footnote_grade,footnote_heat_treatment,notes
+Steel,,Through-hardened,,Fig. 15-13,Fig. 15-13,Fig. 15-13,Fig. 15-13,Fig. 15-13,,,*,,
+Steel,,Flame or induction hardened,Unhardened roots,50 HRC,15000,85,13500,95,,,*,,
+Steel,,Flame or induction hardened,Hardened roots,50 HRC,22500,154,,,,,*,,
+Steel,AISI 4140,Carburized and case hardened,,2003-B97 Table 8,30000,205,35000,240,40000,275,*,†,"The allowable stress numbers indicated may be used with the case depths prescribed in 21.1, ANSI/AGMA 2003-B97."
+Steel,AISI 4140,Nitrided,,84.5 HR15N,,,22000,150,,,*,"†,‡","The overload capacity of nitrided gears is low. Since the shape of the effective S-N curve is flat, the sensitivity to shock should be investigated before proceeding with the design."
+Nitralloy 135M,,Nitrided,,90.0 HR15N,,,24000,165,,,*,"†,‡","The overload capacity of nitrided gears is low. Since the shape of the effective S-N curve is flat, the sensitivity to shock should be investigated before proceeding with the design."

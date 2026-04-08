@@ -1,0 +1,54 @@
+{
+  "figure": "15-13",
+  "title": "Allowable bending stress number for through-hardened steel gears",
+  "source": "ANSI/AGMA 2003-B97",
+  "independent_variable": {
+    "symbol": "H_B",
+    "description": "Brinell hardness",
+    "units": "HB"
+  },
+  "dependent_variables": [
+    {
+      "symbol": "s_at",
+      "description": "Bending stress number (allowable)",
+      "units": "psi"
+    },
+    {
+      "symbol": "sigma_F_lim",
+      "description": "Bending stress number (allowable)",
+      "units": "MPa"
+    }
+  ],
+  "correlations": [
+    {
+      "grade": 1,
+      "expressions": {
+        "s_at_psi": "44 * H_B + 2100",
+        "sigma_F_lim_MPa": "0.30 * H_B + 14.48"
+      },
+      "note": "Maximum for grade 1"
+    },
+    {
+      "grade": 2,
+      "expressions": {
+        "s_at_psi": "48 * H_B + 5980",
+        "sigma_F_lim_MPa": "0.33 * H_B + 41.24"
+      },
+      "note": "Maximum for grade 2"
+    }
+  ],
+  "range_shown": {
+    "H_B": {
+      "min": 150,
+      "max": 450
+    },
+    "s_at_kpsi_axis": {
+      "min": 10,
+      "max": 60
+    },
+    "sigma_F_lim_MPa_axis": {
+      "min": 50,
+      "max": 400
+    }
+  }
+}

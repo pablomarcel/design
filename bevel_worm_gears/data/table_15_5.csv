@@ -1,0 +1,5 @@
+material,astm_designation,iso_designation,heat_treatment,typical_minimum_surface_hardness,allowable_contact_stress_number_lbf_per_in2,allowable_contact_stress_number_N_per_mm2,notes
+Cast iron,ASTM A48 Class 30,ISO/DR 185 Grade 200,As cast,175 HB,50000,345,
+Cast iron,ASTM A48 Class 40,ISO/DR 185 Grade 300,As cast,200 HB,65000,450,
+Ductile (nodular) iron,ASTM A536 Grade 80-55-06,ISO/DIS 1083 Grade 600-370-03,Quenched and tempered,180 HB,94000,650,
+Ductile (nodular) iron,ASTM A536 Grade 120-90-02,ISO/DIS 1083 Grade 800-480-02,Quenched and tempered,300 HB,135000,930,

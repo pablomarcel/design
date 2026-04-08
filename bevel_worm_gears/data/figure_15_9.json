@@ -1,0 +1,71 @@
+{
+  "figure": "15-9",
+  "title": "Stress-cycle factor for bending strength K_L (Y_NT) for carburized case-hardened steel bevel gears",
+  "source": "ANSI/AGMA 2003-B97",
+  "applies_to": [
+    {
+      "factor_name": "K_L",
+      "description": "Stress-cycle factor for bending strength"
+    },
+    {
+      "factor_name": "Y_NT",
+      "description": "Stress-cycle factor for bending strength"
+    }
+  ],
+  "independent_variable": {
+    "symbols": [
+      "N_L",
+      "n_L"
+    ],
+    "description": "Number of load cycles",
+    "scale": "logarithmic",
+    "range_shown": {
+      "min": 100.0,
+      "max": 10000000000.0
+    }
+  },
+  "piecewise_expressions": [
+    {
+      "range": {
+        "min_inclusive": 100.0,
+        "max_inclusive": 1000.0
+      },
+      "expressions": {
+        "K_L": "2.7",
+        "Y_NT": "2.7"
+      },
+      "note": "Constant plateau shown at low cycle counts."
+    },
+    {
+      "range": {
+        "min_exclusive": 1000.0,
+        "max_inclusive": 3000000.0
+      },
+      "expressions": {
+        "K_L": "6.1514 * N_L^(-0.1192)",
+        "Y_NT": "6.1514 * n_L^(-0.1192)"
+      },
+      "note": "Intermediate-cycle correlation shown on the figure."
+    },
+    {
+      "range": {
+        "min_exclusive": 3000000.0,
+        "max_inclusive": 10000000000.0
+      },
+      "expressions": {
+        "K_L_upper": "1.3558 * N_L^(-0.0178)",
+        "Y_NT_upper": "1.3558 * n_L^(-0.0178)",
+        "K_L_lower": "1.683 * N_L^(-0.0323)",
+        "Y_NT_lower": "1.683 * n_L^(-0.0323)"
+      },
+      "note": "The figure shows two high-cycle correlations defining an upper and lower branch/band. The selection criterion is not stated on the figure itself."
+    }
+  ],
+  "selection_note": "The figure presents two alternate high-cycle correlations after the knee near 3\u00d710^6 cycles. The exhibit alone does not state the decision rule for choosing the upper versus lower branch.",
+  "notes_from_figure": [
+    "The choice of K_L (Y_NT) is influenced by pitch-line velocity.",
+    "The choice of K_L (Y_NT) is influenced by gear material cleanliness.",
+    "The choice of K_L (Y_NT) is influenced by residual stress.",
+    "The choice of K_L (Y_NT) is influenced by material ductility and fracture toughness."
+  ]
+}

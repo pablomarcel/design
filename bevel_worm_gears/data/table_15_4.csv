@@ -1,0 +1,6 @@
+material_designation,sub_material_designation,heat_treatment,minimum_surface_hardness,allowable_contact_stress_grade_1_lbf_per_in2,allowable_contact_stress_grade_1_N_per_mm2,allowable_contact_stress_grade_2_lbf_per_in2,allowable_contact_stress_grade_2_N_per_mm2,allowable_contact_stress_grade_3_lbf_per_in2,allowable_contact_stress_grade_3_N_per_mm2,footnote_minimum_surface_hardness,footnote_grade,footnote_material_designation,footnote_heat_treatment,notes
+Steel,,Through-hardened,Fig. 15-12,Fig. 15-12,Fig. 15-12,Fig. 15-12,Fig. 15-12,,,*,†,,‡,These materials must be annealed or normalized as a minimum.
+Steel,AISI 4140,Flame or induction hardened,50 HRC,175000,1210,190000,1310,,,*,†,,§,"Allowable stress numbers may be used with the case depths prescribed in 21.1, ANSI/AGMA 2003-B97."
+Steel,AISI 4140,Carburized and case hardened,2003-B97 Table 8,200000,1380,225000,1550,250000,1720,*,†,,§,"Allowable stress numbers may be used with the case depths prescribed in 21.1, ANSI/AGMA 2003-B97."
+Steel,AISI 4140,Nitrided,84.5 HR15N,,,145000,1000,,,*,†,,§,"Allowable stress numbers may be used with the case depths prescribed in 21.1, ANSI/AGMA 2003-B97."
+Nitralloy 135M,,Nitrided,90.0 HR15N,,,160000,1100,,,*,†,,§,"Allowable stress numbers may be used with the case depths prescribed in 21.1, ANSI/AGMA 2003-B97."

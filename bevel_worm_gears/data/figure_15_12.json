@@ -1,0 +1,54 @@
+{
+  "figure": "15-12",
+  "title": "Allowable contact stress number for through-hardened steel gears",
+  "source": "ANSI/AGMA 2003-B97",
+  "independent_variable": {
+    "symbol": "H_B",
+    "description": "Brinell hardness",
+    "units": "HB"
+  },
+  "dependent_variables": [
+    {
+      "symbol": "s_ac",
+      "description": "Allowable contact stress number",
+      "units": "psi"
+    },
+    {
+      "symbol": "sigma_H_lim",
+      "description": "Allowable contact stress number",
+      "units": "MPa"
+    }
+  ],
+  "correlations": [
+    {
+      "grade": 1,
+      "expressions": {
+        "s_ac_psi": "341 * H_B + 23620",
+        "sigma_H_lim_MPa": "2.35 * H_B + 162.89"
+      },
+      "note": "Maximum for grade 1"
+    },
+    {
+      "grade": 2,
+      "expressions": {
+        "s_ac_psi": "363.6 * H_B + 29560",
+        "sigma_H_lim_MPa": "2.51 * H_B + 203.86"
+      },
+      "note": "Maximum for grade 2"
+    }
+  ],
+  "range_shown": {
+    "H_B": {
+      "min": 150,
+      "max": 450
+    },
+    "s_ac_kpsi_axis": {
+      "min": 75,
+      "max": 200
+    },
+    "sigma_H_lim_MPa_axis": {
+      "min": 600,
+      "max": 1300
+    }
+  }
+}

@@ -1,0 +1,81 @@
+{
+  "table": "15-8",
+  "title": "Cylindrical Worm Dimensions Common to Both Worm and Gear",
+  "source_note": "ANSI/AGMA 6034-B92 and ANSI/AGMA 6022-C93 as shown in exhibit.",
+  "footnotes": [
+    "The table entries are for a tangential diametral pitch of the gear of P_t = 1.",
+    "Equations (15\u201332) to (15\u201338) are contained in Annex C of 6034-B92 for informational purposes only. To comply with ANSI/AGMA 6034-B92, use the tabulations of these rating factors provided in the standard."
+  ],
+  "columns": [
+    "quantity",
+    "symbol",
+    "phi_n_deg",
+    "N_w_condition",
+    "expression_in_terms_of_p_x"
+  ],
+  "rows": [
+    {
+      "quantity": "Addendum",
+      "symbol": "a",
+      "cases": [
+        {
+          "phi_n_deg": 14.5,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.3183*p_x"
+        },
+        {
+          "phi_n_deg": 20.0,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.3183*p_x"
+        },
+        {
+          "phi_n_deg": 25.0,
+          "N_w_condition": "N_w > 2",
+          "expression_in_terms_of_p_x": "0.286*p_x"
+        }
+      ]
+    },
+    {
+      "quantity": "Dedendum",
+      "symbol": "b",
+      "cases": [
+        {
+          "phi_n_deg": 14.5,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.3683*p_x"
+        },
+        {
+          "phi_n_deg": 20.0,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.3683*p_x"
+        },
+        {
+          "phi_n_deg": 25.0,
+          "N_w_condition": "N_w > 2",
+          "expression_in_terms_of_p_x": "0.349*p_x"
+        }
+      ]
+    },
+    {
+      "quantity": "Whole depth",
+      "symbol": "h_t",
+      "cases": [
+        {
+          "phi_n_deg": 14.5,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.6866*p_x"
+        },
+        {
+          "phi_n_deg": 20.0,
+          "N_w_condition": "N_w <= 2",
+          "expression_in_terms_of_p_x": "0.6866*p_x"
+        },
+        {
+          "phi_n_deg": 25.0,
+          "N_w_condition": "N_w > 2",
+          "expression_in_terms_of_p_x": "0.635*p_x"
+        }
+      ]
+    }
+  ]
+}
