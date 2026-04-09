@@ -47,6 +47,7 @@ gear_teeth,pinion_teeth,geometry_factor_I,estimated_flag,note
 50,50,0.073,True,Approximate digitization from Figure 15-6
 60,13,0.0762,True,Approximate digitization from Figure 15-6
 60,18,0.0825,True,Approximate digitization from Figure 15-6
+60,20,0.0825,True,Refined Figure 15-6 point added from Example 15-2 textbook value
 60,24,0.0878,True,Approximate digitization from Figure 15-6
 60,31,0.0895,True,Approximate digitization from Figure 15-6
 60,38,0.089,True,Approximate digitization from Figure 15-6
