@@ -998,12 +998,17 @@ class WormGearMeshDesignSolver(WormGearCommon):
         F_e_max = 2.0 * d_candidate / 3.0
         F_e_auto = min(round_up(F_e_req, float(dsg.get("face_width_rounding_increment_in", 0.25))), F_e_max)
 
-        if "effective_gear_face_width_selected_in" in dsg:
+        face_width_selection_mode = str(dsg.get("effective_face_width_selection_mode", "auto_round_up")).strip().lower()
+        if face_width_selection_mode == "input_override":
+            if "effective_gear_face_width_selected_in" not in dsg:
+                raise BevelWormGearError(
+                    "effective_face_width_selection_mode='input_override' requires effective_gear_face_width_selected_in."
+                )
             F_e_selected = float(dsg["effective_gear_face_width_selected_in"])
             face_width_source = "input_override"
         else:
             F_e_selected = F_e_auto
-            face_width_source = "auto"
+            face_width_source = "auto_round_up"
 
         face_width_within_range = (F_e_selected >= F_e_req - 1e-12) and (F_e_selected <= F_e_max + 1e-12)
 
