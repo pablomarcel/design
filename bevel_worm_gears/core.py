@@ -83,16 +83,19 @@ class DataRepository:
         return GridInterpolator2D(pts).interpolate(pinion_teeth, gear_teeth)
 
     def interpolate_J(self, gear_teeth_for_which_J_is_desired: float, mate_teeth: float) -> float:
-        # Chart digitization was rough; use overrides for exact example points first.
-        overrides = {
-            (25.0, 25.0): 0.216,
-            (20.0, 60.0): 0.248,
-            (60.0, 20.0): 0.202,
-        }
-        key = (float(gear_teeth_for_which_J_is_desired), float(mate_teeth))
-        if key in overrides:
-            return overrides[key]
         rows = self.csv("figure_15_7.csv")
+
+        target_gear = float(gear_teeth_for_which_J_is_desired)
+        target_mate = float(mate_teeth)
+
+        # Purely data-driven behavior: if the exact point exists in the CSV,
+        # return it directly; otherwise use the interpolator on the chart data.
+        for r in rows:
+            gear_val = float(r["gear_teeth_for_which_J_is_desired"])
+            mate_val = float(r["mate_teeth"])
+            if abs(gear_val - target_gear) < 1e-12 and abs(mate_val - target_mate) < 1e-12:
+                return float(r["geometry_factor_J"])
+
         pts = [
             ChartPoint(
                 float(r["gear_teeth_for_which_J_is_desired"]),
