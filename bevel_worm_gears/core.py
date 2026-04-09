@@ -833,6 +833,8 @@ class WormGearAnalysisSolver(WormGearCommon):
         F_e_G = self._gear_face_width_effective(float(geom_in["gear_face_width_in"]), geom["d_in"])
         W_t_all = capacity_factors["material_factor_Cs"] * geom["D_in"]**0.8 * F_e_G * capacity_factors["C_m"] * capacity_factors["C_v"]
         force_ok = W_G_t < W_t_all
+        excess_capacity_margin_lbf = W_t_all - W_G_t
+        excess_capacity_ratio = W_t_all / W_G_t if W_G_t != 0.0 else math.inf
 
         W_f = worm_force_friction(W_G_t, geom["phi_n_deg"], kin["lambda_rad"], friction_coeff)
         H_f = W_f * kin["V_s_ft_per_min"] / 33000.0
@@ -849,6 +851,8 @@ class WormGearAnalysisSolver(WormGearCommon):
         H_loss = 33000.0 * (1.0 - eff) * H_W
         h_bar_CR = worm_heat_transfer_coeff(float(operating["worm_rpm"]), bool(thermal["fan_on_worm_shaft"]))
         t_s = float(thermal["ambient_temp_F"]) + H_loss / (h_bar_CR * float(thermal["case_lateral_area_in2"]))
+        acceptable_sump_temperature_F = float(thermal.get("acceptable_sump_temperature_F", 200.0))
+        sump_temperature_ok = t_s <= acceptable_sump_temperature_F
 
         return {
             "problem": self.solve_path,
@@ -865,6 +869,9 @@ class WormGearAnalysisSolver(WormGearCommon):
                 "effective_gear_face_width_F_e_G_in": F_e_G,
                 "allowable_tangential_force_W_t_all_lbf": W_t_all,
                 "force_capacity_ok": force_ok,
+                "excess_capacity_margin_lbf": excess_capacity_margin_lbf,
+                "excess_capacity_ratio": excess_capacity_ratio,
+                "capacity_check_note": "Passes excess-capacity check when W_G_t < W_t_all.",
                 "friction_force_W_f_lbf": W_f,
                 "friction_power_H_f_hp": H_f,
                 "worm_power_H_W_hp": H_W,
@@ -877,6 +884,9 @@ class WormGearAnalysisSolver(WormGearCommon):
                 "heat_loss_rate_H_loss_ft_lbf_per_min": H_loss,
                 "h_bar_CR_ft_lbf_per_min_in2_F": h_bar_CR,
                 "sump_temperature_t_s_F": t_s,
+                "acceptable_sump_temperature_F": acceptable_sump_temperature_F,
+                "sump_temperature_satisfactory": sump_temperature_ok,
+                "sump_temperature_check_note": "Common practice target from Ugural-style guidance: lubricant temperature should typically not exceed about 200 F.",
             },
         }
 
@@ -962,6 +972,8 @@ class WormGearMeshDesignSolver(WormGearCommon):
             raise BevelWormGearError("Selected effective gear face width is outside the allowable range.")
         W_t_all = capacity_factors["material_factor_Cs"] * D**0.8 * F_e_selected * capacity_factors["C_m"] * capacity_factors["C_v"]
         excess_capacity_ok = W_t_all > W_G_t
+        excess_capacity_margin_lbf = W_t_all - W_G_t
+        excess_capacity_ratio = W_t_all / W_G_t if W_G_t != 0.0 else math.inf
 
         h_bar_CR = worm_heat_transfer_coeff(float(dsg["worm_rpm"]), bool(dsg["fan_on_worm_shaft"]))
         H_loss = 33000.0 * (1.0 - e_w) * H_W
@@ -979,6 +991,9 @@ class WormGearMeshDesignSolver(WormGearCommon):
         ambient = float(dsg["ambient_temp_F"])
         t_s_actual_area = ambient + H_loss / (h_bar_CR * actual_area)
         t_s_min_area = ambient + H_loss / (h_bar_CR * A_min)
+        acceptable_sump_temperature_F = float(dsg.get("acceptable_sump_temperature_F", 200.0))
+        sump_temperature_ok_actual_area = t_s_actual_area <= acceptable_sump_temperature_F
+        sump_temperature_ok_min_area = t_s_min_area <= acceptable_sump_temperature_F
 
         y = worm_lewis_y(phi_n_deg)
         sigma = W_G_t / (kin["p_n_in"] * F_e_selected * y)
@@ -1031,6 +1046,9 @@ class WormGearMeshDesignSolver(WormGearCommon):
                     "effective_face_width_selected_in": F_e_selected,
                     "allowable_tangential_force_W_t_all_lbf": W_t_all,
                     "force_capacity_ok": excess_capacity_ok,
+                    "excess_capacity_margin_lbf": excess_capacity_margin_lbf,
+                    "excess_capacity_ratio": excess_capacity_ratio,
+                    "capacity_check_note": "Passes excess-capacity check when W_G_t < W_t_all.",
                 },
                 "thermal": {
                     "h_bar_CR_ft_lbf_per_min_in2_F": h_bar_CR,
@@ -1043,6 +1061,10 @@ class WormGearMeshDesignSolver(WormGearCommon):
                     "actual_lateral_area_in2": actual_area,
                     "sump_temperature_with_actual_area_F": t_s_actual_area,
                     "sump_temperature_with_A_min_F": t_s_min_area,
+                    "acceptable_sump_temperature_F": acceptable_sump_temperature_F,
+                    "sump_temperature_satisfactory_with_actual_area": sump_temperature_ok_actual_area,
+                    "sump_temperature_satisfactory_with_A_min": sump_temperature_ok_min_area,
+                    "sump_temperature_check_note": "Common practice target from Ugural-style guidance: lubricant temperature should typically not exceed about 200 F.",
                 },
                 "bending": {
                     "lewis_y": y,
