@@ -1,0 +1,32 @@
+{
+  "solve_path": "straight_bevel_mesh_design",
+  "title": "Shigley Example 15-2 style straight bevel gear mesh design",
+  "design": {
+    "horsepower": 6.85,
+    "rpm": 900,
+    "gear_ratio": 3.0,
+    "temperature_F": 300,
+    "normal_pressure_angle_deg": 20,
+    "design_factor": 2.0,
+    "prime_mover": "Uniform",
+    "driven_machine": "Uniform",
+    "pinion_teeth": 20,
+    "crowned": true,
+    "reliability": 0.995,
+    "pinion_cycles": 10000000000.0,
+    "Q_v": 6,
+    "mounting": "neither member straddle-mounted",
+    "initial_diametral_pitch": 8,
+    "candidate_diametral_pitches": [8],
+    "face_width_rounding_increment_in": 0.25
+  },
+  "material": {
+    "agma_grade": 1,
+    "heat_treatment": "carburized and case hardened",
+    "pinion_hb": 515,
+    "gear_hb": 515,
+    "case_hardened_pinion": true,
+    "C_P": 2290,
+    "pinion_surface_finish_um": 0.3
+  }
+}

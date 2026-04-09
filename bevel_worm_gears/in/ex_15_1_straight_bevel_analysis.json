@@ -1,0 +1,50 @@
+{
+  "solve_path": "straight_bevel_analysis",
+  "title": "Shigley Example 15-1 style straight bevel gear analysis",
+  "gearset": {
+    "pinion_teeth": 25,
+    "gear_teeth": 25,
+    "diametral_pitch_large_end": 5,
+    "face_width_in": 1.1,
+    "normal_pressure_angle_deg": 20,
+    "crowned": false,
+    "Q_v": 7,
+    "mounting": "outboard mounting"
+  },
+  "material": {
+    "agma_grade": 1,
+    "heat_treatment": "through-hardened",
+    "pinion_hb": 180,
+    "gear_hb": 180,
+    "case_hardened_pinion": false,
+    "C_P": 2290
+  },
+  "operating": {
+    "prime_mover": "Uniform",
+    "driven_machine": "Uniform",
+    "rpm": 600,
+    "temperature_F": 70
+  },
+  "parts": {
+    "a": {
+      "S_F": 1.0,
+      "S_H": 1.0,
+      "cycles": 10000000.0,
+      "reliability": 0.99,
+      "K_L_branch": "general",
+      "notes": "Corrected to 1e7 cycles per Shigley Example 15-1 part (a)."
+    },
+    "c": {
+      "S_F": 1.5,
+      "S_H": 1.5,
+      "cycles": 1000000000.0,
+      "reliability": 0.995,
+      "K_L_branch": "general",
+      "notes": "Corrected to 1e9 cycles per Shigley Example 15-1 part (c)."
+    }
+  },
+  "notes": [
+    "This upgraded input keeps the original problem data but corrects the cycle counts to match the textbook example.",
+    "The previous version used 1e8 and 1e10 cycles, which shifts both K_L and C_L."
+  ]
+}
