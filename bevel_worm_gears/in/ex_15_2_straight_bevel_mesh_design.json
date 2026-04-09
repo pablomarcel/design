@@ -13,7 +13,7 @@
     "pinion_teeth": 20,
     "crowned": true,
     "reliability": 0.995,
-    "pinion_cycles": 10000000000.0,
+    "pinion_cycles": 1000000000.0,
     "Q_v": 6,
     "mounting": "neither member straddle-mounted",
     "initial_diametral_pitch": 8,
