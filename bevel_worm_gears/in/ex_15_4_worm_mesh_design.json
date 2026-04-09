@@ -21,14 +21,32 @@
     "actual_area_rounding_increment_in2": 100.0,
     "actual_lateral_area_in2": 1100.0,
     "effective_gear_face_width_selected_in": 1.5,
-    "reference_allowable_sigma_psi": 10000.0
+    "reference_allowable_sigma_psi": 10000.0,
+    "commercial_axial_pitches_in": [
+      0.25,
+      0.3125,
+      0.375,
+      0.5,
+      0.625,
+      0.75,
+      1.0,
+      1.25,
+      1.5,
+      1.75,
+      2.0
+    ],
+    "axial_pitch_iteration_count": 1,
+    "worm_pitch_diameter_iteration_count": 2,
+    "selection_policy": "last_successful_candidate",
+    "acceptable_sump_temperature_F": 200.0
   },
   "material": {
     "worm_material": "case-hardened alloy steel worm",
     "gear_material": "sand-cast bronze gear"
   },
   "notes": [
-    "Implements Example 15-4 style worm mesh design using the iterative route described by the user.",
-    "effective_gear_face_width_selected_in is explicit so the design choice remains data-driven."
+    "Upgraded schema supports candidate iteration for axial pitch and worm pitch diameter.",
+    "With axial_pitch_iteration_count = 1 and worm_pitch_diameter_iteration_count = 2, the run follows the textbook-style sequence p_x = 1.5 in, then d = 2.0 in and 2.5 in.",
+    "selection_policy = last_successful_candidate preserves the last design candidate that satisfies all checks."
   ]
 }

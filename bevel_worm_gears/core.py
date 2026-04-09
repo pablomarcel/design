@@ -898,18 +898,60 @@ class WormGearMeshDesignSolver(WormGearCommon):
         self.repo = repo
         self.spec = spec
 
-    def solve(self) -> Dict[str, Any]:
-        p = self.spec
-        dsg = p["design"]
+    def _resolve_axial_pitch_candidates(self, dsg: Mapping[str, Any]) -> List[float]:
+        if "axial_pitch_candidates_in" in dsg:
+            return [float(v) for v in dsg["axial_pitch_candidates_in"]]
 
-        N_W = int(dsg["worm_threads"])
-        m_G = float(dsg["gear_ratio"])
-        N_G = int(round(m_G * N_W))
-        phi_n_deg = float(dsg["normal_pressure_angle_deg"])
-        min_teeth = self.repo.worm_min_gear_teeth(phi_n_deg)
-        acceptable_gear_teeth = N_G >= min_teeth
+        if "commercial_axial_pitches_in" in dsg:
+            commercial = [float(v) for v in dsg["commercial_axial_pitches_in"]]
+            start = float(dsg.get("trial_axial_pitch_in", commercial[0]))
+            count = int(dsg.get("axial_pitch_iteration_count", 1))
 
-        p_x = float(dsg["trial_axial_pitch_in"])
+            idx = None
+            for i, val in enumerate(commercial):
+                if abs(val - start) < 1e-12:
+                    idx = i
+                    break
+            if idx is None:
+                for i, val in enumerate(commercial):
+                    if val >= start:
+                        idx = i
+                        break
+            if idx is None:
+                idx = max(0, len(commercial) - 1)
+
+            return commercial[idx: idx + max(1, count)]
+
+        start = float(dsg["trial_axial_pitch_in"])
+        count = int(dsg.get("axial_pitch_iteration_count", 1))
+        step = float(dsg.get("axial_pitch_step_in", 0.25))
+        return [start + i * step for i in range(max(1, count))]
+
+    def _resolve_worm_pitch_diameter_candidates(self, dsg: Mapping[str, Any]) -> List[float]:
+        if "worm_pitch_diameter_candidates_in" in dsg:
+            return [float(v) for v in dsg["worm_pitch_diameter_candidates_in"]]
+
+        start = float(dsg["initial_worm_pitch_diameter_in"])
+        count = int(dsg.get("worm_pitch_diameter_iteration_count", dsg.get("max_d_trials", 1)))
+        step = float(dsg.get("worm_pitch_diameter_step_in", 0.5))
+        return [start + i * step for i in range(max(1, count))]
+
+    def _selection_policy(self, dsg: Mapping[str, Any]) -> str:
+        return str(dsg.get("selection_policy", "last_successful_candidate")).strip().lower()
+
+    def _evaluate_candidate(
+        self,
+        *,
+        dsg: Mapping[str, Any],
+        N_W: int,
+        N_G: int,
+        m_G: float,
+        phi_n_deg: float,
+        p_x: float,
+        d_candidate: float,
+        acceptable_gear_teeth: bool,
+        min_teeth: int,
+    ) -> Dict[str, Any]:
         P_t = math.pi / p_x
         D = N_G / P_t
         coeffs = worm_tooth_system_coeffs(phi_n_deg, N_W)
@@ -917,45 +959,34 @@ class WormGearMeshDesignSolver(WormGearCommon):
         b = coeffs["b"] * p_x
         h_t = coeffs["ht"] * p_x if p_x >= 0.16 else 0.7003 * p_x + 0.002
 
-        d0 = float(dsg["initial_worm_pitch_diameter_in"])
-        d_step = float(dsg.get("worm_pitch_diameter_step_in", 0.5))
-        max_trials = int(dsg.get("max_d_trials", 10))
+        C = (d_candidate + D) / 2.0
+        d_lo = C**0.875 / 3.0
+        d_hi = C**0.875 / 1.6
+        valid_under_eq_15_27 = d_lo <= d_candidate <= d_hi
 
-        d_trials: List[Dict[str, Any]] = []
-        chosen_d = None
-        current = d0
-        for _ in range(max_trials):
-            C = (current + D) / 2.0
-            dlo = C**0.875 / 3.0
-            dhi = C**0.875 / 1.6
-            valid = dlo <= current <= dhi
-            d_trials.append({
-                "candidate_d_in": current,
-                "center_distance_C_in": C,
-                "d_lo_in": dlo,
-                "d_hi_in": dhi,
-                "valid_under_eq_15_27": valid,
-            })
-            if valid:
-                chosen_d = current
-            current += d_step
-
-        if chosen_d is None:
-            raise BevelWormGearError("No valid worm pitch diameter found under Eq. (15-27).")
-
-        C = (chosen_d + D) / 2.0
-        kin = self._kinematics(d_in=chosen_d, D_in=D, nw_rpm=float(dsg["worm_rpm"]), gear_ratio=m_G, P_t=P_t, worm_threads=N_W)
+        kin = self._kinematics(
+            d_in=d_candidate,
+            D_in=D,
+            nw_rpm=float(dsg["worm_rpm"]),
+            gear_ratio=m_G,
+            P_t=P_t,
+            worm_threads=N_W,
+        )
         lambda_max_deg = self.repo.worm_max_lead_angle_deg(phi_n_deg)
         lead_angle_ok = kin["lambda_deg"] <= lambda_max_deg
 
         capacity_factors = self._force_capacity_factors(
-            gear_ratio=m_G, center_distance_in=C, mean_gear_diameter_in=D,
-            sliding_velocity_ft_min=kin["V_s_ft_per_min"], gear_material_class=dsg["gear_material_class"],
+            gear_ratio=m_G,
+            center_distance_in=C,
+            mean_gear_diameter_in=D,
+            sliding_velocity_ft_min=kin["V_s_ft_per_min"],
+            gear_material_class=dsg["gear_material_class"],
         )
 
         friction_coeff = worm_friction_coeff(kin["V_s_ft_per_min"])
         e_w = worm_efficiency_worm_drives(phi_n_deg, friction_coeff, kin["lambda_rad"])
         e_g = worm_efficiency_gear_drives(phi_n_deg, friction_coeff, kin["lambda_rad"])
+
         W_G_t = 33000.0 * float(dsg["design_factor"]) * float(dsg["output_power_hp"]) * float(dsg["application_factor"]) / (kin["V_G_ft_per_min"] * e_w)
         W_W_t = worm_force_worm_tangential(W_G_t, phi_n_deg, kin["lambda_rad"], friction_coeff)
         H_W = W_W_t * kin["V_W_ft_per_min"] / 33000.0
@@ -964,12 +995,18 @@ class WormGearMeshDesignSolver(WormGearCommon):
         H_f = W_f * kin["V_s_ft_per_min"] / 33000.0
 
         F_e_req = W_G_t / (capacity_factors["material_factor_Cs"] * D**0.8 * capacity_factors["C_m"] * capacity_factors["C_v"])
-        F_e_max = 2.0 * chosen_d / 3.0
-        F_e_selected = min(round_up(F_e_req, float(dsg.get("face_width_rounding_increment_in", 0.25))), F_e_max)
+        F_e_max = 2.0 * d_candidate / 3.0
+        F_e_auto = min(round_up(F_e_req, float(dsg.get("face_width_rounding_increment_in", 0.25))), F_e_max)
+
         if "effective_gear_face_width_selected_in" in dsg:
             F_e_selected = float(dsg["effective_gear_face_width_selected_in"])
-        if F_e_selected < F_e_req or F_e_selected > F_e_max + 1e-12:
-            raise BevelWormGearError("Selected effective gear face width is outside the allowable range.")
+            face_width_source = "input_override"
+        else:
+            F_e_selected = F_e_auto
+            face_width_source = "auto"
+
+        face_width_within_range = (F_e_selected >= F_e_req - 1e-12) and (F_e_selected <= F_e_max + 1e-12)
+
         W_t_all = capacity_factors["material_factor_Cs"] * D**0.8 * F_e_selected * capacity_factors["C_m"] * capacity_factors["C_v"]
         excess_capacity_ok = W_t_all > W_G_t
         excess_capacity_margin_lbf = W_t_all - W_G_t
@@ -980,9 +1017,9 @@ class WormGearMeshDesignSolver(WormGearCommon):
         A_min = 43.2 * C**1.7
 
         clearance = float(dsg.get("rough_clearance_in", 6.0))
-        vertical = chosen_d + D + clearance
+        vertical = d_candidate + D + clearance
         width = D + clearance
-        thickness = chosen_d + clearance
+        thickness = d_candidate + clearance
         rough_area = 2.0 * vertical * width + 2.0 * thickness * vertical + width * thickness
         actual_area = round_up(rough_area, float(dsg.get("actual_area_rounding_increment_in2", 100.0)))
         if "actual_lateral_area_in2" in dsg:
@@ -997,6 +1034,171 @@ class WormGearMeshDesignSolver(WormGearCommon):
 
         y = worm_lewis_y(phi_n_deg)
         sigma = W_G_t / (kin["p_n_in"] * F_e_selected * y)
+        sigma_ref = float(dsg.get("reference_allowable_sigma_psi", 10000.0))
+        gear_stress_ok = sigma <= sigma_ref
+
+        meets_design = all([
+            acceptable_gear_teeth,
+            valid_under_eq_15_27,
+            lead_angle_ok,
+            face_width_within_range,
+            excess_capacity_ok,
+            sump_temperature_ok_actual_area,
+            gear_stress_ok,
+        ])
+
+        failure_reasons = []
+        if not acceptable_gear_teeth:
+            failure_reasons.append(f"N_G={N_G} is below the minimum {min_teeth} for phi_n={phi_n_deg}.")
+        if not valid_under_eq_15_27:
+            failure_reasons.append("worm pitch diameter violates Eq. (15-27) bounds")
+        if not lead_angle_ok:
+            failure_reasons.append("lead angle exceeds Table 15-9 maximum")
+        if not face_width_within_range:
+            failure_reasons.append("selected effective face width is outside F_e_req <= F_e <= 2d/3")
+        if not excess_capacity_ok:
+            failure_reasons.append("capacity check failed: W_t_all <= W_G_t")
+        if not sump_temperature_ok_actual_area:
+            failure_reasons.append("sump temperature exceeds acceptable limit for actual area")
+        if not gear_stress_ok:
+            failure_reasons.append("gear bending stress exceeds reference allowable stress")
+
+        return {
+            "candidate_axial_pitch_p_x_in": p_x,
+            "candidate_d_in": d_candidate,
+            "geometry": {
+                "N_W": N_W,
+                "N_G": N_G,
+                "m_G": m_G,
+                "P_t": P_t,
+                "D_in": D,
+                "a_in": a,
+                "b_in": b,
+                "h_t_in": h_t,
+                "chosen_d_in": d_candidate,
+                "center_distance_C_in": C,
+                "d_lo_in": d_lo,
+                "d_hi_in": d_hi,
+                "valid_under_eq_15_27": valid_under_eq_15_27,
+                "lead_angle_lambda_deg": kin["lambda_deg"],
+                "lambda_max_deg": lambda_max_deg,
+                "lead_angle_ok": lead_angle_ok,
+                "P_n": kin["P_n"],
+                "p_n_in": kin["p_n_in"],
+            },
+            "kinematics": kin,
+            "capacity_factors": capacity_factors,
+            "forces_and_powers": {
+                "friction_coefficient_f": friction_coeff,
+                "mesh_efficiency_e_worm_drives": e_w,
+                "mesh_efficiency_e_gear_drives": e_g,
+                "worm_tangential_force_W_W_t_lbf": W_W_t,
+                "gear_tangential_force_W_G_t_lbf": W_G_t,
+                "worm_power_H_W_hp": H_W,
+                "gear_power_H_G_hp": H_G,
+                "friction_force_W_f_lbf": W_f,
+                "friction_power_H_f_hp": H_f,
+            },
+            "capacity": {
+                "effective_face_width_required_F_e_req_in": F_e_req,
+                "effective_face_width_max_in": F_e_max,
+                "effective_face_width_auto_in": F_e_auto,
+                "effective_face_width_selected_in": F_e_selected,
+                "effective_face_width_source": face_width_source,
+                "face_width_within_range": face_width_within_range,
+                "allowable_tangential_force_W_t_all_lbf": W_t_all,
+                "force_capacity_ok": excess_capacity_ok,
+                "excess_capacity_margin_lbf": excess_capacity_margin_lbf,
+                "excess_capacity_ratio": excess_capacity_ratio,
+                "capacity_check_note": "Passes excess-capacity check when W_G_t < W_t_all.",
+            },
+            "thermal": {
+                "h_bar_CR_ft_lbf_per_min_in2_F": h_bar_CR,
+                "heat_loss_rate_H_loss_ft_lbf_per_min": H_loss,
+                "minimum_case_area_A_min_in2": A_min,
+                "rough_case_area_vertical_in": vertical,
+                "rough_case_area_width_in": width,
+                "rough_case_area_thickness_in": thickness,
+                "rough_case_area_in2": rough_area,
+                "actual_lateral_area_in2": actual_area,
+                "sump_temperature_with_actual_area_F": t_s_actual_area,
+                "sump_temperature_with_A_min_F": t_s_min_area,
+                "acceptable_sump_temperature_F": acceptable_sump_temperature_F,
+                "sump_temperature_satisfactory_with_actual_area": sump_temperature_ok_actual_area,
+                "sump_temperature_satisfactory_with_A_min": sump_temperature_ok_min_area,
+                "sump_temperature_check_note": "Common practice target from Ugural-style guidance: lubricant temperature should typically not exceed about 200 F.",
+            },
+            "bending": {
+                "lewis_y": y,
+                "sigma_gear_psi": sigma,
+                "reference_allowable_sigma_psi": sigma_ref,
+                "gear_stress_satisfactory": gear_stress_ok,
+            },
+            "meets_design": meets_design,
+            "failure_reasons": failure_reasons,
+        }
+
+    def solve(self) -> Dict[str, Any]:
+        p = self.spec
+        dsg = p["design"]
+
+        N_W = int(dsg["worm_threads"])
+        m_G = float(dsg["gear_ratio"])
+        N_G = int(round(m_G * N_W))
+        phi_n_deg = float(dsg["normal_pressure_angle_deg"])
+        min_teeth = self.repo.worm_min_gear_teeth(phi_n_deg)
+        acceptable_gear_teeth = N_G >= min_teeth
+
+        axial_pitch_candidates = self._resolve_axial_pitch_candidates(dsg)
+        worm_d_candidates = self._resolve_worm_pitch_diameter_candidates(dsg)
+        selection_policy = self._selection_policy(dsg)
+
+        axial_trials: List[Dict[str, Any]] = []
+        successful_candidates: List[Dict[str, Any]] = []
+        chosen = None
+
+        for p_x in axial_pitch_candidates:
+            d_results: List[Dict[str, Any]] = []
+            for d_candidate in worm_d_candidates:
+                result = self._evaluate_candidate(
+                    dsg=dsg,
+                    N_W=N_W,
+                    N_G=N_G,
+                    m_G=m_G,
+                    phi_n_deg=phi_n_deg,
+                    p_x=float(p_x),
+                    d_candidate=float(d_candidate),
+                    acceptable_gear_teeth=acceptable_gear_teeth,
+                    min_teeth=min_teeth,
+                )
+                d_results.append(result)
+                if result["meets_design"]:
+                    successful_candidates.append(result)
+                    chosen = result
+                    if selection_policy == "first_successful_candidate":
+                        break
+            axial_trials.append({
+                "candidate_axial_pitch_p_x_in": float(p_x),
+                "worm_pitch_diameter_trials": d_results,
+            })
+            if chosen is not None and selection_policy == "first_successful_candidate":
+                break
+
+        if chosen is None and successful_candidates:
+            chosen = successful_candidates[-1]
+
+        if chosen is None:
+            last_evaluated = None
+            if axial_trials and axial_trials[-1]["worm_pitch_diameter_trials"]:
+                last_evaluated = axial_trials[-1]["worm_pitch_diameter_trials"][-1]
+            summary = "No worm mesh design candidate satisfied all checks."
+            if last_evaluated is not None:
+                reasons = "; ".join(last_evaluated.get("failure_reasons", []))
+                if reasons:
+                    summary += f" Last evaluated candidate failed because: {reasons}."
+            raise BevelWormGearError(summary)
+
+        risk_source = "wear" if chosen["capacity"]["force_capacity_ok"] and chosen["bending"]["gear_stress_satisfactory"] else "bending_or_mixed"
 
         return {
             "problem": self.solve_path,
@@ -1005,71 +1207,15 @@ class WormGearMeshDesignSolver(WormGearCommon):
             "prechecks": {
                 "minimum_gear_teeth_required": min_teeth,
                 "acceptable_gear_teeth": acceptable_gear_teeth,
+                "axial_pitch_candidates_in": axial_pitch_candidates,
+                "worm_pitch_diameter_candidates_in": worm_d_candidates,
+                "selection_policy": selection_policy,
             },
             "iterations": {
-                "worm_pitch_diameter_trials": d_trials,
+                "axial_pitch_trials": axial_trials,
             },
             "selected_design": {
-                "geometry": {
-                    "N_W": N_W,
-                    "N_G": N_G,
-                    "m_G": m_G,
-                    "P_t": P_t,
-                    "D_in": D,
-                    "a_in": a,
-                    "b_in": b,
-                    "h_t_in": h_t,
-                    "chosen_d_in": chosen_d,
-                    "center_distance_C_in": C,
-                    "lead_angle_lambda_deg": kin["lambda_deg"],
-                    "lambda_max_deg": lambda_max_deg,
-                    "lead_angle_ok": lead_angle_ok,
-                    "P_n": kin["P_n"],
-                    "p_n_in": kin["p_n_in"],
-                },
-                "kinematics": kin,
-                "capacity_factors": capacity_factors,
-                "forces_and_powers": {
-                    "friction_coefficient_f": friction_coeff,
-                    "mesh_efficiency_e_worm_drives": e_w,
-                    "mesh_efficiency_e_gear_drives": e_g,
-                    "worm_tangential_force_W_W_t_lbf": W_W_t,
-                    "gear_tangential_force_W_G_t_lbf": W_G_t,
-                    "worm_power_H_W_hp": H_W,
-                    "gear_power_H_G_hp": H_G,
-                    "friction_force_W_f_lbf": W_f,
-                    "friction_power_H_f_hp": H_f,
-                },
-                "capacity": {
-                    "effective_face_width_required_F_e_req_in": F_e_req,
-                    "effective_face_width_max_in": F_e_max,
-                    "effective_face_width_selected_in": F_e_selected,
-                    "allowable_tangential_force_W_t_all_lbf": W_t_all,
-                    "force_capacity_ok": excess_capacity_ok,
-                    "excess_capacity_margin_lbf": excess_capacity_margin_lbf,
-                    "excess_capacity_ratio": excess_capacity_ratio,
-                    "capacity_check_note": "Passes excess-capacity check when W_G_t < W_t_all.",
-                },
-                "thermal": {
-                    "h_bar_CR_ft_lbf_per_min_in2_F": h_bar_CR,
-                    "heat_loss_rate_H_loss_ft_lbf_per_min": H_loss,
-                    "minimum_case_area_A_min_in2": A_min,
-                    "rough_case_area_vertical_in": vertical,
-                    "rough_case_area_width_in": width,
-                    "rough_case_area_thickness_in": thickness,
-                    "rough_case_area_in2": rough_area,
-                    "actual_lateral_area_in2": actual_area,
-                    "sump_temperature_with_actual_area_F": t_s_actual_area,
-                    "sump_temperature_with_A_min_F": t_s_min_area,
-                    "acceptable_sump_temperature_F": acceptable_sump_temperature_F,
-                    "sump_temperature_satisfactory_with_actual_area": sump_temperature_ok_actual_area,
-                    "sump_temperature_satisfactory_with_A_min": sump_temperature_ok_min_area,
-                    "sump_temperature_check_note": "Common practice target from Ugural-style guidance: lubricant temperature should typically not exceed about 200 F.",
-                },
-                "bending": {
-                    "lewis_y": y,
-                    "sigma_gear_psi": sigma,
-                },
-                "risk_source": "capacity_or_temperature",
+                **chosen,
+                "risk_source": risk_source,
             },
         }
