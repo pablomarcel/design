@@ -34,7 +34,7 @@
       1.75,
       2.0
     ],
-    "axial_pitch_iteration_count": 1,
+    "axial_pitch_iteration_count": 2,
     "worm_pitch_diameter_iteration_count": 3,
     "selection_policy": "last_successful_candidate",
     "acceptable_sump_temperature_F": 200.0,
