@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, List, Mapping
 
 try:
     from .utils import (
@@ -344,6 +344,33 @@ class StraightBevelGearAnalysisSolver(StraightBevelCommon):
 class StraightBevelMeshDesignSolver(StraightBevelCommon):
     solve_path = "straight_bevel_mesh_design"
 
+    def _member_cycles(self, design: Mapping[str, Any]) -> Dict[str, float]:
+        pinion_cycles = float(design["pinion_cycles"])
+        gear_cycles = float(design.get("gear_cycles", pinion_cycles / float(design["gear_ratio"])))
+        return {
+            "pinion_cycles": pinion_cycles,
+            "gear_cycles": gear_cycles,
+        }
+
+    def _member_branches(self, design: Mapping[str, Any]) -> Dict[str, str]:
+        common_branch = design.get("K_L_branch", "general")
+        return {
+            "pinion_K_L_branch": design.get("pinion_K_L_branch", common_branch),
+            "gear_K_L_branch": design.get("gear_K_L_branch", common_branch),
+        }
+
+    def _member_life_factors(self, design: Mapping[str, Any]) -> Dict[str, float | str]:
+        cyc = self._member_cycles(design)
+        branches = self._member_branches(design)
+        return {
+            **cyc,
+            **branches,
+            "K_L_pinion": life_factor_kl(cyc["pinion_cycles"], branch=branches["pinion_K_L_branch"]),
+            "K_L_gear": life_factor_kl(cyc["gear_cycles"], branch=branches["gear_K_L_branch"]),
+            "C_L_pinion": life_factor_cl(cyc["pinion_cycles"]),
+            "C_L_gear": life_factor_cl(cyc["gear_cycles"]),
+        }
+
     def solve(self) -> Dict[str, Any]:
         p = self.spec
         d = p["design"]
@@ -355,7 +382,7 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
         design_factor = float(d["design_factor"])
         sf_target = design_factor
         sh_target = design_factor ** 0.5
-        kl_branch = d.get("K_L_branch", "general")
+        life_factors = self._member_life_factors(d)
 
         common_pre = self.common_factors(
             np_teeth=np_teeth,
@@ -370,13 +397,14 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
             crowned=bool(d["crowned"]),
             temperature_f=float(d["temperature_F"]),
             reliability=float(d["reliability"]),
-            cycles=float(d["pinion_cycles"]),
+            cycles=life_factors["pinion_cycles"],
             pinion_hb=float(material["pinion_hb"]),
             gear_hb=float(material["gear_hb"]),
             case_hardened_pinion=bool(material.get("case_hardened_pinion", False)),
-            kl_branch=kl_branch,
+            kl_branch=life_factors["pinion_K_L_branch"],
             pinion_surface_finish_um=material.get("pinion_surface_finish_um"),
         )
+        common_pre["member_life_factors"] = life_factors
 
         candidates = d.get("candidate_diametral_pitches", [d["initial_diametral_pitch"]])
         iterations: List[Dict[str, Any]] = []
@@ -391,10 +419,9 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
                 qv=qv,
                 sf_target=sf_target,
                 sh_target=sh_target,
-                common_pre=common_pre,
                 spec=d,
                 material=material,
-                kl_branch=kl_branch,
+                life_factors=life_factors,
             )
             iterations.append(result)
             if result["meets_design"] and accepted is None:
@@ -425,9 +452,21 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
             },
         }
 
-    def _evaluate_candidate(self, *, pd: float, np_teeth: float, ng_teeth: float, rpm: float, horsepower: float, qv: float,
-                            sf_target: float, sh_target: float, common_pre: Dict[str, Any], spec: Mapping[str, Any],
-                            material: Mapping[str, Any], kl_branch: str) -> Dict[str, Any]:
+    def _evaluate_candidate(
+        self,
+        *,
+        pd: float,
+        np_teeth: float,
+        ng_teeth: float,
+        rpm: float,
+        horsepower: float,
+        qv: float,
+        sf_target: float,
+        sh_target: float,
+        spec: Mapping[str, Any],
+        material: Mapping[str, Any],
+        life_factors: Mapping[str, Any],
+    ) -> Dict[str, Any]:
         geom0 = self.geometry(np_teeth, ng_teeth, pd, 1.0)
         v_t = rpm_to_pitchline_velocity_ft_min(geom0["d_P_in"], rpm)
         wt = tangential_force_from_hp(horsepower, v_t)
@@ -448,13 +487,15 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
             crowned=bool(spec["crowned"]),
             temperature_f=float(spec["temperature_F"]),
             reliability=float(spec["reliability"]),
-            cycles=float(spec["pinion_cycles"]),
+            cycles=life_factors["pinion_cycles"],
             pinion_hb=float(material["pinion_hb"]),
             gear_hb=float(material["gear_hb"]),
             case_hardened_pinion=bool(material.get("case_hardened_pinion", False)),
-            kl_branch=kl_branch,
+            kl_branch=life_factors["pinion_K_L_branch"],
             pinion_surface_finish_um=material.get("pinion_surface_finish_um"),
         )
+        common["member_life_factors"] = dict(life_factors)
+
         geom = common["geometry"]
         sat = self.repo.steel_table_value("table_15_6.csv", material["heat_treatment"], int(material["agma_grade"]))["lbf_per_in2"]
         sac = self.repo.steel_table_value("table_15_4.csv", material["heat_treatment"], int(material["agma_grade"]))["lbf_per_in2"]
@@ -462,17 +503,24 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
 
         sigma_gear = (wt / geom["F_in"]) * geom["P_d"] * common["K_o"] * common["K_v"] * common["K_s"] * common["K_m"] / (common["K_x"] * common["J_G"])
         sigma_pinion = (wt / geom["F_in"]) * geom["P_d"] * common["K_o"] * common["K_v"] * common["K_s"] * common["K_m"] / (common["K_x"] * common["J_P"])
-        sigma_all_bending = sat * common["K_L"] / (sf_target * common["K_T"] * common["K_R"])
-        ratio_gear_bending = sigma_all_bending / sigma_gear
-        ratio_pinion_bending = sigma_all_bending / sigma_pinion
+
+        sigma_allowable_gear_bending = sat * float(life_factors["K_L_gear"]) / (sf_target * common["K_T"] * common["K_R"])
+        sigma_allowable_pinion_bending = sat * float(life_factors["K_L_pinion"]) / (sf_target * common["K_T"] * common["K_R"])
+
+        ratio_gear_bending = sigma_allowable_gear_bending / sigma_gear
+        ratio_pinion_bending = sigma_allowable_pinion_bending / sigma_pinion
         actual_sf_gear = sf_target * ratio_gear_bending
         actual_sf_pinion = sf_target * ratio_pinion_bending
 
         sigma_c = cp * ((wt / (geom["F_in"] * geom["d_P_in"] * common["I"])) * common["K_o"] * common["K_v"] * common["K_m"] * common["C_s"] * common["C_xc"]) ** 0.5
-        sigma_all_contact = sac * common["C_L"] * common["C_H"] / (sh_target * common["K_T"] * common["C_R"])
-        ratio_contact = sigma_all_contact / sigma_c
-        actual_sh_squared_gear = (ratio_contact * sh_target) ** 2
-        actual_sh_squared_pinion = actual_sh_squared_gear
+
+        sigma_allowable_gear_contact = sac * float(life_factors["C_L_gear"]) * common["C_H"] / (sh_target * common["K_T"] * common["C_R"])
+        sigma_allowable_pinion_contact = sac * float(life_factors["C_L_pinion"]) * common["C_H"] / (sh_target * common["K_T"] * common["C_R"])
+
+        ratio_gear_contact = sigma_allowable_gear_contact / sigma_c
+        ratio_pinion_contact = sigma_allowable_pinion_contact / sigma_c
+        actual_sh_squared_gear = (ratio_gear_contact * sh_target) ** 2
+        actual_sh_squared_pinion = (ratio_pinion_contact * sh_target) ** 2
 
         meets = all([
             actual_sf_gear >= sf_target,
@@ -493,12 +541,14 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
                 "s_at_psi": sat,
                 "sigma_gear_psi": sigma_gear,
                 "sigma_pinion_psi": sigma_pinion,
-                "sigma_allowable_psi": sigma_all_bending,
+                "sigma_allowable_gear_psi": sigma_allowable_gear_bending,
+                "sigma_allowable_pinion_psi": sigma_allowable_pinion_bending,
             },
             "wear": {
                 "s_ac_psi": sac,
                 "sigma_contact_psi": sigma_c,
-                "sigma_contact_allowable_psi": sigma_all_contact,
+                "sigma_contact_allowable_gear_psi": sigma_allowable_gear_contact,
+                "sigma_contact_allowable_pinion_psi": sigma_allowable_pinion_contact,
             },
             "actual_safety_factors": {
                 "gear_bending": actual_sf_gear,
