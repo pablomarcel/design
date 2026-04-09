@@ -88,8 +88,6 @@ class DataRepository:
         target_gear = float(gear_teeth_for_which_J_is_desired)
         target_mate = float(mate_teeth)
 
-        # Purely data-driven behavior: if the exact point exists in the CSV,
-        # return it directly; otherwise use the interpolator on the chart data.
         for r in rows:
             gear_val = float(r["gear_teeth_for_which_J_is_desired"])
             mate_val = float(r["mate_teeth"])
@@ -404,7 +402,7 @@ class StraightBevelMeshDesignSolver(StraightBevelCommon):
             kl_branch=life_factors["pinion_K_L_branch"],
             pinion_surface_finish_um=material.get("pinion_surface_finish_um"),
         )
-        common_pre["member_life_factors"] = life_factors
+        common_pre["member_life_factors"] = dict(life_factors)
 
         candidates = d.get("candidate_diametral_pitches", [d["initial_diametral_pitch"]])
         iterations: List[Dict[str, Any]] = []

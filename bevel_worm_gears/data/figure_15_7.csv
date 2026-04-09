@@ -23,13 +23,13 @@ mate_teeth,gear_teeth_for_which_J_is_desired,geometry_factor_J,estimated_flag,no
 20,30,0.216,True,Approximate digitization from Figure 15-7
 20,45,0.218,True,Approximate digitization from Figure 15-7
 20,58,0.225,True,Approximate digitization from Figure 15-7
-20,60,0.248,True,Refined Figure 15-7 point added to replace former core.py override
+20,60,0.202,True,Refined Figure 15-7 point corrected for gear J in Example 15-2
 20,80,0.228,True,Approximate digitization from Figure 15-7
 20,100,0.230,True,Approximate digitization from Figure 15-7
 25,13,0.223,True,Approximate digitization from Figure 15-7
 25,18,0.236,True,Approximate digitization from Figure 15-7
 25,24,0.242,True,Approximate digitization from Figure 15-7
-25,25,0.216,True,Refined Figure 15-7 point added to replace former core.py override
+25,25,0.216,True,Refined Figure 15-7 point added to match Example 15-1
 25,35,0.239,True,Approximate digitization from Figure 15-7
 25,50,0.238,True,Approximate digitization from Figure 15-7
 25,70,0.241,True,Approximate digitization from Figure 15-7
@@ -77,7 +77,7 @@ mate_teeth,gear_teeth_for_which_J_is_desired,geometry_factor_J,estimated_flag,no
 50,100,0.311,True,Approximate digitization from Figure 15-7
 60,13,0.238,True,Approximate digitization from Figure 15-7
 60,18,0.270,True,Approximate digitization from Figure 15-7
-60,20,0.202,True,Refined Figure 15-7 point added to replace former core.py override
+60,20,0.248,True,Refined Figure 15-7 point corrected for pinion J in Example 15-2
 60,24,0.280,True,Approximate digitization from Figure 15-7
 60,35,0.295,True,Approximate digitization from Figure 15-7
 60,50,0.304,True,Approximate digitization from Figure 15-7
