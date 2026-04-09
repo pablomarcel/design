@@ -1,0 +1,29 @@
+{
+  "solve_path": "worm_analysis",
+  "title": "Shigley Example 15-3 style worm gear analysis",
+  "gearset": {
+    "worm_threads": 1,
+    "gear_teeth": 24,
+    "worm_pitch_diameter_in": 3.0,
+    "tangential_diametral_pitch": 4.0,
+    "normal_pressure_angle_deg": 14.5,
+    "gear_face_width_in": 2.0,
+    "gear_material_class": "chill-cast bronze",
+    "gear_allowable_stress_psi": 10000.0
+  },
+  "operating": {
+    "worm_rpm": 1800.0,
+    "output_power_hp": 3.0,
+    "application_factor": 1.25,
+    "design_factor": 1.0
+  },
+  "thermal": {
+    "ambient_temp_F": 70.0,
+    "case_lateral_area_in2": 600.0,
+    "fan_on_worm_shaft": true
+  },
+  "notes": [
+    "Implements Example 15-3 style worm analysis using the chapter equations called out in the user algorithm.",
+    "gear_allowable_stress_psi is explicit so the stress check is data-driven and editable."
+  ]
+}

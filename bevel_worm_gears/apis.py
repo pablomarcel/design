@@ -4,9 +4,21 @@ from pathlib import Path
 from typing import Any, Dict
 
 try:
-    from .core import DataRepository, StraightBevelGearAnalysisSolver, StraightBevelMeshDesignSolver
+    from .core import (
+        DataRepository,
+        StraightBevelGearAnalysisSolver,
+        StraightBevelMeshDesignSolver,
+        WormGearAnalysisSolver,
+        WormGearMeshDesignSolver,
+    )
 except ImportError:  # pragma: no cover
-    from core import DataRepository, StraightBevelGearAnalysisSolver, StraightBevelMeshDesignSolver
+    from core import (
+        DataRepository,
+        StraightBevelGearAnalysisSolver,
+        StraightBevelMeshDesignSolver,
+        WormGearAnalysisSolver,
+        WormGearMeshDesignSolver,
+    )
 
 
 class BevelWormGearAPI:
@@ -19,4 +31,8 @@ class BevelWormGearAPI:
             return StraightBevelGearAnalysisSolver(self.repo, problem).solve()
         if solve_path == StraightBevelMeshDesignSolver.solve_path:
             return StraightBevelMeshDesignSolver(self.repo, problem).solve()
+        if solve_path == WormGearAnalysisSolver.solve_path:
+            return WormGearAnalysisSolver(self.repo, problem).solve()
+        if solve_path == WormGearMeshDesignSolver.solve_path:
+            return WormGearMeshDesignSolver(self.repo, problem).solve()
         raise ValueError(f"Unsupported solve_path '{solve_path}'.")

@@ -23,3 +23,20 @@ python -m cli run \
   --infile ex_15_2_straight_bevel_mesh_design.json \
   --outfile ex_15_2_straight_bevel_mesh_design_out.json
 ```
+
+## Example 15-3 style worm gear analysis
+
+```bash
+python -m cli run \
+  --infile ex_15_3_worm_analysis.json \
+  --outfile ex_15_3_worm_analysis_out.json
+```
+
+## Example 15-4 style worm gear mesh design
+
+```bash
+python -m cli run \
+  --infile ex_15_4_worm_mesh_design.json \
+  --outfile ex_15_4_worm_mesh_design_out.json
+```
+

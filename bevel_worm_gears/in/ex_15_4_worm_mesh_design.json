@@ -1,0 +1,34 @@
+{
+  "solve_path": "worm_mesh_design",
+  "title": "Shigley Example 15-4 style design of a worm gear set",
+  "design": {
+    "output_power_hp": 10.0,
+    "gear_ratio": 11.0,
+    "worm_rpm": 1720.0,
+    "application_factor": 1.25,
+    "ambient_temp_F": 70.0,
+    "design_factor": 1.2,
+    "normal_pressure_angle_deg": 20.0,
+    "worm_threads": 2,
+    "trial_axial_pitch_in": 1.5,
+    "initial_worm_pitch_diameter_in": 2.0,
+    "worm_pitch_diameter_step_in": 0.5,
+    "max_d_trials": 6,
+    "gear_material_class": "sand-cast bronze",
+    "fan_on_worm_shaft": false,
+    "face_width_rounding_increment_in": 0.25,
+    "rough_clearance_in": 6.0,
+    "actual_area_rounding_increment_in2": 100.0,
+    "actual_lateral_area_in2": 1100.0,
+    "effective_gear_face_width_selected_in": 1.5,
+    "reference_allowable_sigma_psi": 10000.0
+  },
+  "material": {
+    "worm_material": "case-hardened alloy steel worm",
+    "gear_material": "sand-cast bronze gear"
+  },
+  "notes": [
+    "Implements Example 15-4 style worm mesh design using the iterative route described by the user.",
+    "effective_gear_face_width_selected_in is explicit so the design choice remains data-driven."
+  ]
+}

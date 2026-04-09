@@ -22,6 +22,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     tmpl = sub.add_parser("list-inputs", help="List sample input JSON files in the in directory.")
     tmpl.add_argument("--absolute", action="store_true", help="Show absolute paths.")
+
+    solve_paths = sub.add_parser("list-solve-paths", help="List supported solve_path values.")
+    solve_paths.add_argument("--json", action="store_true", help="Print as JSON.")
     return parser
 
 
@@ -37,6 +40,18 @@ def main() -> None:
         paths = sorted(in_dir().glob("*.json"))
         payload = [str(p.resolve() if args.absolute else p.name) for p in paths]
         print(json.dumps(payload, indent=2))
+        return
+    if args.command == "list-solve-paths":
+        payload = [
+            "straight_bevel_analysis",
+            "straight_bevel_mesh_design",
+            "worm_analysis",
+            "worm_mesh_design",
+        ]
+        if args.json:
+            print(json.dumps(payload, indent=2))
+        else:
+            print("\n".join(payload))
         return
     raise SystemExit(2)
 
