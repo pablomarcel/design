@@ -301,37 +301,26 @@ def render_worm_mesh_design_comparison_table(result: Mapping[str, Any]) -> bool:
         return False
 
     try:
-        import pandas as pd
+        from rich import box
         from rich.console import Console
         from rich.table import Table
     except Exception:
         return False
 
-    df = pd.DataFrame(rows)
-    if df.empty:
-        return False
-
-    scenario_cols = []
-    for _, row in df.iterrows():
-        label = row["scenario"]
-        if row["selected"] == "*":
-            label = f"{label} *"
-        scenario_cols.append(label)
-
     metric_order = [
-        ("p_x_in", "p_x [in]"),
-        ("d_in", "d [in]"),
-        ("lambda_deg", "lambda [deg]"),
-        ("lambda_max_deg", "lambda_max [deg]"),
+        ("p_x_in", "p_x"),
+        ("d_in", "d"),
+        ("lambda_deg", "Lambda"),
+        ("lambda_max_deg", "Lambda_max"),
         ("lead_ok", "lead ok"),
-        ("F_e_req_in", "F_e_req [in]"),
-        ("F_e_sel_in", "F_e_selected [in]"),
-        ("F_e_max_in", "F_e_max [in]"),
-        ("W_G_t_lbf", "W_G_t [lbf]"),
-        ("W_t_all_lbf", "W_t_all [lbf]"),
-        ("capacity_margin_lbf", "capacity margin [lbf]"),
+        ("F_e_req_in", "F_e_req"),
+        ("F_e_sel_in", "F_e_selected"),
+        ("F_e_max_in", "F_e_max"),
+        ("W_G_t_lbf", "W_G_t"),
+        ("W_t_all_lbf", "W_t_all"),
+        ("capacity_margin_lbf", "capacity margin"),
         ("t_s_F", "sump temp [F]"),
-        ("sigma_psi", "sigma [psi]"),
+        ("sigma_psi", "sigma"),
         ("pass", "meets design"),
         ("failure_reasons", "failure reasons"),
     ]
@@ -342,19 +331,52 @@ def render_worm_mesh_design_comparison_table(result: Mapping[str, Any]) -> bool:
         if key in {"lead_ok", "pass"}:
             return "yes" if bool(value) else "no"
         if key == "failure_reasons":
-            return str(value)
+            return str(value) if value else "-"
         try:
             return f"{float(value):.3f}"
         except Exception:
             return str(value)
 
-    table = Table(title=f"Worm Mesh Design Scenario Comparison ({len(rows)} scenarios)")
-    table.add_column("Metric", style="bold")
-    for col in scenario_cols:
-        table.add_column(col)
+    scenario_headers: List[str] = []
+    scenario_cells: List[List[str]] = []
+    for row in rows:
+        header = row["scenario"]
+        if row["selected"] == "*":
+            header = f"{header} *"
+        scenario_headers.append(header)
+        scenario_cells.append([fmt_value(key, row.get(key)) for key, _ in metric_order])
 
-    for key, label in metric_order:
-        row_values = [fmt_value(key, row.get(key)) for row in rows]
+    metric_width = max(max(len(label) for _, label in metric_order), len("Metric"), 16)
+
+    # Uniform width for all scenario columns, based on the longest header/cell across all scenarios.
+    raw_scenario_width = 0
+    for header, cells in zip(scenario_headers, scenario_cells):
+        raw_scenario_width = max(raw_scenario_width, len(header))
+        raw_scenario_width = max(raw_scenario_width, *(len(cell) for cell in cells))
+
+    scenario_width = max(18, min(26, raw_scenario_width + 2))
+
+    table = Table(
+        title=f"Worm Mesh Design Scenario Comparison ({len(rows)} scenarios)",
+        box=box.SQUARE,
+        show_lines=False,
+        pad_edge=True,
+        expand=False,
+    )
+    table.add_column("Metric", style="bold", width=metric_width, min_width=metric_width, max_width=metric_width, no_wrap=True)
+    for header in scenario_headers:
+        table.add_column(
+            header,
+            width=scenario_width,
+            min_width=scenario_width,
+            max_width=scenario_width,
+            justify="center",
+            overflow="fold",
+            no_wrap=False,
+        )
+
+    for metric_idx, (_, label) in enumerate(metric_order):
+        row_values = [cells[metric_idx] for cells in scenario_cells]
         table.add_row(label, *row_values)
 
     Console().print(table)
