@@ -1,0 +1,71 @@
+{
+  "figure": "14-14",
+  "title": "Repeatedly applied bending strength stress-cycle factor Y_N",
+  "quantity": {
+    "symbol": "Y_N",
+    "description": "Stress-cycle factor for bending strength"
+  },
+  "independent_variable": {
+    "symbol": "N",
+    "description": "Number of load cycles"
+  },
+  "source_note": "Figure caption cites ANSI/AGMA 2001-D04.",
+  "important_note": "This JSON stores the equations explicitly shown in the figure. In the shaded high-cycle region, Shigley does not specify a single unique curve; the figure indicates the choice is influenced by pitchline velocity, gear material cleanliness, residual stress, and material ductility and fracture toughness.",
+  "regions": {
+    "low_to_mid_cycle_curves": {
+      "approx_domain_note": "These curves are shown from about 10^2 to the knee near a few times 10^6 cycles, with left-side plateaus as drawn.",
+      "curves": {
+        "400_HB": {
+          "label": "400 HB",
+          "equation": "Y_N = 9.4518*N**(-0.148)",
+          "display_equation": "Y_N = 9.4518 N^-0.148",
+          "notes": "Upper hardness-specific curve shown in the figure."
+        },
+        "case_carburized": {
+          "label": "Case carb.",
+          "equation": "Y_N = 6.1514*N**(-0.1192)",
+          "display_equation": "Y_N = 6.1514 N^-0.1192",
+          "notes": "Dashed curve labeled 'Case carb.'"
+        },
+        "250_HB": {
+          "label": "250 HB",
+          "equation": "Y_N = 4.9404*N**(-0.1045)",
+          "display_equation": "Y_N = 4.9404 N^-0.1045",
+          "notes": "Intermediate hardness-specific curve shown in the figure."
+        },
+        "nitrided": {
+          "label": "Nitrided",
+          "equation": "Y_N = 3.517*N**(-0.0817)",
+          "display_equation": "Y_N = 3.517 N^-0.0817",
+          "notes": "Dashed curve labeled 'Nitrided'."
+        },
+        "160_HB": {
+          "label": "160 HB",
+          "equation": "Y_N = 2.3194*N**(-0.0538)",
+          "display_equation": "Y_N = 2.3194 N^-0.0538",
+          "notes": "Lower hardness-specific curve shown in the figure."
+        }
+      }
+    },
+    "high_cycle_shaded_region": {
+      "approx_domain_note": "Shaded region extends from the knee near about 3e6 cycles out to 1e10 cycles.",
+      "upper": {
+        "equation": "Y_N = 1.3558*N**(-0.0178)",
+        "display_equation": "Y_N = 1.3558 N^-0.0178",
+        "notes": "Upper boundary of shaded region."
+      },
+      "lower": {
+        "equation": "Y_N = 1.6831*N**(-0.0323)",
+        "display_equation": "Y_N = 1.6831 N^-0.0323",
+        "notes": "Lower boundary of shaded region."
+      },
+      "selection_factors_from_figure": [
+        "Pitchline velocity",
+        "Gear material cleanliness",
+        "Residual stress",
+        "Material ductility and fracture toughness"
+      ]
+    }
+  },
+  "programmatic_use_note": "Use the stored equations directly. If implementing a solver, apply the material-specific low/mid-cycle curve in its applicable range and use either the 'upper' or 'lower' shaded-region equation for high-cycle behavior according to engineering judgment or a documented selection rule."
+}

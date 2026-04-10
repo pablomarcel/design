@@ -1,0 +1,61 @@
+{
+  "figure": "14-3",
+  "title": "Allowable bending stress number for nitrided through-hardened steel gears",
+  "quantity": {
+    "symbol": "S_t",
+    "description": "Allowable bending stress number"
+  },
+  "independent_variable": {
+    "symbol": "H_B",
+    "description": "Core hardness"
+  },
+  "material_scope": "nitrided through-hardened steel gears (i.e., AISI 4140, 4340)",
+  "source_note": "Source cited in figure: ANSI/AGMA 2001-D04 and 2101-D04.",
+  "equations": {
+    "grade_1": {
+      "us_customary": {
+        "equation": "S_t = 82.3*H_B + 12150",
+        "dependent_units": "psi",
+        "display_equation": "S_t = 82.3 H_B + 12,150 psi"
+      },
+      "si": {
+        "equation": "S_t = 0.568*H_B + 83.8",
+        "dependent_units": "MPa",
+        "display_equation": "S_t = 0.568 H_B + 83.8 MPa"
+      }
+    },
+    "grade_2": {
+      "us_customary": {
+        "equation": "S_t = 108.6*H_B + 15890",
+        "dependent_units": "psi",
+        "display_equation": "S_t = 108.6 H_B + 15,890 psi"
+      },
+      "si": {
+        "equation": "S_t = 0.749*H_B + 110",
+        "dependent_units": "MPa",
+        "display_equation": "S_t = 0.749 H_B + 110 MPa"
+      }
+    }
+  },
+  "chart_axes": {
+    "x_axis": {
+      "symbol": "H_B",
+      "label": "Core hardness",
+      "units": "dimensionless"
+    },
+    "y_axis": {
+      "symbol": "S_t",
+      "label": "Allowable bending stress number",
+      "units": "kpsi"
+    }
+  },
+  "recommended_hardness_domain_from_plot": {
+    "min_HB_approx": 270,
+    "max_HB_approx": 340,
+    "note": "Approximate visible plotting domain of the two grade lines in the figure."
+  },
+  "notes": [
+    "The graph shows Grade 1 and Grade 2 straight-line relations.",
+    "The figure notes that metallurgical and quality control procedures are required."
+  ]
+}

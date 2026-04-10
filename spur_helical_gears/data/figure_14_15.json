@@ -1,0 +1,51 @@
+{
+  "figure": "14-15",
+  "title": "Pitting resistance stress-cycle factor Z_N",
+  "quantity": {
+    "symbol": "Z_N",
+    "description": "Stress-cycle factor for pitting resistance"
+  },
+  "independent_variable": {
+    "symbol": "N",
+    "description": "Number of load cycles"
+  },
+  "source_note": "Figure caption cites ANSI/AGMA 2001-D04.",
+  "important_note": "This JSON stores the equations explicitly shown in the figure. In the shaded high-cycle region, Shigley does not specify a single unique curve; the figure indicates the choice is influenced by lubrication regime, failure criteria, smoothness of operation required, pitchline velocity, gear material cleanliness, material ductility and fracture toughness, and residual stress.",
+  "regions": {
+    "standard_curve": {
+      "label": "Standard pitting-resistance curve",
+      "equation": "Z_N = 2.466*N**(-0.056)",
+      "display_equation": "Z_N = 2.466 N^-0.056",
+      "notes": "Main solid-line relation shown in the figure."
+    },
+    "nitrided_curve": {
+      "label": "Nitrided",
+      "equation": "Z_N = 1.249*N**(-0.0138)",
+      "display_equation": "Z_N = 1.249 N^-0.0138",
+      "notes": "Dashed nitrided relation shown in the figure."
+    },
+    "high_cycle_shaded_region": {
+      "approx_domain_note": "Shaded region extends in the high-cycle range to about 10^10 cycles.",
+      "upper": {
+        "equation": "Z_N = 1.4488*N**(-0.023)",
+        "display_equation": "Z_N = 1.4488 N^-0.023",
+        "notes": "Upper boundary of shaded region."
+      },
+      "lower": {
+        "equation": "Z_N = 2.466*N**(-0.056)",
+        "display_equation": "Z_N = 2.466 N^-0.056",
+        "notes": "Lower boundary of shaded region as represented by the lower edge of the band in the high-cycle region."
+      },
+      "selection_factors_from_figure": [
+        "Lubrication regime",
+        "Failure criteria",
+        "Smoothness of operation required",
+        "Pitchline velocity",
+        "Gear material cleanliness",
+        "Material ductility and fracture toughness",
+        "Residual stress"
+      ]
+    }
+  },
+  "programmatic_use_note": "Use the stored equations directly. If implementing a solver, apply the standard or nitrided curve as appropriate. In the shaded high-cycle region, use either the 'upper' or 'lower' equation according to an engineering selection rule that you document."
+}

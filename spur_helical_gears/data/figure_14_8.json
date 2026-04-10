@@ -1,0 +1,225 @@
+{
+  "figure": "14-8",
+  "title": "J'-factor multipliers for use with Fig. 14-7 to find J",
+  "description": "Approximate digitization of AGMA-style chart giving modifying factors to convert helical-gear J' factors into J factors when the mating element does not have 75 teeth.",
+  "quantity": {
+    "symbol": "modifier",
+    "description": "Modifying factor applied to J' from Fig. 14-7 to obtain J"
+  },
+  "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
+  "important_note": "This figure does not provide closed-form equations for the modifying-factor curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
+  "application_note": "The modifying factor can be applied to the J factor when other than 75 teeth are used in the mating element.",
+  "x_axis": {
+    "symbol": "psi",
+    "label": "Helix angle",
+    "units": "deg",
+    "approx_visible_range_deg": [
+      5,
+      35
+    ]
+  },
+  "y_axis": {
+    "symbol": "modifier",
+    "label": "Modifying factor",
+    "units": "dimensionless",
+    "approx_visible_range": [
+      0.85,
+      1.05
+    ]
+  },
+  "curve_family": {
+    "curve_parameter": "number_of_teeth_in_mating_element",
+    "parameter_values": [
+      20,
+      30,
+      50,
+      75,
+      150,
+      500
+    ],
+    "note": "Curve labels at the right edge correspond to the indicated tooth counts in the mating element."
+  },
+  "digitized_curves": {
+    "mating_teeth_20": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 0.928
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 0.928
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 0.929
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 0.932
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 0.937
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 0.944
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 0.952
+      }
+    ],
+    "mating_teeth_30": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 0.952
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 0.953
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 0.955
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 0.958
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 0.961
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 0.965
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 0.971
+      }
+    ],
+    "mating_teeth_50": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 0.981
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 0.981
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 0.981
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 0.982
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 0.983
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 0.986
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 0.991
+      }
+    ],
+    "mating_teeth_75": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 1.0
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 1.0
+      }
+    ],
+    "mating_teeth_150": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 1.021
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 1.021
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 1.02
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 1.019
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 1.017
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 1.015
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 1.012
+      }
+    ],
+    "mating_teeth_500": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 1.038
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 1.037
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 1.036
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 1.034
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 1.031
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 1.027
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 1.021
+      }
+    ]
+  },
+  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values."
+}

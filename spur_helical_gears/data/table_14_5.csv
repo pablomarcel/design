@@ -1,0 +1,7 @@
+steel,temperature_before_nitriding_F,nitriding_temperature_F,hardness_case_HRC,hardness_core_HRC
+Nitralloy 135*,1150,975,62-65,30-35
+Nitralloy 135M,1150,975,62-65,32-36
+Nitralloy N,1000,975,62-65,40-44
+AISI 4340,1100,975,48-53,27-35
+AISI 4140,1100,975,49-54,27-35
+31 Cr Mo V 9,1100,975,58-62,27-33

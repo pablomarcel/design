@@ -1,0 +1,11 @@
+material_designation,heat_treatment,minimum_surface_hardness,grade_1_Sc_psi,grade_2_Sc_psi,grade_3_Sc_psi,notes_refs
+Steel,Through hardened,See Fig. 14-5,See Fig. 14-5,See Fig. 14-5,—,"3,4"
+Steel,Flame or induction hardened,50 HRC,170000,190000,—,"3,5"
+Steel,Flame or induction hardened,54 HRC,175000,195000,—,"3,5"
+Steel,Carburized and hardened,See Table 9*,180000,225000,275000,"3,5"
+Steel,Nitrided (through hardened steels),83.5 HR15N,150000,163000,175000,"3,5"
+Steel,Nitrided (through hardened steels),84.5 HR15N,155000,168000,180000,"3,5"
+2.5% chrome (no aluminum),Nitrided,87.5 HR15N,155000,172000,189000,5
+Nitralloy 135M,Nitrided,90.0 HR15N,170000,183000,195000,5
+Nitralloy N,Nitrided,90.0 HR15N,172000,188000,205000,5
+2.5% chrome (no aluminum),Nitrided,90.0 HR15N,176000,196000,216000,5

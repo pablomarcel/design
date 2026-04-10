@@ -1,0 +1,10 @@
+power_source,driven_machine,key,K_o
+uniform,uniform,uniform-uniform,1.00
+uniform,moderate_shock,uniform-moderate_shock,1.25
+uniform,heavy_shock,uniform-heavy_shock,1.75
+light_shock,uniform,light_shock-uniform,1.25
+light_shock,moderate_shock,light_shock-moderate_shock,1.50
+light_shock,heavy_shock,light_shock-heavy_shock,2.00
+medium_shock,uniform,medium_shock-uniform,1.50
+medium_shock,moderate_shock,medium_shock-moderate_shock,1.75
+medium_shock,heavy_shock,medium_shock-heavy_shock,2.25

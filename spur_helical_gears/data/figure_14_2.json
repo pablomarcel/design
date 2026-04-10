@@ -1,0 +1,61 @@
+{
+  "figure": "14-2",
+  "title": "Allowable bending stress number for through-hardened steels",
+  "quantity": {
+    "symbol": "S_t",
+    "description": "Allowable bending stress number"
+  },
+  "independent_variable": {
+    "symbol": "H_B",
+    "description": "Brinell hardness"
+  },
+  "material_scope": "through-hardened steels",
+  "source_note": "Source cited in figure: ANSI/AGMA 2001-D04 and 2101-D04.",
+  "equations": {
+    "grade_1": {
+      "us_customary": {
+        "equation": "S_t = 77.3*H_B + 12800",
+        "dependent_units": "psi",
+        "display_equation": "S_t = 77.3 H_B + 12,800 psi"
+      },
+      "si": {
+        "equation": "S_t = 0.533*H_B + 88.3",
+        "dependent_units": "MPa",
+        "display_equation": "S_t = 0.533 H_B + 88.3 MPa"
+      }
+    },
+    "grade_2": {
+      "us_customary": {
+        "equation": "S_t = 102*H_B + 16400",
+        "dependent_units": "psi",
+        "display_equation": "S_t = 102 H_B + 16,400 psi"
+      },
+      "si": {
+        "equation": "S_t = 0.703*H_B + 113",
+        "dependent_units": "MPa",
+        "display_equation": "S_t = 0.703 H_B + 113 MPa"
+      }
+    }
+  },
+  "chart_axes": {
+    "x_axis": {
+      "symbol": "H_B",
+      "label": "Brinell hardness",
+      "units": "dimensionless"
+    },
+    "y_axis": {
+      "symbol": "S_t",
+      "label": "Allowable bending stress number",
+      "units": "kpsi"
+    }
+  },
+  "recommended_hardness_domain_from_plot": {
+    "min_HB_approx": 180,
+    "max_HB_approx": 400,
+    "note": "Approximate visible plotting domain of the two grade lines in the figure."
+  },
+  "notes": [
+    "The graph shows Grade 1 and Grade 2 straight-line relations.",
+    "The upper line is marked with a note indicating metallurgical and quality control procedure required."
+  ]
+}

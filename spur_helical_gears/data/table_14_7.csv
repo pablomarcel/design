@@ -1,0 +1,10 @@
+material,material_designation,heat_treatment,typical_minimum_surface_hardness,allowable_contact_stress_number_Sc_psi,allowable_contact_stress_number_Sc_psi_min,allowable_contact_stress_number_Sc_psi_max
+ASTM A48 gray cast iron,Class 20,As cast,—,50000-60000,50000,60000
+ASTM A48 gray cast iron,Class 30,As cast,174 HB,65000-75000,65000,75000
+ASTM A48 gray cast iron,Class 40,As cast,201 HB,75000-85000,75000,85000
+ASTM A536 ductile (nodular) iron,Grade 60-40-18,Annealed,140 HB,77000-92000,77000,92000
+ASTM A536 ductile (nodular) iron,Grade 80-55-06,Quenched and tempered,179 HB,77000-92000,77000,92000
+ASTM A536 ductile (nodular) iron,Grade 100-70-03,Quenched and tempered,229 HB,92000-112000,92000,112000
+ASTM A536 ductile (nodular) iron,Grade 120-90-02,Quenched and tempered,269 HB,103000-126000,103000,126000
+Bronze,—,Sand cast,Minimum tensile strength 40 000 psi,30000,30000,30000
+Bronze,ASTM B-148 Alloy 954,Heat treated,Minimum tensile strength 90 000 psi,65000,65000,65000

@@ -1,0 +1,5 @@
+condition,A,B,C
+Open gearing,0.247,0.0167,-0.765e-4
+"Commercial, enclosed units",0.127,0.0158,-0.930e-4
+"Precision, enclosed units",0.0675,0.0128,-0.926e-4
+Extraprecision enclosed gear units,0.00360,0.0102,-0.822e-4

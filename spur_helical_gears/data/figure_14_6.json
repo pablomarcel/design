@@ -1,0 +1,474 @@
+{
+  "figure": "14-6",
+  "title": "Spur-gear geometry factors J",
+  "description": "Approximate digitization of AGMA-style chart for spur-gear bending geometry factor J.",
+  "quantity": {
+    "symbol": "J",
+    "description": "Geometry factor"
+  },
+  "x_axis": {
+    "symbol": "N",
+    "label": "Number of teeth for which geometry factor is desired",
+    "scale": "nonlinear_chart_axis_as_drawn",
+    "tick_labels_visible_in_figure": [
+      12,
+      15,
+      17,
+      20,
+      24,
+      30,
+      35,
+      40,
+      45,
+      50,
+      60,
+      80,
+      125,
+      275,
+      "infinity"
+    ]
+  },
+  "y_axis": {
+    "symbol": "J",
+    "label": "Geometry factor",
+    "units": "dimensionless",
+    "approx_visible_range": [
+      0.2,
+      0.6
+    ]
+  },
+  "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
+  "important_note": "This figure does not provide closed-form equations for the J-curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
+  "generating_rack_1_pitch": {
+    "pinion_addendum": 1.0,
+    "gear_addendum": 1.0,
+    "whole_depth": 2.4,
+    "pressure_angle_deg": 20.0,
+    "fillet_radius_note": "0.35 r_T as labeled in the inset",
+    "units_note": "Inset dimensions are given in normalized rack proportions, as shown in the figure."
+  },
+  "curve_family": {
+    "upper_family_description": "Load applied at highest point of single-tooth contact",
+    "curve_parameter": "number_of_teeth_in_mating_gear",
+    "parameter_values": [
+      17,
+      25,
+      35,
+      50,
+      85,
+      170,
+      1000
+    ]
+  },
+  "digitized_curves": {
+    "load_applied_at_tip_of_tooth": [
+      {
+        "N": 12,
+        "J": 0.209
+      },
+      {
+        "N": 15,
+        "J": 0.22
+      },
+      {
+        "N": 17,
+        "J": 0.228
+      },
+      {
+        "N": 20,
+        "J": 0.238
+      },
+      {
+        "N": 24,
+        "J": 0.249
+      },
+      {
+        "N": 30,
+        "J": 0.262
+      },
+      {
+        "N": 35,
+        "J": 0.27
+      },
+      {
+        "N": 40,
+        "J": 0.275
+      },
+      {
+        "N": 45,
+        "J": 0.279
+      },
+      {
+        "N": 50,
+        "J": 0.283
+      },
+      {
+        "N": 60,
+        "J": 0.289
+      },
+      {
+        "N": 80,
+        "J": 0.297
+      },
+      {
+        "N": 125,
+        "J": 0.308
+      },
+      {
+        "N": 275,
+        "J": 0.315
+      }
+    ],
+    "single_tooth_contact_mating_gear_17": [
+      {
+        "N": 17,
+        "J": 0.293
+      },
+      {
+        "N": 20,
+        "J": 0.312
+      },
+      {
+        "N": 24,
+        "J": 0.332
+      },
+      {
+        "N": 30,
+        "J": 0.355
+      },
+      {
+        "N": 35,
+        "J": 0.37
+      },
+      {
+        "N": 40,
+        "J": 0.383
+      },
+      {
+        "N": 45,
+        "J": 0.395
+      },
+      {
+        "N": 50,
+        "J": 0.404
+      },
+      {
+        "N": 60,
+        "J": 0.418
+      },
+      {
+        "N": 80,
+        "J": 0.435
+      },
+      {
+        "N": 125,
+        "J": 0.455
+      },
+      {
+        "N": 275,
+        "J": 0.476
+      }
+    ],
+    "single_tooth_contact_mating_gear_25": [
+      {
+        "N": 17,
+        "J": 0.3
+      },
+      {
+        "N": 20,
+        "J": 0.318
+      },
+      {
+        "N": 24,
+        "J": 0.339
+      },
+      {
+        "N": 30,
+        "J": 0.362
+      },
+      {
+        "N": 35,
+        "J": 0.378
+      },
+      {
+        "N": 40,
+        "J": 0.391
+      },
+      {
+        "N": 45,
+        "J": 0.402
+      },
+      {
+        "N": 50,
+        "J": 0.412
+      },
+      {
+        "N": 60,
+        "J": 0.426
+      },
+      {
+        "N": 80,
+        "J": 0.444
+      },
+      {
+        "N": 125,
+        "J": 0.466
+      },
+      {
+        "N": 275,
+        "J": 0.489
+      }
+    ],
+    "single_tooth_contact_mating_gear_35": [
+      {
+        "N": 17,
+        "J": 0.306
+      },
+      {
+        "N": 20,
+        "J": 0.324
+      },
+      {
+        "N": 24,
+        "J": 0.345
+      },
+      {
+        "N": 30,
+        "J": 0.37
+      },
+      {
+        "N": 35,
+        "J": 0.386
+      },
+      {
+        "N": 40,
+        "J": 0.399
+      },
+      {
+        "N": 45,
+        "J": 0.411
+      },
+      {
+        "N": 50,
+        "J": 0.421
+      },
+      {
+        "N": 60,
+        "J": 0.436
+      },
+      {
+        "N": 80,
+        "J": 0.455
+      },
+      {
+        "N": 125,
+        "J": 0.478
+      },
+      {
+        "N": 275,
+        "J": 0.501
+      }
+    ],
+    "single_tooth_contact_mating_gear_50": [
+      {
+        "N": 17,
+        "J": 0.312
+      },
+      {
+        "N": 20,
+        "J": 0.33
+      },
+      {
+        "N": 24,
+        "J": 0.351
+      },
+      {
+        "N": 30,
+        "J": 0.377
+      },
+      {
+        "N": 35,
+        "J": 0.393
+      },
+      {
+        "N": 40,
+        "J": 0.407
+      },
+      {
+        "N": 45,
+        "J": 0.419
+      },
+      {
+        "N": 50,
+        "J": 0.429
+      },
+      {
+        "N": 60,
+        "J": 0.444
+      },
+      {
+        "N": 80,
+        "J": 0.464
+      },
+      {
+        "N": 125,
+        "J": 0.488
+      },
+      {
+        "N": 275,
+        "J": 0.512
+      }
+    ],
+    "single_tooth_contact_mating_gear_85": [
+      {
+        "N": 17,
+        "J": 0.318
+      },
+      {
+        "N": 20,
+        "J": 0.336
+      },
+      {
+        "N": 24,
+        "J": 0.357
+      },
+      {
+        "N": 30,
+        "J": 0.384
+      },
+      {
+        "N": 35,
+        "J": 0.4
+      },
+      {
+        "N": 40,
+        "J": 0.415
+      },
+      {
+        "N": 45,
+        "J": 0.427
+      },
+      {
+        "N": 50,
+        "J": 0.438
+      },
+      {
+        "N": 60,
+        "J": 0.453
+      },
+      {
+        "N": 80,
+        "J": 0.474
+      },
+      {
+        "N": 125,
+        "J": 0.499
+      },
+      {
+        "N": 275,
+        "J": 0.523
+      }
+    ],
+    "single_tooth_contact_mating_gear_170": [
+      {
+        "N": 17,
+        "J": 0.324
+      },
+      {
+        "N": 20,
+        "J": 0.342
+      },
+      {
+        "N": 24,
+        "J": 0.363
+      },
+      {
+        "N": 30,
+        "J": 0.391
+      },
+      {
+        "N": 35,
+        "J": 0.408
+      },
+      {
+        "N": 40,
+        "J": 0.423
+      },
+      {
+        "N": 45,
+        "J": 0.435
+      },
+      {
+        "N": 50,
+        "J": 0.446
+      },
+      {
+        "N": 60,
+        "J": 0.462
+      },
+      {
+        "N": 80,
+        "J": 0.484
+      },
+      {
+        "N": 125,
+        "J": 0.51
+      },
+      {
+        "N": 275,
+        "J": 0.535
+      }
+    ],
+    "single_tooth_contact_mating_gear_1000": [
+      {
+        "N": 17,
+        "J": 0.33
+      },
+      {
+        "N": 20,
+        "J": 0.348
+      },
+      {
+        "N": 24,
+        "J": 0.369
+      },
+      {
+        "N": 30,
+        "J": 0.398
+      },
+      {
+        "N": 35,
+        "J": 0.415
+      },
+      {
+        "N": 40,
+        "J": 0.43
+      },
+      {
+        "N": 45,
+        "J": 0.443
+      },
+      {
+        "N": 50,
+        "J": 0.454
+      },
+      {
+        "N": 60,
+        "J": 0.47
+      },
+      {
+        "N": 80,
+        "J": 0.493
+      },
+      {
+        "N": 125,
+        "J": 0.52
+      },
+      {
+        "N": 275,
+        "J": 0.548
+      }
+    ]
+  },
+  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values."
+}

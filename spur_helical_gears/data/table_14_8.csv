@@ -1,0 +1,37 @@
+pinion_material,pinion_modulus_psi,pinion_modulus_MPa,gear_material,gear_modulus_psi,gear_modulus_MPa,Cp_sqrt_psi,ZE_sqrt_MPa
+Steel,30e6,2e5,Steel,30e6,2e5,2300,191
+Steel,30e6,2e5,Malleable iron,25e6,1.7e5,2180,181
+Steel,30e6,2e5,Nodular iron,24e6,1.7e5,2160,179
+Steel,30e6,2e5,Cast iron,22e6,1.5e5,2100,174
+Steel,30e6,2e5,Aluminum bronze,17.5e6,1.2e5,1950,162
+Steel,30e6,2e5,Tin bronze,16e6,1.1e5,1900,158
+Malleable iron,25e6,1.7e5,Steel,30e6,2e5,2180,181
+Malleable iron,25e6,1.7e5,Malleable iron,25e6,1.7e5,2090,174
+Malleable iron,25e6,1.7e5,Nodular iron,24e6,1.7e5,2070,172
+Malleable iron,25e6,1.7e5,Cast iron,22e6,1.5e5,2020,168
+Malleable iron,25e6,1.7e5,Aluminum bronze,17.5e6,1.2e5,1900,158
+Malleable iron,25e6,1.7e5,Tin bronze,16e6,1.1e5,1850,154
+Nodular iron,24e6,1.7e5,Steel,30e6,2e5,2160,179
+Nodular iron,24e6,1.7e5,Malleable iron,25e6,1.7e5,2070,172
+Nodular iron,24e6,1.7e5,Nodular iron,24e6,1.7e5,2050,170
+Nodular iron,24e6,1.7e5,Cast iron,22e6,1.5e5,2000,166
+Nodular iron,24e6,1.7e5,Aluminum bronze,17.5e6,1.2e5,1880,156
+Nodular iron,24e6,1.7e5,Tin bronze,16e6,1.1e5,1830,152
+Cast iron,22e6,1.5e5,Steel,30e6,2e5,2100,174
+Cast iron,22e6,1.5e5,Malleable iron,25e6,1.7e5,2020,168
+Cast iron,22e6,1.5e5,Nodular iron,24e6,1.7e5,2000,166
+Cast iron,22e6,1.5e5,Cast iron,22e6,1.5e5,1960,163
+Cast iron,22e6,1.5e5,Aluminum bronze,17.5e6,1.2e5,1850,154
+Cast iron,22e6,1.5e5,Tin bronze,16e6,1.1e5,1800,149
+Aluminum bronze,17.5e6,1.2e5,Steel,30e6,2e5,1950,162
+Aluminum bronze,17.5e6,1.2e5,Malleable iron,25e6,1.7e5,1900,158
+Aluminum bronze,17.5e6,1.2e5,Nodular iron,24e6,1.7e5,1880,156
+Aluminum bronze,17.5e6,1.2e5,Cast iron,22e6,1.5e5,1850,154
+Aluminum bronze,17.5e6,1.2e5,Aluminum bronze,17.5e6,1.2e5,1750,145
+Aluminum bronze,17.5e6,1.2e5,Tin bronze,16e6,1.1e5,1700,141
+Tin bronze,16e6,1.1e5,Steel,30e6,2e5,1900,158
+Tin bronze,16e6,1.1e5,Malleable iron,25e6,1.7e5,1850,154
+Tin bronze,16e6,1.1e5,Nodular iron,24e6,1.7e5,1830,152
+Tin bronze,16e6,1.1e5,Cast iron,22e6,1.5e5,1800,149
+Tin bronze,16e6,1.1e5,Aluminum bronze,17.5e6,1.2e5,1700,141
+Tin bronze,16e6,1.1e5,Tin bronze,16e6,1.1e5,1650,137

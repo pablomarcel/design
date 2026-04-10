@@ -1,0 +1,205 @@
+{
+  "figure": "14-7",
+  "title": "Helical-gear geometry factors J'",
+  "description": "Approximate digitization of AGMA-style chart for helical-gear bending geometry factor J'.",
+  "quantity": {
+    "symbol": "J_prime",
+    "display_symbol": "J'",
+    "description": "Geometry factor for helical gears"
+  },
+  "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
+  "important_note": "This figure does not provide closed-form equations for the J' curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
+  "formula_note": {
+    "display_equation": "m_N = p_N / (0.95 Z)",
+    "equation_for_programmatic_use": "m_N = p_N / (0.95*Z)",
+    "note": "As shown in the figure."
+  },
+  "assumptions_and_annotations_from_figure": {
+    "z_value_note": "Value for Z is for an element of indicated numbers of teeth and a 75-tooth mate.",
+    "backlash_note": "Normal tooth thickness of pinion and gear tooth each reduced 0.024 in to provide 0.048 in total backlash for one normal diametral pitch.",
+    "hob_note": "Factors are for teeth cut with a full fillet hob."
+  },
+  "x_axis": {
+    "symbol": "psi",
+    "label": "Helix angle",
+    "units": "deg",
+    "approx_visible_range_deg": [
+      5,
+      35
+    ]
+  },
+  "y_axis": {
+    "symbol": "J_prime",
+    "display_symbol": "J'",
+    "label": "Geometry factor J'",
+    "units": "dimensionless",
+    "approx_visible_range": [
+      0.3,
+      0.7
+    ]
+  },
+  "curve_family": {
+    "curve_parameter": "number_of_teeth",
+    "parameter_values": [
+      20,
+      30,
+      60,
+      150,
+      500
+    ],
+    "note": "Curve labels at the right edge correspond to the indicated tooth counts."
+  },
+  "digitized_curves": {
+    "teeth_20": [
+      {
+        "helix_angle_deg": 5,
+        "J_prime": 0.468
+      },
+      {
+        "helix_angle_deg": 10,
+        "J_prime": 0.496
+      },
+      {
+        "helix_angle_deg": 15,
+        "J_prime": 0.504
+      },
+      {
+        "helix_angle_deg": 20,
+        "J_prime": 0.503
+      },
+      {
+        "helix_angle_deg": 25,
+        "J_prime": 0.49
+      },
+      {
+        "helix_angle_deg": 30,
+        "J_prime": 0.466
+      },
+      {
+        "helix_angle_deg": 35,
+        "J_prime": 0.438
+      }
+    ],
+    "teeth_30": [
+      {
+        "helix_angle_deg": 5,
+        "J_prime": 0.523
+      },
+      {
+        "helix_angle_deg": 10,
+        "J_prime": 0.546
+      },
+      {
+        "helix_angle_deg": 15,
+        "J_prime": 0.551
+      },
+      {
+        "helix_angle_deg": 20,
+        "J_prime": 0.548
+      },
+      {
+        "helix_angle_deg": 25,
+        "J_prime": 0.532
+      },
+      {
+        "helix_angle_deg": 30,
+        "J_prime": 0.499
+      },
+      {
+        "helix_angle_deg": 35,
+        "J_prime": 0.463
+      }
+    ],
+    "teeth_60": [
+      {
+        "helix_angle_deg": 5,
+        "J_prime": 0.583
+      },
+      {
+        "helix_angle_deg": 10,
+        "J_prime": 0.605
+      },
+      {
+        "helix_angle_deg": 15,
+        "J_prime": 0.613
+      },
+      {
+        "helix_angle_deg": 20,
+        "J_prime": 0.604
+      },
+      {
+        "helix_angle_deg": 25,
+        "J_prime": 0.578
+      },
+      {
+        "helix_angle_deg": 30,
+        "J_prime": 0.542
+      },
+      {
+        "helix_angle_deg": 35,
+        "J_prime": 0.488
+      }
+    ],
+    "teeth_150": [
+      {
+        "helix_angle_deg": 5,
+        "J_prime": 0.624
+      },
+      {
+        "helix_angle_deg": 10,
+        "J_prime": 0.649
+      },
+      {
+        "helix_angle_deg": 15,
+        "J_prime": 0.656
+      },
+      {
+        "helix_angle_deg": 20,
+        "J_prime": 0.646
+      },
+      {
+        "helix_angle_deg": 25,
+        "J_prime": 0.614
+      },
+      {
+        "helix_angle_deg": 30,
+        "J_prime": 0.567
+      },
+      {
+        "helix_angle_deg": 35,
+        "J_prime": 0.51
+      }
+    ],
+    "teeth_500": [
+      {
+        "helix_angle_deg": 5,
+        "J_prime": 0.651
+      },
+      {
+        "helix_angle_deg": 10,
+        "J_prime": 0.674
+      },
+      {
+        "helix_angle_deg": 15,
+        "J_prime": 0.681
+      },
+      {
+        "helix_angle_deg": 20,
+        "J_prime": 0.667
+      },
+      {
+        "helix_angle_deg": 25,
+        "J_prime": 0.632
+      },
+      {
+        "helix_angle_deg": 30,
+        "J_prime": 0.58
+      },
+      {
+        "helix_angle_deg": 35,
+        "J_prime": 0.518
+      }
+    ]
+  },
+  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values."
+}

@@ -1,0 +1,83 @@
+{
+  "figure": "14-18",
+  "title": "Roadmap of gear wear equations based on AGMA standards",
+  "standard_basis": "ANSI/AGMA 2001-D04",
+  "unit_system": "U.S. customary units",
+  "sections": {
+    "spur_gear_wear": {
+      "pitch_diameter": {
+        "equation": "d_P = N_P / P_d",
+        "display_equation": "d_P = N_P / P_d"
+      },
+      "pitchline_velocity": {
+        "equation": "V = pi*d*n / 12",
+        "display_equation": "V = \u03c0 d n / 12"
+      },
+      "transmitted_tangential_load": {
+        "equation": "W_t = 33000*H / V",
+        "display_equation": "W^t = 33,000 H / V",
+        "note_from_figure": "1 [or Eq. (a), Sec. 14-10]; p. 751"
+      },
+      "gear_contact_stress_equation": {
+        "equation": "sigma_c = C_p * sqrt(W_t*K_o*K_v*K_s*(K_m/(d_P*F))*(C_f/I))",
+        "display_equation": "\u03c3_c = C_p (W^t K_o K_v K_s (K_m/(d_P F)) (C_f/I))^(1/2)",
+        "reference": "Eq. (14-16)",
+        "factor_sources": {
+          "C_p": "Eq. (14-13), Table 14-8; pp. 736, 749",
+          "W_t": "From transmitted tangential load equation above",
+          "K_o": "Table below in the figure: overload factor table",
+          "K_v": "Eq. (14-27); p. 748",
+          "K_s": "Eq. (14-30); p. 751",
+          "K_m": "Eq. (14-23); p. 747",
+          "C_f": "Taken as 1 in the figure annotation",
+          "I": "Eq. (14-23); p. 747"
+        }
+      }
+    },
+    "gear_contact_endurance_strength": {
+      "allowable_contact_stress_equation": {
+        "equation": "sigma_c_all = (S_c / S_H) * (Z_N*C_H / (K_T*K_R))",
+        "display_equation": "\u03c3_c,all = (S_c / S_H) (Z_N C_H / (K_T K_R))",
+        "reference": "Eq. (14-18)",
+        "factor_sources": {
+          "S_c": "0.99(S_c) at 10^7 cycles; Tables 14-6 and 14-7; pp. 743, 744",
+          "Z_N": "Fig. 14-15; p. 755",
+          "C_H": "Section 14-12, gear only; pp. 753, 754",
+          "K_T": "1 if T < 250\u00b0F",
+          "K_R": "Table 14-10, Eq. (14-38); pp. 756, 755"
+        }
+      }
+    },
+    "wear_factor_of_safety": {
+      "equation": "S_H = (S_c*Z_N*C_H/(K_T*K_R)) / sigma_c",
+      "display_equation": "S_H = [S_c Z_N C_H / (K_T K_R)] / \u03c3_c",
+      "reference": "Eq. (14-42)",
+      "note_from_figure": "Gear only"
+    }
+  },
+  "overload_factor_table_Ko": [
+    {
+      "power_source": "Uniform",
+      "driven_machine_uniform": 1.0,
+      "driven_machine_moderate_shock": 1.25,
+      "driven_machine_heavy_shock": 1.75
+    },
+    {
+      "power_source": "Light shock",
+      "driven_machine_uniform": 1.25,
+      "driven_machine_moderate_shock": 1.5,
+      "driven_machine_heavy_shock": 2.0
+    },
+    {
+      "power_source": "Medium shock",
+      "driven_machine_uniform": 1.5,
+      "driven_machine_moderate_shock": 1.75,
+      "driven_machine_heavy_shock": 2.25
+    }
+  ],
+  "notes": [
+    "Figure 14-18 is a roadmap or summary figure rather than a single derivation.",
+    "The figure reminds the reader to compare S_F with S_H^2 when deciding whether bending or wear is the threat to function.",
+    "For crowned gears, the figure states to compare S_F with S_H^3."
+  ]
+}
