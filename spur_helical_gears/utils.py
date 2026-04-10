@@ -145,14 +145,25 @@ class GearDataLookup:
         raise KeyError(f"No C_p row for pinion_material={pinion_material!r}, gear_material={gear_material!r}")
 
     def reliability_factor(self, reliability: float) -> float:
-        if 0.5 < reliability < 0.99:
-            return float(0.658 - 0.0759 * math.log(1.0 - reliability))
-        if 0.99 <= reliability <= 0.9999:
-            return float(0.50 - 0.109 * math.log(1.0 - reliability))
-        rows = self.repo.csv_rows("table_14_10.csv") if (self.repo.data_dir / "table_14_10.csv").exists() else []
-        for row in rows:
+        reliability = float(reliability)
+        table_rows: list[dict[str, str]] = []
+        table_path = self.repo.data_dir / "table_14_10.csv"
+        if table_path.exists():
+            table_rows = self.repo.csv_rows("table_14_10.csv")
+
+        # Per Shigley's stated policy: use cardinal table values when available,
+        # and only fall back to Eq. 14-38 / Eq. 14-39 for values in between.
+        for row in table_rows:
             if abs(float(row["reliability"]) - reliability) < 1e-12:
                 return float(row["K_R"])
+
+        if 0.5 < reliability < 0.99:
+            return float(0.658 - 0.0759 * math.log(1.0 - reliability))
+        if 0.99 < reliability <= 0.9999:
+            return float(0.50 - 0.109 * math.log(1.0 - reliability))
+        if abs(reliability - 0.99) < 1e-12 and table_rows:
+            # Defensive fallback in case a user has a malformed table or deletes the row.
+            return 1.0
         raise ValueError("Reliability must be in 0.5 < R <= 0.9999")
 
     def hardness_scale_hb_from_hrc(self, hrc: float) -> float:

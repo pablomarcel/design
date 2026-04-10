@@ -221,8 +221,8 @@ class SpurGearAnalysisSolver(GearSolverBase):
         s_c_g = self.lookup.contact_strength_from_figure("figure_14_5.json", p["gear_grade"], p["gear_hb"])
 
         c_h = self.ch_for_gear(p["pinion_hb"], p["gear_hb"], c["gear_ratio"])
-        j_p = p.get("J_P") or self.lookup.spur_j(p["pinion_teeth"], p["gear_teeth"])
-        j_g = p.get("J_G") or self.lookup.spur_j(p["gear_teeth"], p["pinion_teeth"])
+        j_p = p.get("J_P") if p.get("J_P") is not None else self.lookup.spur_j(p["pinion_teeth"], p["gear_teeth"])
+        j_g = p.get("J_G") if p.get("J_G") is not None else self.lookup.spur_j(p["gear_teeth"], p["pinion_teeth"])
 
         sigma_p = self.bending_stress(w_t, c["K_o"], k_v, k_s_p, p["diametral_pitch"], p["face_width_in"], k_m, p.get("kb", 1.0), j_p)
         sigma_g = self.bending_stress(w_t, c["K_o"], k_v, k_s_g, p["diametral_pitch"], p["face_width_in"], k_m, p.get("kb", 1.0), j_g)
@@ -325,8 +325,11 @@ class HelicalGearAnalysisSolver(GearSolverBase):
         j_prime_g = self.lookup.helical_j_prime(p["helix_angle_deg"], p["gear_teeth"])
         j_mult_p = self.lookup.helical_j_multiplier(p["helix_angle_deg"], p["gear_teeth"])
         j_mult_g = self.lookup.helical_j_multiplier(p["helix_angle_deg"], p["pinion_teeth"])
-        j_p = j_prime_p * j_mult_p
-        j_g = j_prime_g * j_mult_g
+
+        computed_j_p = j_prime_p * j_mult_p
+        computed_j_g = j_prime_g * j_mult_g
+        j_p = p.get("J_P") if p.get("J_P") is not None else computed_j_p
+        j_g = p.get("J_G") if p.get("J_G") is not None else computed_j_g
 
         table_14_9 = {row["condition"]: row for row in self.lookup.repo.csv_rows("table_14_9.csv")}
         cma_row = table_14_9[p["enclosure_condition_label"]]
@@ -445,8 +448,8 @@ class SpurGearDesignSolver(GearSolverBase):
         c_e = self.c_e(p.get("adjusted_at_assembly", False))
         y_p = self.lookup.lewis_form_factor(p["pinion_teeth"])
         y_g = self.lookup.lewis_form_factor(p["gear_teeth"])
-        j_p = p.get("J_P") or self.lookup.spur_j(p["pinion_teeth"], p["gear_teeth"])
-        j_g = p.get("J_G") or self.lookup.spur_j(p["gear_teeth"], p["pinion_teeth"])
+        j_p = p.get("J_P") if p.get("J_P") is not None else self.lookup.spur_j(p["pinion_teeth"], p["gear_teeth"])
+        j_g = p.get("J_G") if p.get("J_G") is not None else self.lookup.spur_j(p["gear_teeth"], p["pinion_teeth"])
 
         for pd in p["diametral_pitch_candidates"]:
             d_p = p["pinion_teeth"] / pd
