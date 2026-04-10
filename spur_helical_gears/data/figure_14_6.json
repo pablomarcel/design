@@ -14,6 +14,7 @@
       12,
       15,
       17,
+      18,
       20,
       24,
       30,
@@ -23,6 +24,7 @@
       50,
       52,
       60,
+      72,
       80,
       125,
       275,
@@ -38,9 +40,9 @@
       0.6
     ]
   },
-  "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
+  "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with AGMA 908-B89 tabular content, though the standard itself is fundamentally tabulated rather than chart-driven.",
   "important_note": "This figure does not provide closed-form equations for the J-curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
-  "dataset_upgrade_note": "This calibrated dataset keeps a rectangular grid for bilinear interpolation and adjusts the 17/52 pair toward the textbook Example 14-4 values. In particular, the mating-gear-52 curve is anchored at J=0.300 for N=17, and the mating-gear-17 curve is anchored at J=0.400 for N=52.",
+  "dataset_upgrade_note": "This calibrated dataset keeps a rectangular grid for bilinear interpolation and adjusts both the 17/52 pair toward Example 14-4 and the 18/72 pair toward Example 14-8. Added x-grid support at N=18 and N=72 across all mating-gear curves, plus dedicated mating-gear-18 and mating-gear-72 families to improve both pinion-side and gear-side lookups.",
   "generating_rack_1_pitch": {
     "pinion_addendum": 1.0,
     "gear_addendum": 1.0,
@@ -54,10 +56,12 @@
     "curve_parameter": "number_of_teeth_in_mating_gear",
     "parameter_values": [
       17,
+      18,
       25,
       35,
       50,
       52,
+      72,
       85,
       170,
       1000
@@ -76,6 +80,10 @@
       {
         "N": 17,
         "J": 0.228
+      },
+      {
+        "N": 18,
+        "J": 0.232
       },
       {
         "N": 20,
@@ -114,6 +122,10 @@
         "J": 0.289
       },
       {
+        "N": 72,
+        "J": 0.294
+      },
+      {
         "N": 80,
         "J": 0.297
       },
@@ -130,6 +142,10 @@
       {
         "N": 17,
         "J": 0.293
+      },
+      {
+        "N": 18,
+        "J": 0.3
       },
       {
         "N": 20,
@@ -168,6 +184,10 @@
         "J": 0.418
       },
       {
+        "N": 72,
+        "J": 0.427
+      },
+      {
         "N": 80,
         "J": 0.435
       },
@@ -180,10 +200,76 @@
         "J": 0.476
       }
     ],
+    "single_tooth_contact_mating_gear_18": [
+      {
+        "N": 17,
+        "J": 0.294
+      },
+      {
+        "N": 18,
+        "J": 0.301
+      },
+      {
+        "N": 20,
+        "J": 0.313
+      },
+      {
+        "N": 24,
+        "J": 0.333
+      },
+      {
+        "N": 30,
+        "J": 0.356
+      },
+      {
+        "N": 35,
+        "J": 0.371
+      },
+      {
+        "N": 40,
+        "J": 0.384
+      },
+      {
+        "N": 45,
+        "J": 0.396
+      },
+      {
+        "N": 50,
+        "J": 0.401
+      },
+      {
+        "N": 52,
+        "J": 0.402
+      },
+      {
+        "N": 60,
+        "J": 0.412
+      },
+      {
+        "N": 72,
+        "J": 0.415
+      },
+      {
+        "N": 80,
+        "J": 0.424
+      },
+      {
+        "N": 125,
+        "J": 0.444
+      },
+      {
+        "N": 275,
+        "J": 0.466
+      }
+    ],
     "single_tooth_contact_mating_gear_25": [
       {
         "N": 17,
         "J": 0.3
+      },
+      {
+        "N": 18,
+        "J": 0.306
       },
       {
         "N": 20,
@@ -222,6 +308,10 @@
         "J": 0.426
       },
       {
+        "N": 72,
+        "J": 0.436
+      },
+      {
         "N": 80,
         "J": 0.444
       },
@@ -238,6 +328,10 @@
       {
         "N": 17,
         "J": 0.306
+      },
+      {
+        "N": 18,
+        "J": 0.312
       },
       {
         "N": 20,
@@ -276,6 +370,10 @@
         "J": 0.436
       },
       {
+        "N": 72,
+        "J": 0.447
+      },
+      {
         "N": 80,
         "J": 0.455
       },
@@ -292,6 +390,10 @@
       {
         "N": 17,
         "J": 0.312
+      },
+      {
+        "N": 18,
+        "J": 0.318
       },
       {
         "N": 20,
@@ -330,6 +432,10 @@
         "J": 0.444
       },
       {
+        "N": 72,
+        "J": 0.455
+      },
+      {
         "N": 80,
         "J": 0.464
       },
@@ -346,6 +452,10 @@
       {
         "N": 17,
         "J": 0.3
+      },
+      {
+        "N": 18,
+        "J": 0.307
       },
       {
         "N": 20,
@@ -384,6 +494,10 @@
         "J": 0.414
       },
       {
+        "N": 72,
+        "J": 0.425
+      },
+      {
         "N": 80,
         "J": 0.434
       },
@@ -396,10 +510,76 @@
         "J": 0.482
       }
     ],
+    "single_tooth_contact_mating_gear_72": [
+      {
+        "N": 17,
+        "J": 0.314
+      },
+      {
+        "N": 18,
+        "J": 0.32
+      },
+      {
+        "N": 20,
+        "J": 0.332
+      },
+      {
+        "N": 24,
+        "J": 0.353
+      },
+      {
+        "N": 30,
+        "J": 0.378
+      },
+      {
+        "N": 35,
+        "J": 0.394
+      },
+      {
+        "N": 40,
+        "J": 0.406
+      },
+      {
+        "N": 45,
+        "J": 0.412
+      },
+      {
+        "N": 50,
+        "J": 0.414
+      },
+      {
+        "N": 52,
+        "J": 0.415
+      },
+      {
+        "N": 60,
+        "J": 0.429
+      },
+      {
+        "N": 72,
+        "J": 0.438
+      },
+      {
+        "N": 80,
+        "J": 0.446
+      },
+      {
+        "N": 125,
+        "J": 0.47
+      },
+      {
+        "N": 275,
+        "J": 0.494
+      }
+    ],
     "single_tooth_contact_mating_gear_85": [
       {
         "N": 17,
         "J": 0.318
+      },
+      {
+        "N": 18,
+        "J": 0.324
       },
       {
         "N": 20,
@@ -438,6 +618,10 @@
         "J": 0.453
       },
       {
+        "N": 72,
+        "J": 0.465
+      },
+      {
         "N": 80,
         "J": 0.474
       },
@@ -454,6 +638,10 @@
       {
         "N": 17,
         "J": 0.324
+      },
+      {
+        "N": 18,
+        "J": 0.33
       },
       {
         "N": 20,
@@ -492,6 +680,10 @@
         "J": 0.462
       },
       {
+        "N": 72,
+        "J": 0.474
+      },
+      {
         "N": 80,
         "J": 0.484
       },
@@ -508,6 +700,10 @@
       {
         "N": 17,
         "J": 0.33
+      },
+      {
+        "N": 18,
+        "J": 0.336
       },
       {
         "N": 20,
@@ -546,6 +742,10 @@
         "J": 0.47
       },
       {
+        "N": 72,
+        "J": 0.483
+      },
+      {
         "N": 80,
         "J": 0.493
       },
@@ -559,5 +759,5 @@
       }
     ]
   },
-  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values. This calibrated version keeps a rectangular grid and nudges the 17/52 pair toward the textbook Example 14-4 values."
+  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values. This calibrated version keeps a rectangular grid and nudges the 17/52 pair toward Example 14-4 and the 18/72 pair toward Example 14-8, including explicit gear-side support via mating_gear_18."
 }
