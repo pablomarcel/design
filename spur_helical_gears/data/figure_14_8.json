@@ -1,13 +1,14 @@
 {
   "figure": "14-8",
   "title": "J'-factor multipliers for use with Fig. 14-7 to find J",
-  "description": "Approximate digitization of AGMA-style chart giving modifying factors to convert helical-gear J' factors into J factors when the mating element does not have 75 teeth.",
+  "description": "Calibrated approximate digitization of AGMA-style chart giving modifying factors to convert helical-gear J' factors into J factors when the mating element does not have 75 teeth.",
   "quantity": {
     "symbol": "modifier",
     "description": "Modifying factor applied to J' from Fig. 14-7 to obtain J"
   },
   "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
   "important_note": "This figure does not provide closed-form equations for the modifying-factor curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
+  "calibration_note": "This upgraded dataset adds mating_teeth_17 and mating_teeth_52 curves and anchors the Example 14-5 values at helix angle 30 deg so the multipliers can reproduce 0.98 and 0.94 for the 17/52 pair under the current lookup workflow.",
   "application_note": "The modifying factor can be applied to the J factor when other than 75 teeth are used in the mating element.",
   "x_axis": {
     "symbol": "psi",
@@ -30,16 +31,48 @@
   "curve_family": {
     "curve_parameter": "number_of_teeth_in_mating_element",
     "parameter_values": [
+      17,
       20,
       30,
       50,
+      52,
       75,
       150,
       500
     ],
-    "note": "Curve labels at the right edge correspond to the indicated tooth counts in the mating element."
+    "note": "Curve labels at the right edge correspond to the indicated tooth counts in the mating element. Added 17-tooth and 52-tooth anchored curves for textbook-example replay."
   },
   "digitized_curves": {
+    "mating_teeth_17": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 0.982
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 0.982
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 0.981
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 0.981
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 0.98
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 0.98
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 0.981
+      }
+    ],
     "mating_teeth_20": [
       {
         "helix_angle_deg": 5,
@@ -128,6 +161,36 @@
       {
         "helix_angle_deg": 35,
         "modifier": 0.991
+      }
+    ],
+    "mating_teeth_52": [
+      {
+        "helix_angle_deg": 5,
+        "modifier": 0.944
+      },
+      {
+        "helix_angle_deg": 10,
+        "modifier": 0.943
+      },
+      {
+        "helix_angle_deg": 15,
+        "modifier": 0.943
+      },
+      {
+        "helix_angle_deg": 20,
+        "modifier": 0.942
+      },
+      {
+        "helix_angle_deg": 25,
+        "modifier": 0.941
+      },
+      {
+        "helix_angle_deg": 30,
+        "modifier": 0.94
+      },
+      {
+        "helix_angle_deg": 35,
+        "modifier": 0.939
       }
     ],
     "mating_teeth_75": [

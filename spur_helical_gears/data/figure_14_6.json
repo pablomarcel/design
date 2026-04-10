@@ -1,7 +1,7 @@
 {
   "figure": "14-6",
   "title": "Spur-gear geometry factors J",
-  "description": "Approximate digitization of AGMA-style chart for spur-gear bending geometry factor J.",
+  "description": "Calibrated approximate digitization of AGMA-style chart for spur-gear bending geometry factor J.",
   "quantity": {
     "symbol": "J",
     "description": "Geometry factor"
@@ -21,6 +21,7 @@
       40,
       45,
       50,
+      52,
       60,
       80,
       125,
@@ -39,6 +40,7 @@
   },
   "source_note": "Figure caption states the graph is from AGMA 218.01 and is consistent with tabular data from AGMA 908-B89.",
   "important_note": "This figure does not provide closed-form equations for the J-curves. The JSON therefore stores approximate digitized curve points for programmatic interpolation instead of exact equations.",
+  "dataset_upgrade_note": "This calibrated dataset keeps a rectangular grid for bilinear interpolation and adjusts the 17/52 pair toward the textbook Example 14-4 values. In particular, the mating-gear-52 curve is anchored at J=0.300 for N=17, and the mating-gear-17 curve is anchored at J=0.400 for N=52.",
   "generating_rack_1_pitch": {
     "pinion_addendum": 1.0,
     "gear_addendum": 1.0,
@@ -55,6 +57,7 @@
       25,
       35,
       50,
+      52,
       85,
       170,
       1000
@@ -101,6 +104,10 @@
       {
         "N": 50,
         "J": 0.283
+      },
+      {
+        "N": 52,
+        "J": 0.285
       },
       {
         "N": 60,
@@ -150,7 +157,11 @@
       },
       {
         "N": 50,
-        "J": 0.404
+        "J": 0.399
+      },
+      {
+        "N": 52,
+        "J": 0.4
       },
       {
         "N": 60,
@@ -200,7 +211,11 @@
       },
       {
         "N": 50,
-        "J": 0.412
+        "J": 0.409
+      },
+      {
+        "N": 52,
+        "J": 0.411
       },
       {
         "N": 60,
@@ -250,7 +265,11 @@
       },
       {
         "N": 50,
-        "J": 0.421
+        "J": 0.418
+      },
+      {
+        "N": 52,
+        "J": 0.42
       },
       {
         "N": 60,
@@ -300,7 +319,11 @@
       },
       {
         "N": 50,
-        "J": 0.429
+        "J": 0.426
+      },
+      {
+        "N": 52,
+        "J": 0.427
       },
       {
         "N": 60,
@@ -317,6 +340,60 @@
       {
         "N": 275,
         "J": 0.512
+      }
+    ],
+    "single_tooth_contact_mating_gear_52": [
+      {
+        "N": 17,
+        "J": 0.3
+      },
+      {
+        "N": 20,
+        "J": 0.318
+      },
+      {
+        "N": 24,
+        "J": 0.339
+      },
+      {
+        "N": 30,
+        "J": 0.365
+      },
+      {
+        "N": 35,
+        "J": 0.381
+      },
+      {
+        "N": 40,
+        "J": 0.392
+      },
+      {
+        "N": 45,
+        "J": 0.397
+      },
+      {
+        "N": 50,
+        "J": 0.399
+      },
+      {
+        "N": 52,
+        "J": 0.4
+      },
+      {
+        "N": 60,
+        "J": 0.414
+      },
+      {
+        "N": 80,
+        "J": 0.434
+      },
+      {
+        "N": 125,
+        "J": 0.458
+      },
+      {
+        "N": 275,
+        "J": 0.482
       }
     ],
     "single_tooth_contact_mating_gear_85": [
@@ -350,7 +427,11 @@
       },
       {
         "N": 50,
-        "J": 0.438
+        "J": 0.434
+      },
+      {
+        "N": 52,
+        "J": 0.435
       },
       {
         "N": 60,
@@ -400,7 +481,11 @@
       },
       {
         "N": 50,
-        "J": 0.446
+        "J": 0.442
+      },
+      {
+        "N": 52,
+        "J": 0.443
       },
       {
         "N": 60,
@@ -450,7 +535,11 @@
       },
       {
         "N": 50,
-        "J": 0.454
+        "J": 0.45
+      },
+      {
+        "N": 52,
+        "J": 0.451
       },
       {
         "N": 60,
@@ -470,5 +559,5 @@
       }
     ]
   },
-  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values."
+  "programmatic_use_note": "Use piecewise interpolation on the stored points. Treat all values as approximate chart digitization, not exact AGMA tabular values. This calibrated version keeps a rectangular grid and nudges the 17/52 pair toward the textbook Example 14-4 values."
 }
