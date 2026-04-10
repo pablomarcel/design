@@ -6,10 +6,12 @@ from pathlib import Path
 
 try:
     from .app import BevelWormGearApp
-    from .in_out import in_dir
+    from .in_out import in_dir, read_problem, write_solution
+    from .utils import render_worm_mesh_design_comparison_table
 except ImportError:  # pragma: no cover
     from app import BevelWormGearApp
-    from in_out import in_dir
+    from in_out import in_dir, read_problem, write_solution
+    from utils import render_worm_mesh_design_comparison_table
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -32,15 +34,24 @@ def main() -> None:
     parser = build_parser()
     args = parser.parse_args()
     app = BevelWormGearApp()
+
     if args.command == "run":
-        outpath = app.run_file(args.infile, args.outfile)
+        problem = read_problem(args.infile)
+        result = app.solve_problem(problem)
+
+        if problem.get("solve_path") == "worm_mesh_design":
+            render_worm_mesh_design_comparison_table(result)
+
+        outpath = write_solution(result, args.outfile)
         print(str(outpath))
         return
+
     if args.command == "list-inputs":
         paths = sorted(in_dir().glob("*.json"))
         payload = [str(p.resolve() if args.absolute else p.name) for p in paths]
         print(json.dumps(payload, indent=2))
         return
+
     if args.command == "list-solve-paths":
         payload = [
             "straight_bevel_analysis",
@@ -51,8 +62,9 @@ def main() -> None:
         if args.json:
             print(json.dumps(payload, indent=2))
         else:
-            print("\n".join(payload))
+            print("\\n".join(payload))
         return
+
     raise SystemExit(2)
 
 

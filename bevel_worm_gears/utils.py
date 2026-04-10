@@ -231,3 +231,131 @@ def elastic_coefficient_cp_steel_default() -> float:
 
 def round_up(value: float, increment: float) -> float:
     return math.ceil(value / increment) * increment
+
+
+def worm_mesh_design_comparison_rows(result: Mapping[str, Any]) -> List[Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+
+    iterations = result.get("iterations", {})
+    if not isinstance(iterations, Mapping):
+        return rows
+
+    axial_trials = iterations.get("axial_pitch_trials", [])
+    if not isinstance(axial_trials, list):
+        return rows
+
+    selected = result.get("selected_design", {})
+    selected_px = selected.get("candidate_axial_pitch_p_x_in")
+    selected_d = selected.get("candidate_d_in")
+
+    for axial in axial_trials:
+        if not isinstance(axial, Mapping):
+            continue
+        for trial in axial.get("worm_pitch_diameter_trials", []):
+            if not isinstance(trial, Mapping):
+                continue
+
+            geom = trial.get("geometry", {})
+            cap = trial.get("capacity", {})
+            thermal = trial.get("thermal", {})
+            bending = trial.get("bending", {})
+            forces = trial.get("forces_and_powers", {})
+
+            px = trial.get("candidate_axial_pitch_p_x_in")
+            d = trial.get("candidate_d_in")
+            scenario_label = f"p_x={px}, d={d}"
+            is_selected = (
+                selected_px is not None
+                and selected_d is not None
+                and abs(float(px) - float(selected_px)) < 1e-12
+                and abs(float(d) - float(selected_d)) < 1e-12
+            )
+
+            rows.append(
+                {
+                    "scenario": scenario_label,
+                    "selected": "*" if is_selected else "",
+                    "p_x_in": px,
+                    "d_in": d,
+                    "lambda_deg": geom.get("lead_angle_lambda_deg"),
+                    "lambda_max_deg": geom.get("lambda_max_deg"),
+                    "lead_ok": geom.get("lead_angle_ok"),
+                    "F_e_req_in": cap.get("effective_face_width_required_F_e_req_in"),
+                    "F_e_sel_in": cap.get("effective_face_width_selected_in"),
+                    "F_e_max_in": cap.get("effective_face_width_max_in"),
+                    "W_G_t_lbf": forces.get("gear_tangential_force_W_G_t_lbf"),
+                    "W_t_all_lbf": cap.get("allowable_tangential_force_W_t_all_lbf"),
+                    "capacity_margin_lbf": cap.get("excess_capacity_margin_lbf"),
+                    "t_s_F": thermal.get("sump_temperature_with_actual_area_F"),
+                    "sigma_psi": bending.get("sigma_gear_psi"),
+                    "pass": trial.get("meets_design"),
+                    "failure_reasons": "; ".join(trial.get("failure_reasons", [])),
+                }
+            )
+    return rows
+
+
+def render_worm_mesh_design_comparison_table(result: Mapping[str, Any]) -> bool:
+    rows = worm_mesh_design_comparison_rows(result)
+    if not rows:
+        return False
+
+    try:
+        import pandas as pd
+        from rich.console import Console
+        from rich.table import Table
+    except Exception:
+        return False
+
+    df = pd.DataFrame(rows)
+    if df.empty:
+        return False
+
+    scenario_cols = []
+    for _, row in df.iterrows():
+        label = row["scenario"]
+        if row["selected"] == "*":
+            label = f"{label} *"
+        scenario_cols.append(label)
+
+    metric_order = [
+        ("p_x_in", "p_x [in]"),
+        ("d_in", "d [in]"),
+        ("lambda_deg", "lambda [deg]"),
+        ("lambda_max_deg", "lambda_max [deg]"),
+        ("lead_ok", "lead ok"),
+        ("F_e_req_in", "F_e_req [in]"),
+        ("F_e_sel_in", "F_e_selected [in]"),
+        ("F_e_max_in", "F_e_max [in]"),
+        ("W_G_t_lbf", "W_G_t [lbf]"),
+        ("W_t_all_lbf", "W_t_all [lbf]"),
+        ("capacity_margin_lbf", "capacity margin [lbf]"),
+        ("t_s_F", "sump temp [F]"),
+        ("sigma_psi", "sigma [psi]"),
+        ("pass", "meets design"),
+        ("failure_reasons", "failure reasons"),
+    ]
+
+    def fmt_value(key: str, value: Any) -> str:
+        if value is None:
+            return ""
+        if key in {"lead_ok", "pass"}:
+            return "yes" if bool(value) else "no"
+        if key == "failure_reasons":
+            return str(value)
+        try:
+            return f"{float(value):.3f}"
+        except Exception:
+            return str(value)
+
+    table = Table(title=f"Worm Mesh Design Scenario Comparison ({len(rows)} scenarios)")
+    table.add_column("Metric", style="bold")
+    for col in scenario_cols:
+        table.add_column(col)
+
+    for key, label in metric_order:
+        row_values = [fmt_value(key, row.get(key)) for row in rows]
+        table.add_row(label, *row_values)
+
+    Console().print(table)
+    return True
