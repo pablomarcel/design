@@ -1,0 +1,8 @@
+property_class,size_range_inclusive,minimum_proof_strength_MPa,minimum_tensile_strength_MPa,minimum_yield_strength_MPa,material,head_marking
+4.6,M5-M36,225,400,240,Low or medium carbon,4.6
+4.8,M1.6-M16,310,420,340,Low or medium carbon,4.8
+5.8,M5-M24,380,520,420,Low or medium carbon,5.8
+8.8,M16-M36,600,830,660,"Medium carbon, Q&T",8.8
+9.8,M1.6-M16,650,900,720,"Medium carbon, Q&T",9.8
+10.9,M5-M36,830,1040,940,"Low-carbon martensite, Q&T",10.9
+12.9,M1.6-M36,970,1220,1100,"Alloy, Q&T",12.9
