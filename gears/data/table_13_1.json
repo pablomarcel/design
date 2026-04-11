@@ -1,0 +1,115 @@
+{
+  "table": "13-1",
+  "title": "Standard and Commonly Used Tooth Systems for Spur Gears",
+  "columns": [
+    {
+      "key": "tooth_system",
+      "label": "Tooth System"
+    },
+    {
+      "key": "pressure_angle_deg",
+      "label": "Pressure Angle φ, deg"
+    },
+    {
+      "key": "addendum",
+      "label": "Addendum a"
+    },
+    {
+      "key": "dedendum",
+      "label": "Dedendum b"
+    }
+  ],
+  "rows": [
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 20.0,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.25/P",
+        "1.25m"
+      ]
+    },
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 20.0,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.35/P",
+        "1.35m"
+      ],
+      "note": "Alternate dedendum shown as a second line for the same 20 deg full-depth system."
+    },
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 22.5,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.25/P",
+        "1.25m"
+      ]
+    },
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 22.5,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.35/P",
+        "1.35m"
+      ],
+      "note": "Alternate dedendum shown as a second line for the same 22.5 deg full-depth system."
+    },
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 25.0,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.25/P",
+        "1.25m"
+      ]
+    },
+    {
+      "tooth_system": "Full depth",
+      "pressure_angle_deg": 25.0,
+      "addendum": [
+        "1/P",
+        "m"
+      ],
+      "dedendum": [
+        "1.35/P",
+        "1.35m"
+      ],
+      "note": "Alternate dedendum shown as a second line for the same 25 deg full-depth system."
+    },
+    {
+      "tooth_system": "Stub",
+      "pressure_angle_deg": 20.0,
+      "addendum": [
+        "0.8/P",
+        "0.8m"
+      ],
+      "dedendum": [
+        "1/P",
+        "m"
+      ]
+    }
+  ],
+  "notes": [
+    "Pressure angle 22½ deg is encoded as 22.5.",
+    "Formula alternatives are preserved as arrays to represent the source table's 'or' entries."
+  ]
+}

@@ -1,0 +1,73 @@
+{
+  "table": "13-5",
+  "title": "Recommended Pressure Angles and Tooth Depths for Worm Gearing",
+  "columns": [
+    {
+      "key": "lead_angle_deg",
+      "label": "Lead Angle λ, deg"
+    },
+    {
+      "key": "pressure_angle_deg",
+      "label": "Pressure Angle φ_n, deg"
+    },
+    {
+      "key": "addendum",
+      "label": "Addendum a"
+    },
+    {
+      "key": "dedendum",
+      "label": "Dedendum b_G"
+    }
+  ],
+  "rows": [
+    {
+      "lead_angle_deg": {
+        "min": 0,
+        "max": 15
+      },
+      "pressure_angle_deg": 14.5,
+      "addendum": "0.3683 p_x",
+      "dedendum": "0.3683 p_x"
+    },
+    {
+      "lead_angle_deg": {
+        "min": 15,
+        "max": 30
+      },
+      "pressure_angle_deg": 20,
+      "addendum": "0.3683 p_x",
+      "dedendum": "0.3683 p_x"
+    },
+    {
+      "lead_angle_deg": {
+        "min": 30,
+        "max": 35
+      },
+      "pressure_angle_deg": 25,
+      "addendum": "0.2865 p_x",
+      "dedendum": "0.3314 p_x"
+    },
+    {
+      "lead_angle_deg": {
+        "min": 35,
+        "max": 40
+      },
+      "pressure_angle_deg": 25,
+      "addendum": "0.2546 p_x",
+      "dedendum": "0.2947 p_x"
+    },
+    {
+      "lead_angle_deg": {
+        "min": 40,
+        "max": 45
+      },
+      "pressure_angle_deg": 30,
+      "addendum": "0.2228 p_x",
+      "dedendum": "0.2578 p_x"
+    }
+  ],
+  "notes": [
+    "Pressure angle entry 14½ deg encoded as 14.5.",
+    "Formulas are stored as strings using p_x notation from the source table."
+  ]
+}

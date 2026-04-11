@@ -1,0 +1,75 @@
+{
+  "table": "13-3",
+  "title": "Tooth Proportions for 20° Straight Bevel-Gear Teeth",
+  "units": {
+    "diametral_pitch_P": "teeth/in",
+    "clearance_c": "in",
+    "face_width_F": "in"
+  },
+  "items": [
+    {
+      "item": "Working depth",
+      "symbol": "h_k",
+      "formula": "2.0 / P"
+    },
+    {
+      "item": "Clearance",
+      "symbol": "c",
+      "formula": "(0.188 / P) + 0.002 in"
+    },
+    {
+      "item": "Addendum of gear",
+      "symbol": "a_G",
+      "formula": "(0.54 / P) + (0.460 / (P * (m_90**2)))"
+    },
+    {
+      "item": "Gear ratio",
+      "symbol": "m_G",
+      "formula": "N_G / N_P"
+    },
+    {
+      "item": "Equivalent 90° ratio",
+      "symbol": "m_90",
+      "cases": [
+        {
+          "condition": "Gamma = 90°",
+          "formula": "m_G"
+        },
+        {
+          "condition": "Gamma != 90°",
+          "formula": "sqrt(m_G * cos(gamma) / cos(Gamma))"
+        }
+      ]
+    },
+    {
+      "item": "Face width",
+      "symbol": "F",
+      "formula": "min(0.3 * A_0, 10 / P)"
+    },
+    {
+      "item": "Minimum number of teeth",
+      "mapping": [
+        {
+          "pinion": 16,
+          "gear": 16
+        },
+        {
+          "pinion": 15,
+          "gear": 17
+        },
+        {
+          "pinion": 14,
+          "gear": 20
+        },
+        {
+          "pinion": 13,
+          "gear": 30
+        }
+      ]
+    }
+  ],
+  "notes": [
+    "Gamma and gamma were transcribed exactly as shown in the table using uppercase/lowercase distinction.",
+    "Formula strings are preserved in symbolic form for downstream parsing."
+  ]
+}

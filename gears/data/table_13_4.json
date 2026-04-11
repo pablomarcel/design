@@ -1,0 +1,81 @@
+{
+  "table": "13-4",
+  "title": "Standard Tooth Proportions for Helical Gears",
+  "notes": [
+    "All dimensions are in inches, and angles are in degrees.",
+    "Bn is the normal backlash."
+  ],
+  "entries": {
+    "general": [
+      {
+        "quantity": "Addendum",
+        "formula": "1.00 / Pn"
+      },
+      {
+        "quantity": "Dedendum",
+        "formula": "1.25 / Pn"
+      },
+      {
+        "quantity": "Pinion pitch diameter",
+        "formula": "Np / (Pn cos ψ)"
+      },
+      {
+        "quantity": "Gear pitch diameter",
+        "formula": "Ng / (Pn cos ψ)"
+      },
+      {
+        "quantity": "Normal arc tooth thickness",
+        "formula": "π / Pn - Bn / 2",
+        "footnote": "Bn is the normal backlash."
+      },
+      {
+        "quantity": "Pinion base diameter",
+        "formula": "d cos φt"
+      },
+      {
+        "quantity": "Gear base diameter",
+        "formula": "D cos φt"
+      },
+      {
+        "quantity": "Base helix angle",
+        "formula": "tan^-1 (tan ψ cos φt)"
+      }
+    ],
+    "external_gears": [
+      {
+        "quantity": "Standard center distance",
+        "formula": "(D + d) / 2"
+      },
+      {
+        "quantity": "Gear outside diameter",
+        "formula": "D + 2a"
+      },
+      {
+        "quantity": "Pinion outside diameter",
+        "formula": "d + 2a"
+      },
+      {
+        "quantity": "Gear root diameter",
+        "formula": "D - 2b"
+      },
+      {
+        "quantity": "Pinion root diameter",
+        "formula": "d - 2b"
+      }
+    ],
+    "internal_gears": [
+      {
+        "quantity": "Center distance",
+        "formula": "(D - d) / 2"
+      },
+      {
+        "quantity": "Inside diameter",
+        "formula": "D - 2a"
+      },
+      {
+        "quantity": "Root diameter",
+        "formula": "D + 2b"
+      }
+    ]
+  }
+}
