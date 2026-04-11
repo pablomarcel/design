@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import math
@@ -173,6 +174,21 @@ class GearSolverBase:
     def decide_threat(s_f: float, s_h: float) -> str:
         return "wear" if (s_h ** 2) < s_f else "bending"
 
+    @staticmethod
+    def selected_hb(problem: dict[str, Any], base_key: str, override_key: str) -> float:
+        if problem.get(override_key) is not None:
+            return float(problem[override_key])
+        return float(problem[base_key])
+
+    @staticmethod
+    def selected_core_hardness_hb(problem: dict[str, Any], lookup: GearDataLookup) -> tuple[float, str]:
+        if problem.get("core_hardness_override_hb") is not None:
+            return float(problem["core_hardness_override_hb"]), "input_override_hb"
+        nitr_row = lookup.nitriding_material_row(problem["material"])
+        low_hrc, high_hrc = parse_range_text(nitr_row["hardness_core_HRC"])
+        hb_mid = lookup.hardness_scale_hb_midrange_from_hrc_range(low_hrc, high_hrc)
+        return hb_mid, "table_14_5_plus_hardness_scale_midrange"
+
     def common_analysis_setup(self, p: dict[str, Any]) -> dict[str, Any]:
         out: dict[str, Any] = {}
         out["gear_ratio"] = p["gear_teeth"] / p["pinion_teeth"]
@@ -197,6 +213,9 @@ class SpurGearAnalysisSolver(GearSolverBase):
     def solve(self) -> dict[str, Any]:
         p = self.problem
         c = self.common_analysis_setup(p)
+        hb_p = self.selected_hb(p, "pinion_hb", "pinion_hb_override")
+        hb_g = self.selected_hb(p, "gear_hb", "gear_hb_override")
+
         d_p = p["pinion_teeth"] / p["diametral_pitch"]
         d_g = p["gear_teeth"] / p["diametral_pitch"]
         v = self.pitchline_velocity(d_p, p["pinion_speed_rpm"])
@@ -215,12 +234,12 @@ class SpurGearAnalysisSolver(GearSolverBase):
         k_m = self.km(c_mc, c_pf, c_pm, c_ma, c_e)
         i_factor = self.spur_I(p["pressure_angle_deg"], c["gear_ratio"])
 
-        s_t_p = self.lookup.bending_strength_from_figure("figure_14_2.json", p["pinion_grade"], p["pinion_hb"])
-        s_t_g = self.lookup.bending_strength_from_figure("figure_14_2.json", p["gear_grade"], p["gear_hb"])
-        s_c_p = self.lookup.contact_strength_from_figure("figure_14_5.json", p["pinion_grade"], p["pinion_hb"])
-        s_c_g = self.lookup.contact_strength_from_figure("figure_14_5.json", p["gear_grade"], p["gear_hb"])
+        s_t_p = self.lookup.bending_strength_from_figure("figure_14_2.json", p["pinion_grade"], hb_p)
+        s_t_g = self.lookup.bending_strength_from_figure("figure_14_2.json", p["gear_grade"], hb_g)
+        s_c_p = self.lookup.contact_strength_from_figure("figure_14_5.json", p["pinion_grade"], hb_p)
+        s_c_g = self.lookup.contact_strength_from_figure("figure_14_5.json", p["gear_grade"], hb_g)
 
-        c_h = self.ch_for_gear(p["pinion_hb"], p["gear_hb"], c["gear_ratio"])
+        c_h = self.ch_for_gear(hb_p, hb_g, c["gear_ratio"])
         j_p = p.get("J_P") if p.get("J_P") is not None else self.lookup.spur_j(p["pinion_teeth"], p["gear_teeth"])
         j_g = p.get("J_G") if p.get("J_G") is not None else self.lookup.spur_j(p["gear_teeth"], p["pinion_teeth"])
 
@@ -235,6 +254,8 @@ class SpurGearAnalysisSolver(GearSolverBase):
         sh_g = self.wear_factor_of_safety(s_c_g, c["Z_N_G"], c_h, c["K_T"], c["K_R"], sigma_c_g)
 
         self.results.derived.update({
+            "pinion_hb_used": pretty_float(hb_p),
+            "gear_hb_used": pretty_float(hb_g),
             "d_P_in": pretty_float(d_p),
             "d_G_in": pretty_float(d_g),
             "pitchline_velocity_ft_min": pretty_float(v),
@@ -293,15 +314,17 @@ class HelicalGearAnalysisSolver(GearSolverBase):
     def solve(self) -> dict[str, Any]:
         p = self.problem
         c = self.common_analysis_setup(p)
+        hb_p = self.selected_hb(p, "pinion_hb", "pinion_hb_override")
+        hb_g = self.selected_hb(p, "gear_hb", "gear_hb_override")
 
         k_s_p = self.size_factor(p["face_width_in"], c["Y_P"], p["normal_diametral_pitch"])
         k_s_g = self.size_factor(p["face_width_in"], c["Y_G"], p["normal_diametral_pitch"])
 
-        s_t_p = self.lookup.bending_strength_from_figure("figure_14_2.json", p["pinion_grade"], p["pinion_hb"])
-        s_t_g = self.lookup.bending_strength_from_figure("figure_14_2.json", p["gear_grade"], p["gear_hb"])
-        s_c_p = self.lookup.contact_strength_from_figure("figure_14_5.json", p["pinion_grade"], p["pinion_hb"])
-        s_c_g = self.lookup.contact_strength_from_figure("figure_14_5.json", p["gear_grade"], p["gear_hb"])
-        c_h = self.ch_for_gear(p["pinion_hb"], p["gear_hb"], c["gear_ratio"])
+        s_t_p = self.lookup.bending_strength_from_figure("figure_14_2.json", p["pinion_grade"], hb_p)
+        s_t_g = self.lookup.bending_strength_from_figure("figure_14_2.json", p["gear_grade"], hb_g)
+        s_c_p = self.lookup.contact_strength_from_figure("figure_14_5.json", p["pinion_grade"], hb_p)
+        s_c_g = self.lookup.contact_strength_from_figure("figure_14_5.json", p["gear_grade"], hb_g)
+        c_h = self.ch_for_gear(hb_p, hb_g, c["gear_ratio"])
 
         p_t = p["normal_diametral_pitch"] * math.cos(math.radians(p["helix_angle_deg"]))
         d_p = p["pinion_teeth"] / p_t
@@ -351,6 +374,8 @@ class HelicalGearAnalysisSolver(GearSolverBase):
         sh_g = self.wear_factor_of_safety(s_c_g, c["Z_N_G"], c_h, c["K_T"], c["K_R"], sigma_c_g)
 
         self.results.derived.update({
+            "pinion_hb_used": pretty_float(hb_p),
+            "gear_hb_used": pretty_float(hb_g),
             "P_t_teeth_per_in": pretty_float(p_t),
             "d_P_in": pretty_float(d_p),
             "d_G_in": pretty_float(d_g),
@@ -426,9 +451,7 @@ class SpurGearDesignSolver(GearSolverBase):
         zn_g = self.lookup.z_n(p["pinion_cycles"] / gear_ratio, p.get("zn_selection", "upper"))
         c_p = self.lookup.cp_for_material_pair(p.get("pinion_cp_material", "Steel"), p.get("gear_cp_material", "Steel"))
 
-        nitr_row = self.lookup.nitriding_material_row(p["material"])
-        low_hrc, high_hrc = parse_range_text(nitr_row["hardness_core_HRC"])
-        hb_mid = self.lookup.hardness_scale_hb_midrange_from_hrc_range(low_hrc, high_hrc)
+        hb_mid, hb_source = self.selected_core_hardness_hb(p, self.lookup)
         s_t = self.lookup.bending_strength_from_figure("figure_14_4.json", p["material_grade_key"], hb_mid)
 
         sc_rows = self.lookup.repo.csv_rows("table_14_6.csv")
@@ -550,6 +573,7 @@ class SpurGearDesignSolver(GearSolverBase):
             "K_T": pretty_float(k_t),
             "C_p_sqrt_psi": pretty_float(c_p),
             "core_hardness_mid_HB": pretty_float(hb_mid),
+            "core_hardness_source": hb_source,
             "S_t_psi": pretty_float(s_t),
             "S_c_psi": pretty_float(s_c),
         })

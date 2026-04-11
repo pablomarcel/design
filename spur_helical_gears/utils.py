@@ -1,10 +1,11 @@
+
 from __future__ import annotations
 
 import csv
 import json
 import math
 from pathlib import Path
-from typing import Any, Iterable, Sequence
+from typing import Any, Sequence
 
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -111,12 +112,6 @@ class GearMath:
     def round_up_to_increment(value: float, increment: float) -> float:
         return math.ceil(value / increment) * increment
 
-    @staticmethod
-    def safe_ln(value: float) -> float:
-        if value <= 0:
-            raise ValueError(f"Natural log undefined for non-positive value: {value}")
-        return math.log(value)
-
 
 class GearDataLookup:
     def __init__(self, repo: DataRepository | None = None) -> None:
@@ -151,8 +146,6 @@ class GearDataLookup:
         if table_path.exists():
             table_rows = self.repo.csv_rows("table_14_10.csv")
 
-        # Per Shigley's stated policy: use cardinal table values when available,
-        # and only fall back to Eq. 14-38 / Eq. 14-39 for values in between.
         for row in table_rows:
             if abs(float(row["reliability"]) - reliability) < 1e-12:
                 return float(row["K_R"])
@@ -162,7 +155,6 @@ class GearDataLookup:
         if 0.99 < reliability <= 0.9999:
             return float(0.50 - 0.109 * math.log(1.0 - reliability))
         if abs(reliability - 0.99) < 1e-12 and table_rows:
-            # Defensive fallback in case a user has a malformed table or deletes the row.
             return 1.0
         raise ValueError("Reliability must be in 0.5 < R <= 0.9999")
 
@@ -303,20 +295,14 @@ def evaluate_power_expression(expr: str, variables: dict[str, float]) -> float:
     return float(eval(expr2, safe_globals, safe_locals))
 
 
-def float_or_none(value: Any) -> float | None:
-    if value is None or value == "":
-        return None
-    return float(value)
+def pretty_float(value: float, digits: int = 4) -> float:
+    return round(float(value), digits)
 
 
 def parse_range_text(value: str) -> tuple[float, float]:
     cleaned = value.replace("–", "-").replace("—", "-").replace(" ", "")
     low, high = cleaned.split("-")
     return float(low), float(high)
-
-
-def pretty_float(value: float, digits: int = 4) -> float:
-    return round(float(value), digits)
 
 
 def ensure_out_dir() -> Path:
