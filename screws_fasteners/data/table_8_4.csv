@@ -1,0 +1,7 @@
+screw_material,nut_material,safe_pb_min_psi,safe_pb_max_psi,notes
+Steel,Bronze,2500,3500,Low speed
+Steel,Bronze,1600,2500,<=10 fpm
+Steel,Cast iron,1800,2500,<=8 fpm
+Steel,Bronze,800,1400,20-40 fpm
+Steel,Cast iron,600,1000,20-40 fpm
+Steel,Bronze,150,240,>=50 fpm

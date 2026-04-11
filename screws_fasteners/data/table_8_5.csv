@@ -1,0 +1,13 @@
+screw_material,nut_material,friction_coefficient_min,friction_coefficient_max
+"Steel, dry",Steel,0.15,0.25
+"Steel, dry",Bronze,0.15,0.23
+"Steel, dry",Brass,0.15,0.19
+"Steel, dry",Cast Iron,0.15,0.25
+"Steel, machine oil",Steel,0.11,0.17
+"Steel, machine oil",Bronze,0.1,0.16
+"Steel, machine oil",Brass,0.1,0.15
+"Steel, machine oil",Cast Iron,0.11,0.17
+Bronze,Steel,0.08,0.12
+Bronze,Bronze,0.04,0.06
+Bronze,Brass,,
+Bronze,Cast Iron,0.06,0.09

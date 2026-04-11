@@ -1,0 +1,6 @@
+material_used,poisson_ratio,elastic_modulus_GPa,elastic_modulus_Mpsi,A,B
+Steel,0.291,207,30.0,0.78715,0.62873
+Aluminum,0.334,71,10.3,0.7967,0.63816
+Copper,0.326,119,17.3,0.79568,0.63553
+Gray cast iron,0.211,100,14.5,0.77871,0.61616
+General expression,,,,0.78952,0.62914

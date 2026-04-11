@@ -1,0 +1,5 @@
+combination,running_friction_coefficient,starting_friction_coefficient
+Soft steel on cast iron,0.12,0.17
+Hard steel on cast iron,0.09,0.15
+Soft steel on bronze,0.08,0.1
+Hard steel on bronze,0.06,0.08

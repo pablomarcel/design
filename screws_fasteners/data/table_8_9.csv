@@ -1,0 +1,11 @@
+sae_grade_no,size_range_inclusive_in,minimum_proof_strength_kpsi,minimum_tensile_strength_kpsi,minimum_yield_strength_kpsi,material,head_marking
+1,1/4-1 1/2,33,60,36,Low or medium carbon,No marking
+2,1/4-3/4,55,74,57,Low or medium carbon,No radial lines
+2,7/8-1 1/2,33,60,36,Low or medium carbon,No radial lines
+4,1/4-1 1/2,65,115,100,"Medium carbon, cold-drawn",No radial lines
+5,1/4-1,85,120,92,"Medium carbon, Q&T",3 radial lines
+5,1 1/8-1 1/2,74,105,81,"Medium carbon, Q&T",3 radial lines
+5.2,1/4-1,85,120,92,"Low-carbon martensite, Q&T",3 radial lines
+7,1/4-1 1/2,105,133,115,"Medium-carbon alloy, Q&T",5 radial lines
+8,1/4-1 1/2,120,150,130,"Medium-carbon alloy, Q&T",6 radial lines
+8.2,1/4-1,120,150,130,"Low-carbon martensite, Q&T",6 radial lines
