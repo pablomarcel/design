@@ -3,12 +3,11 @@ from __future__ import annotations
 import csv
 import math
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, Dict, List, Sequence
 
 import sympy as sp
 
-from utils import project_root, vec_add, vec_cross, vec_scale, vec_unit
+from utils import project_root, vec_add, vec_cross, vec_mag_dict, vec_magnitude, vec_scale, vec_unit
 
 AXES = ["x", "y", "z"]
 AXIS_INDEX = {"x": 0, "y": 1, "z": 2}
@@ -45,7 +44,67 @@ class BaseGearSolver:
             force = vec_add(force, vec_scale(mag, u))
         return force
 
-    def solve_statics(self, supports: List[Dict[str, Any]], loads: List[ForceVector], moments: List[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    def _build_validation_block(self, actual: Dict[str, Any], expected: Dict[str, Any] | None) -> Dict[str, Any]:
+        if not expected:
+            return {}
+
+        comparisons: Dict[str, Any] = {}
+        all_within = True
+
+        def compare_map(actual_map: Dict[str, Any], expected_map: Dict[str, Any], prefix: str = "") -> None:
+            nonlocal all_within
+            for key, exp in expected_map.items():
+                label = f"{prefix}.{key}" if prefix else key
+                if isinstance(exp, dict):
+                    act_sub = actual_map.get(key, {})
+                    if isinstance(act_sub, dict):
+                        compare_map(act_sub, exp, label)
+                    else:
+                        comparisons[label] = {
+                            "expected": exp,
+                            "actual": act_sub,
+                            "status": "missing_or_type_mismatch",
+                        }
+                        all_within = False
+                    continue
+
+                act = actual_map.get(key)
+                if isinstance(exp, (int, float)) and isinstance(act, (int, float)):
+                    abs_diff = float(act) - float(exp)
+                    rel_pct = 0.0 if float(exp) == 0.0 else (abs(abs_diff) / abs(float(exp)) * 100.0)
+                    status = "ok" if rel_pct <= 2.0 else "check"
+                    comparisons[label] = {
+                        "expected": float(exp),
+                        "actual": float(act),
+                        "abs_diff": abs_diff,
+                        "rel_diff_percent": rel_pct,
+                        "status": status,
+                    }
+                    if status != "ok":
+                        all_within = False
+                else:
+                    status = "ok" if act == exp else "check"
+                    comparisons[label] = {
+                        "expected": exp,
+                        "actual": act,
+                        "status": status,
+                    }
+                    if status != "ok":
+                        all_within = False
+
+        compare_map(actual, expected)
+        return {
+            "has_expected_reference": True,
+            "all_numeric_values_within_2_percent": all_within,
+            "comparisons": comparisons,
+        }
+
+    def solve_statics(
+        self,
+        supports: List[Dict[str, Any]],
+        loads: List[ForceVector],
+        moments: List[Dict[str, Any]] | None = None,
+    ) -> Dict[str, Any]:
         moments = moments or []
         unknown_syms: List[sp.Symbol] = []
         support_unknowns: Dict[str, Dict[str, sp.Symbol]] = {}
@@ -98,17 +157,32 @@ class BaseGearSolver:
         sol = solution[0]
 
         reactions: Dict[str, Dict[str, float]] = {}
+        reaction_magnitudes: Dict[str, Dict[str, float]] = {}
         for support in supports:
             comp = support_unknowns[support["name"]]
-            reactions[support["name"]] = {
+            vec = {
                 axis: float(sol.get(sym, 0.0)) if sym else 0.0
                 for axis, sym in ((a, comp.get(a)) for a in AXES)
             }
+            reactions[support["name"]] = vec
+            reaction_magnitudes[support["name"]] = vec_mag_dict(vec)
 
         solved_moments = {name: float(sol[sym]) for name, sym in moment_unknowns.items()}
+        applied_loads = [
+            {
+                "name": load.name,
+                "position": load.position,
+                "vector": load.vector,
+                "magnitude": vec_magnitude(load.vector),
+                "kind": load.kind,
+            }
+            for load in loads
+        ]
         return {
             "reactions": reactions,
+            "reaction_magnitudes": reaction_magnitudes,
             "solved_moments": solved_moments,
+            "applied_loads": applied_loads,
             "equations_count": len(equations),
         }
 
@@ -147,6 +221,7 @@ class SpurForceSolver(BaseGearSolver):
                     "mesh": mesh["name"],
                     "position_mm": mesh.get("position_mm", [0.0, 0.0, 0.0]),
                     "vector_N": force,
+                    "vector_magnitude_N": vec_magnitude(force),
                     "tangential_magnitude_N": Wt_N,
                     "radial_magnitude_N": Wr_N,
                     "total_tooth_force_N": W_N,
@@ -154,6 +229,30 @@ class SpurForceSolver(BaseGearSolver):
             )
 
         shaft_reaction = [-x for x in resultant]
+        shaft_reaction_resultant = vec_magnitude(shaft_reaction)
+        outputs = {
+            "resultant_force_on_selected_gear_N": resultant,
+            "resultant_force_on_selected_gear_magnitude_N": vec_magnitude(resultant),
+            "shaft_reaction_at_center_N": shaft_reaction,
+            "shaft_reaction_resultant_N": shaft_reaction_resultant,
+            "shaft_reaction_component_magnitudes_N": {
+                "x": abs(shaft_reaction[0]),
+                "y": abs(shaft_reaction[1]),
+                "z": abs(shaft_reaction[2]),
+            },
+        }
+
+        actual_reference = {
+            "driver_pitch_diameter_mm": driver_pitch_diameter_mm,
+            "transmitted_tangential_load_N": Wt_N,
+            "radial_load_N": Wr_N,
+            "normal_tooth_force_N": W_N,
+            "shaft_reaction_component_x_N": abs(shaft_reaction[0]),
+            "shaft_reaction_component_y_N": abs(shaft_reaction[1]),
+            "shaft_resultant_reaction_N": shaft_reaction_resultant,
+        }
+        validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
+
         return {
             "problem": self.solve_path,
             "title": self.problem.get("title", "Spur force analysis"),
@@ -167,10 +266,8 @@ class SpurForceSolver(BaseGearSolver):
                 "normal_tooth_force_N": W_N,
             },
             "mesh_forces": forces,
-            "outputs": {
-                "resultant_force_on_selected_gear_N": resultant,
-                "shaft_reaction_at_center_N": shaft_reaction,
-            },
+            "outputs": outputs,
+            "validation": validation,
         }
 
 
@@ -184,28 +281,12 @@ class BevelForceSolver(BaseGearSolver):
         pressure_angle_deg = float(p["pressure_angle_deg"])
         use_gear_angle = p.get("analyze_member", "gear") == "gear"
 
-        # Backward-compatible schema handling:
-        # old schema:
-        #   average_pitch_radius_pinion_in
-        #   average_pitch_radius_gear_in
-        # new schema:
-        #   pitch_angle_geometry.average_pitch_radius_pinion_in
-        #   pitch_angle_geometry.average_pitch_radius_gear_in
         pag = p.get("pitch_angle_geometry", {})
-        r_pinion_in = float(
-            pag.get("average_pitch_radius_pinion_in", p.get("average_pitch_radius_pinion_in"))
-        )
-        r_gear_in = float(
-            pag.get("average_pitch_radius_gear_in", p.get("average_pitch_radius_gear_in"))
-        )
+        r_pinion_in = float(pag.get("average_pitch_radius_pinion_in", p.get("average_pitch_radius_pinion_in")))
+        r_gear_in = float(pag.get("average_pitch_radius_gear_in", p.get("average_pitch_radius_gear_in")))
 
-        # Backward-compatible transmitted-load radius:
-        # old behavior used r_pinion_in
-        # new schema separates the pitch-line velocity radius
         tli = p.get("transmitted_load_inputs", {})
-        pitch_line_velocity_radius_in = float(
-            tli.get("pitch_line_velocity_radius_in", r_pinion_in)
-        )
+        pitch_line_velocity_radius_in = float(tli.get("pitch_line_velocity_radius_in", r_pinion_in))
 
         gamma_deg = math.degrees(math.atan(r_pinion_in / r_gear_in))
         Gamma_deg = math.degrees(math.atan(r_gear_in / r_pinion_in))
@@ -228,22 +309,44 @@ class BevelForceSolver(BaseGearSolver):
         load = ForceVector(name="gear_mesh", position=p["load_position_in"], vector=force)
         statics = self.solve_statics(p["supports"], [load], moments=p.get("unknown_moments", []))
 
+        actual_reference = {
+            "pitch_line_velocity_ft_per_min": V_ft_min,
+            "transmitted_tangential_load_lbf": Wt,
+            "radial_load_lbf": Wr,
+            "axial_load_lbf": Wa,
+            "reaction_C_lbf": statics["reactions"].get("C", {}),
+            "reaction_D_lbf": statics["reactions"].get("D", {}),
+        }
+        validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
+
         return {
             "problem": self.solve_path,
             "title": self.problem.get("title", "Bevel force analysis"),
             "inputs": p,
             "derived": {
-                "gamma_deg": gamma_deg,
-                "Gamma_deg": Gamma_deg,
-                "used_pitch_angle_deg": used_angle_deg,
-                "pitch_line_velocity_radius_in": pitch_line_velocity_radius_in,
-                "pitch_line_velocity_ft_per_min": V_ft_min,
-                "transmitted_tangential_load_lbf": Wt,
-                "radial_load_lbf": Wr,
-                "axial_load_lbf": Wa,
+                "pitch_angle_geometry": {
+                    "average_pitch_radius_pinion_in": r_pinion_in,
+                    "average_pitch_radius_gear_in": r_gear_in,
+                    "gamma_deg": gamma_deg,
+                    "Gamma_deg": Gamma_deg,
+                    "used_pitch_angle_deg": used_angle_deg,
+                },
+                "transmitted_load_geometry": {
+                    "pitch_line_velocity_radius_in": pitch_line_velocity_radius_in,
+                    "pitch_line_velocity_ft_per_min": V_ft_min,
+                    "transmitted_tangential_load_lbf": Wt,
+                    "radial_load_lbf": Wr,
+                    "axial_load_lbf": Wa,
+                },
+                "statics_geometry": {
+                    "load_position_in": p["load_position_in"],
+                    "support_positions": {s["name"]: s["position"] for s in p["supports"]},
+                },
                 "gear_force_vector_lbf": force,
+                "gear_force_resultant_lbf": vec_magnitude(force),
             },
             "outputs": statics,
+            "validation": validation,
         }
 
 
@@ -267,6 +370,7 @@ class HelicalForceSolver(BaseGearSolver):
         Wr = Wt * math.tan(math.radians(phi_t_deg))
         Wa = Wt * math.tan(math.radians(psi_deg))
         W = Wt / (math.cos(math.radians(phi_n_deg)) * math.cos(math.radians(psi_deg)))
+
         force = self.compose_force(
             {"tangential": Wt, "radial": Wr, "axial": Wa},
             {
@@ -278,6 +382,19 @@ class HelicalForceSolver(BaseGearSolver):
         load = ForceVector(name="gear_mesh", position=p["load_position_in"], vector=force)
         statics = self.solve_statics(p["supports"], [load], moments=p.get("unknown_moments", []))
         torque_lbf_in = Wt * float(p["pitch_radius_in"])
+
+        actual_reference = {
+            "transverse_pressure_angle_deg": phi_t_deg,
+            "transverse_diametral_pitch_teeth_per_in": Pt,
+            "pitch_diameter_in": dp,
+            "pitch_line_velocity_ft_per_min": V_ft_min,
+            "transmitted_tangential_load_lbf": Wt,
+            "radial_load_lbf": Wr,
+            "axial_load_lbf": Wa,
+            "normal_tooth_force_lbf": W,
+        }
+        validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
+
         return {
             "problem": self.solve_path,
             "title": self.problem.get("title", "Helical force analysis"),
@@ -292,9 +409,22 @@ class HelicalForceSolver(BaseGearSolver):
                 "axial_load_lbf": Wa,
                 "normal_tooth_force_lbf": W,
                 "gear_force_vector_lbf": force,
+                "gear_force_component_magnitudes_lbf": {
+                    "x": abs(force[0]),
+                    "y": abs(force[1]),
+                    "z": abs(force[2]),
+                },
+                "gear_force_resultant_lbf": vec_magnitude(force),
                 "applied_torque_from_Wt_lbf_in": torque_lbf_in,
             },
-            "outputs": statics,
+            "outputs": {
+                **statics,
+                "sign_convention_notes": [
+                    "Reaction vectors are reported with algebraic signs in the chosen global coordinate system.",
+                    "Use reaction_magnitudes for textbook-style component comparison when the book reports magnitudes with implied directions from the free-body diagram.",
+                ],
+            },
+            "validation": validation,
         }
 
 
@@ -398,6 +528,7 @@ class WormForceSolver(BaseGearSolver):
                 "W_y_lbf": W_y,
                 "W_z_lbf": W_z,
                 "gear_force_vector_lbf": gear_force,
+                "gear_force_resultant_lbf": vec_magnitude(gear_force),
                 "efficiency": efficiency,
             },
             "outputs": statics,
