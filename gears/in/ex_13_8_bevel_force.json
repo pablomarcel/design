@@ -1,0 +1,37 @@
+{
+  "problem": "bevel_force",
+  "title": "Example 13-8 style bevel gear bearing reaction analysis on the gear shaft",
+  "inputs": {
+    "solve_path": "bevel_force",
+    "analyze_member": "gear",
+    "power_hp": 5.0,
+    "pinion_speed_rpm": 600.0,
+    "pressure_angle_deg": 20.0,
+    "average_pitch_radius_pinion_in": 3.0,
+    "average_pitch_radius_gear_in": 9.0,
+    "load_position_in": [3.88, -3.793, 0.0],
+    "force_directions": {
+      "tangential_unit": [0, 0, 1],
+      "radial_unit": [-1, 0, 0],
+      "axial_unit": [0, -1, 0]
+    },
+    "supports": [
+      {
+        "name": "D",
+        "position": [0.0, 0.0, 0.0],
+        "allow_components": {"x": true, "y": false, "z": true},
+        "note": "Non-thrust bearing"
+      },
+      {
+        "name": "C",
+        "position": [0.0, -6.125, 0.0],
+        "allow_components": {"x": true, "y": true, "z": true},
+        "note": "Thrust bearing"
+      }
+    ],
+    "unknown_moments": [
+      {"name": "T_y", "axis": "y", "note": "Shaft torque balance"}
+    ],
+    "notes": "Example-style geometry and sign convention from the text. Bearings A and C take thrust in the full assembly; on the analyzed gear shaft, support C is the thrust bearing."
+  }
+}

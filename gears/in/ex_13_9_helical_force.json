@@ -1,0 +1,40 @@
+{
+  "problem": "helical_force",
+  "title": "Example 13-9 style helical pinion force and bearing reaction analysis",
+  "inputs": {
+    "solve_path": "helical_force",
+    "power_hp": 1.0,
+    "pinion_speed_rpm": 1800.0,
+    "pinion_teeth": 18,
+    "normal_pressure_angle_deg": 20.0,
+    "helix_angle_deg": 30.0,
+    "normal_diametral_pitch_teeth_per_in": 12.0,
+    "pitch_radius_in": 0.8660254,
+    "rotation_viewed_from_positive_shaft_axis": "clockwise",
+    "helix_hand": "right",
+    "load_position_in": [13.0, 0.8660254, 0.0],
+    "force_directions": {
+      "tangential_unit": [0, 0, 1],
+      "radial_unit": [0, -1, 0],
+      "axial_unit": [-1, 0, 0]
+    },
+    "supports": [
+      {
+        "name": "A",
+        "position": [0.0, 0.0, 0.0],
+        "allow_components": {"x": true, "y": true, "z": true},
+        "note": "Thrust taken out at A"
+      },
+      {
+        "name": "B",
+        "position": [10.0, 0.0, 0.0],
+        "allow_components": {"x": false, "y": true, "z": true},
+        "note": "Radial bearing only"
+      }
+    ],
+    "unknown_moments": [
+      {"name": "T_x", "axis": "x", "note": "Motor shaft torque balance"}
+    ],
+    "notes": "The point of application is offset by the pitch radius from the shaft axis, matching the example geometry."
+  }
+}

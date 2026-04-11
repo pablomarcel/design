@@ -1,0 +1,32 @@
+{
+  "problem": "spur_force",
+  "title": "Example 13-7 style spur gear force analysis on idler gear 3",
+  "inputs": {
+    "solve_path": "spur_force",
+    "power_kw": 2.5,
+    "module_mm": 2.5,
+    "pressure_angle_deg": 20.0,
+    "driver_gear_id": "gear_2",
+    "selected_gear": "gear_3",
+    "gears": {
+      "gear_2": {"teeth": 24, "speed_rpm": 1750.0},
+      "gear_3": {"teeth": 24, "speed_rpm": 1750.0},
+      "gear_4": {"teeth": 24, "speed_rpm": 1750.0}
+    },
+    "meshes_on_selected_gear": [
+      {
+        "name": "force_from_gear_2_on_gear_3",
+        "tangential_unit_on_selected": [-1, 0, 0],
+        "radial_unit_on_selected": [0, 1, 0],
+        "position_mm": [0, 0, 0]
+      },
+      {
+        "name": "force_from_gear_4_on_gear_3",
+        "tangential_unit_on_selected": [0, -1, 0],
+        "radial_unit_on_selected": [1, 0, 0],
+        "position_mm": [0, 0, 0]
+      }
+    ],
+    "notes": "Universal spur gear case. Each mesh supplies explicit unit vectors for tangential and radial directions on the selected gear. Example-style orientation mirrors Shigley Fig. 13-34a."
+  }
+}

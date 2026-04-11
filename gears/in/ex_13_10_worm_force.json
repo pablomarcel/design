@@ -1,0 +1,42 @@
+{
+  "problem": "worm_force",
+  "title": "Example 13-10 style worm gear force, bearing reaction, and efficiency analysis",
+  "inputs": {
+    "solve_path": "worm_force",
+    "power_hp": 1.0,
+    "worm_speed_rpm": 1200.0,
+    "worm_threads": 2,
+    "gear_teeth": 30,
+    "transverse_diametral_pitch_teeth_per_in": 6.0,
+    "worm_pitch_diameter_in": 2.0,
+    "worm_face_width_in": 2.5,
+    "gear_face_width_in": 1.0,
+    "normal_pressure_angle_deg": 14.5,
+    "worm_hand": "right",
+    "friction_curve": "B",
+    "load_position_in": [1.5, 2.5, 0.0],
+    "gear_force_directions": {
+      "axial_unit": [1, 0, 0],
+      "radial_unit": [0, 1, 0],
+      "tangential_unit": [0, 0, 1]
+    },
+    "supports": [
+      {
+        "name": "A",
+        "position": [0.0, 0.0, 0.0],
+        "allow_components": {"x": false, "y": true, "z": true},
+        "note": "Radial bearing"
+      },
+      {
+        "name": "B",
+        "position": [4.0, 0.0, 0.0],
+        "allow_components": {"x": true, "y": true, "z": true},
+        "note": "Thrust bearing"
+      }
+    ],
+    "unknown_moments": [
+      {"name": "T_x", "axis": "x", "note": "Output shaft torque balance"}
+    ],
+    "notes": "Force directions are defined on the worm-gear shaft. Curve B from Figure 13-42 is used for friction coefficient interpolation."
+  }
+}
