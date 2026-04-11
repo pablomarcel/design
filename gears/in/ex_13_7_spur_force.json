@@ -1,6 +1,6 @@
 {
   "problem": "spur_force",
-  "title": "Example 13-7 style spur gear force analysis on idler gear 3",
+  "title": "Example 13-7 spur gear force analysis on idler gear 3",
   "inputs": {
     "solve_path": "spur_force",
     "power_kw": 2.5,
@@ -9,24 +9,82 @@
     "driver_gear_id": "gear_2",
     "selected_gear": "gear_3",
     "gears": {
-      "gear_2": {"teeth": 24, "speed_rpm": 1750.0},
-      "gear_3": {"teeth": 24, "speed_rpm": 1750.0},
-      "gear_4": {"teeth": 24, "speed_rpm": 1750.0}
+      "gear_2": {
+        "teeth": 20,
+        "speed_rpm": 1750.0,
+        "role": "driver"
+      },
+      "gear_3": {
+        "teeth": 50,
+        "speed_rpm": 700.0,
+        "role": "idler_selected_for_analysis"
+      },
+      "gear_4": {
+        "teeth": 30,
+        "speed_rpm": 1166.66666667,
+        "role": "driven_by_idler"
+      }
     },
     "meshes_on_selected_gear": [
       {
         "name": "force_from_gear_2_on_gear_3",
-        "tangential_unit_on_selected": [-1, 0, 0],
-        "radial_unit_on_selected": [0, 1, 0],
-        "position_mm": [0, 0, 0]
+        "driver_gear_id": "gear_2",
+        "mate_gear_id": "gear_3",
+        "tangential_unit_on_selected": [
+          -1,
+          0,
+          0
+        ],
+        "radial_unit_on_selected": [
+          0,
+          1,
+          0
+        ],
+        "position_mm": [
+          0,
+          0,
+          0
+        ],
+        "notes": "Upper mesh on gear 3. Tangential and radial directions chosen to match the textbook FBD orientation."
       },
       {
         "name": "force_from_gear_4_on_gear_3",
-        "tangential_unit_on_selected": [0, -1, 0],
-        "radial_unit_on_selected": [1, 0, 0],
-        "position_mm": [0, 0, 0]
+        "driver_gear_id": "gear_3",
+        "mate_gear_id": "gear_4",
+        "tangential_unit_on_selected": [
+          0,
+          -1,
+          0
+        ],
+        "radial_unit_on_selected": [
+          1,
+          0,
+          0
+        ],
+        "position_mm": [
+          0,
+          0,
+          0
+        ],
+        "notes": "Right-side mesh on gear 3. Tangential and radial directions chosen to match the textbook FBD orientation."
       }
     ],
-    "notes": "Universal spur gear case. Each mesh supplies explicit unit vectors for tangential and radial directions on the selected gear. Example-style orientation mirrors Shigley Fig. 13-34a."
+    "expected_textbook_reference_values": {
+      "driver_pitch_diameter_mm": 50.0,
+      "selected_pitch_diameter_mm": 125.0,
+      "transmitted_tangential_load_N": 545.6740906,
+      "radial_load_N": 198.5698749,
+      "normal_tooth_force_N": 580.6635483,
+      "selected_gear_speed_rpm": 700.0,
+      "gear_4_speed_rpm": 1166.66666667,
+      "shaft_reaction_component_x_N": 347.1042157,
+      "shaft_reaction_component_y_N": 347.1042157,
+      "shaft_resultant_reaction_N": 490.8796453
+    },
+    "notes": [
+      "Updated to match Shigley Example 13-7 tooth counts: gear 2 = 20 teeth, gear 3 = 50 teeth, gear 4 = 30 teeth.",
+      "Speeds are consistent with simple gear ratios: n3 = n2*(N2/N3), n4 = n3*(N3/N4).",
+      "All force-direction unit vectors are preserved from the prior file because they are already consistent with the example-style free-body diagram."
+    ]
   }
 }

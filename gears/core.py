@@ -182,17 +182,40 @@ class BevelForceSolver(BaseGearSolver):
         horsepower = float(p["power_hp"])
         speed_rpm = float(p["pinion_speed_rpm"])
         pressure_angle_deg = float(p["pressure_angle_deg"])
-        r_pinion_in = float(p["average_pitch_radius_pinion_in"])
-        r_gear_in = float(p["average_pitch_radius_gear_in"])
         use_gear_angle = p.get("analyze_member", "gear") == "gear"
+
+        # Backward-compatible schema handling:
+        # old schema:
+        #   average_pitch_radius_pinion_in
+        #   average_pitch_radius_gear_in
+        # new schema:
+        #   pitch_angle_geometry.average_pitch_radius_pinion_in
+        #   pitch_angle_geometry.average_pitch_radius_gear_in
+        pag = p.get("pitch_angle_geometry", {})
+        r_pinion_in = float(
+            pag.get("average_pitch_radius_pinion_in", p.get("average_pitch_radius_pinion_in"))
+        )
+        r_gear_in = float(
+            pag.get("average_pitch_radius_gear_in", p.get("average_pitch_radius_gear_in"))
+        )
+
+        # Backward-compatible transmitted-load radius:
+        # old behavior used r_pinion_in
+        # new schema separates the pitch-line velocity radius
+        tli = p.get("transmitted_load_inputs", {})
+        pitch_line_velocity_radius_in = float(
+            tli.get("pitch_line_velocity_radius_in", r_pinion_in)
+        )
 
         gamma_deg = math.degrees(math.atan(r_pinion_in / r_gear_in))
         Gamma_deg = math.degrees(math.atan(r_gear_in / r_pinion_in))
         used_angle_deg = Gamma_deg if use_gear_angle else gamma_deg
-        V_ft_min = 2.0 * math.pi * r_pinion_in * speed_rpm / 12.0
+
+        V_ft_min = 2.0 * math.pi * pitch_line_velocity_radius_in * speed_rpm / 12.0
         Wt = self.hp_to_tangential_load_lbf(horsepower, V_ft_min)
         Wr = Wt * math.tan(math.radians(pressure_angle_deg)) * math.cos(math.radians(used_angle_deg))
         Wa = Wt * math.tan(math.radians(pressure_angle_deg)) * math.sin(math.radians(used_angle_deg))
+
         force = self.compose_force(
             {"tangential": Wt, "radial": Wr, "axial": Wa},
             {
@@ -201,8 +224,10 @@ class BevelForceSolver(BaseGearSolver):
                 "axial": p["force_directions"]["axial_unit"],
             },
         )
+
         load = ForceVector(name="gear_mesh", position=p["load_position_in"], vector=force)
         statics = self.solve_statics(p["supports"], [load], moments=p.get("unknown_moments", []))
+
         return {
             "problem": self.solve_path,
             "title": self.problem.get("title", "Bevel force analysis"),
@@ -210,6 +235,8 @@ class BevelForceSolver(BaseGearSolver):
             "derived": {
                 "gamma_deg": gamma_deg,
                 "Gamma_deg": Gamma_deg,
+                "used_pitch_angle_deg": used_angle_deg,
+                "pitch_line_velocity_radius_in": pitch_line_velocity_radius_in,
                 "pitch_line_velocity_ft_per_min": V_ft_min,
                 "transmitted_tangential_load_lbf": Wt,
                 "radial_load_lbf": Wr,

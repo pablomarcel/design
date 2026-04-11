@@ -1,37 +1,105 @@
 {
   "problem": "bevel_force",
-  "title": "Example 13-8 style bevel gear bearing reaction analysis on the gear shaft",
+  "title": "Example 13-8 bevel gear bearing reaction analysis on the gear shaft",
   "inputs": {
     "solve_path": "bevel_force",
     "analyze_member": "gear",
     "power_hp": 5.0,
     "pinion_speed_rpm": 600.0,
     "pressure_angle_deg": 20.0,
-    "average_pitch_radius_pinion_in": 3.0,
-    "average_pitch_radius_gear_in": 9.0,
-    "load_position_in": [3.88, -3.793, 0.0],
+    "pitch_angle_geometry": {
+      "average_pitch_radius_pinion_in": 3.0,
+      "average_pitch_radius_gear_in": 9.0,
+      "notes": "Use these radii only to compute bevel pitch angles gamma and Gamma."
+    },
+    "transmitted_load_inputs": {
+      "pitch_line_velocity_radius_in": 1.293,
+      "notes": "Use this radius in the pitch-line velocity equation V = 2*pi*r*n/12 for the textbook Example 13-8 load calculation."
+    },
+    "expected_pitch_angles_deg": {
+      "gamma_deg": 18.43494882,
+      "Gamma_deg": 71.56505118
+    },
+    "load_position_in": [
+      3.88,
+      -3.793,
+      0.0
+    ],
     "force_directions": {
-      "tangential_unit": [0, 0, 1],
-      "radial_unit": [-1, 0, 0],
-      "axial_unit": [0, -1, 0]
+      "tangential_unit": [
+        0,
+        0,
+        1
+      ],
+      "radial_unit": [
+        -1,
+        0,
+        0
+      ],
+      "axial_unit": [
+        0,
+        -1,
+        0
+      ]
     },
     "supports": [
       {
         "name": "D",
-        "position": [0.0, 0.0, 0.0],
-        "allow_components": {"x": true, "y": false, "z": true},
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "allow_components": {
+          "x": true,
+          "y": false,
+          "z": true
+        },
         "note": "Non-thrust bearing"
       },
       {
         "name": "C",
-        "position": [0.0, -6.125, 0.0],
-        "allow_components": {"x": true, "y": true, "z": true},
+        "position": [
+          0.0,
+          -6.125,
+          0.0
+        ],
+        "allow_components": {
+          "x": true,
+          "y": true,
+          "z": true
+        },
         "note": "Thrust bearing"
       }
     ],
     "unknown_moments": [
-      {"name": "T_y", "axis": "y", "note": "Shaft torque balance"}
+      {
+        "name": "T_y",
+        "axis": "y",
+        "note": "Shaft torque balance about the shaft axis"
+      }
     ],
-    "notes": "Example-style geometry and sign convention from the text. Bearings A and C take thrust in the full assembly; on the analyzed gear shaft, support C is the thrust bearing."
+    "expected_textbook_reference_values": {
+      "pitch_line_velocity_ft_per_min": 406.20720977,
+      "transmitted_tangential_load_lbf": 406.1974877,
+      "radial_load_lbf": 46.75783404,
+      "axial_load_lbf": 140.27350212,
+      "reaction_C_lbf": {
+        "x": 117.69959875,
+        "y": 140.27350212,
+        "z": -251.47282323
+      },
+      "reaction_D_lbf": {
+        "x": -70.94176471,
+        "y": 0.0,
+        "z": -154.72466447
+      }
+    },
+    "notes": [
+      "Upgraded to separate pitch-angle geometry from transmitted-load geometry.",
+      "The previous file incorrectly used average_pitch_radius_pinion_in = 3.0 in for pitch-line velocity. That produced the wrong tangential force.",
+      "For Example 13-8, the textbook load calculation uses r = 1.293 in in V = 2*pi*r*n/12.",
+      "Support C is the thrust bearing on the analyzed gear shaft, so it is the only support allowed to react the y component."
+    ]
   }
 }
