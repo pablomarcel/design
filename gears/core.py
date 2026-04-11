@@ -200,6 +200,8 @@ class SpurForceSolver(BaseGearSolver):
         driver = p["gears"][driver_id]
         driver_speed_rpm = float(driver["speed_rpm"])
         driver_pitch_diameter_mm = float(driver["teeth"]) * module_mm
+        selected_gear = p["gears"][selected]
+        selected_pitch_diameter_mm = float(selected_gear["teeth"]) * module_mm
         pitch_line_velocity_m_s = math.pi * (driver_pitch_diameter_mm / 1000.0) * driver_speed_rpm / 60.0
         Wt_N = self.kw_to_tangential_load_N(power_kw, pitch_line_velocity_m_s)
         Wr_N = Wt_N * math.tan(math.radians(pressure_angle_deg))
@@ -244,13 +246,21 @@ class SpurForceSolver(BaseGearSolver):
 
         actual_reference = {
             "driver_pitch_diameter_mm": driver_pitch_diameter_mm,
+            "selected_pitch_diameter_mm": selected_pitch_diameter_mm,
             "transmitted_tangential_load_N": Wt_N,
             "radial_load_N": Wr_N,
             "normal_tooth_force_N": W_N,
+            "selected_gear_speed_rpm": float(selected_gear["speed_rpm"]),
             "shaft_reaction_component_x_N": abs(shaft_reaction[0]),
             "shaft_reaction_component_y_N": abs(shaft_reaction[1]),
             "shaft_resultant_reaction_N": shaft_reaction_resultant,
         }
+        # Optional mate-speed validation support
+        for gear_id, gear in p["gears"].items():
+            if gear_id != selected and gear_id != driver_id and "gear_4_speed_rpm" in p.get("expected_textbook_reference_values", {}):
+                actual_reference["gear_4_speed_rpm"] = float(gear["speed_rpm"])
+                break
+
         validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
 
         return {
@@ -260,6 +270,7 @@ class SpurForceSolver(BaseGearSolver):
             "derived": {
                 "selected_gear": selected,
                 "driver_pitch_diameter_mm": driver_pitch_diameter_mm,
+                "selected_pitch_diameter_mm": selected_pitch_diameter_mm,
                 "pitch_line_velocity_m_per_s": pitch_line_velocity_m_s,
                 "transmitted_tangential_load_N": Wt_N,
                 "radial_load_N": Wr_N,
@@ -392,6 +403,9 @@ class HelicalForceSolver(BaseGearSolver):
             "radial_load_lbf": Wr,
             "axial_load_lbf": Wa,
             "normal_tooth_force_lbf": W,
+            "reaction_A_lbf": statics["reactions"].get("A", {}),
+            "reaction_B_lbf": statics["reactions"].get("B", {}),
+            "applied_torque_from_Wt_lbf_in": torque_lbf_in,
         }
         validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
 
@@ -508,6 +522,28 @@ class WormForceSolver(BaseGearSolver):
         ) / (
             math.cos(math.radians(phi_n_deg)) + f / math.tan(math.radians(lambda_deg))
         )
+
+        actual_reference = {
+            "axial_pitch_in": p_x,
+            "gear_pitch_diameter_in": d_g,
+            "center_distance_in": center_distance,
+            "lead_in": lead,
+            "lead_angle_deg": lambda_deg,
+            "worm_pitch_line_velocity_ft_per_min": V_w,
+            "gear_speed_rpm": n_g,
+            "gear_pitch_line_velocity_ft_per_min": V_g,
+            "sliding_velocity_ft_per_min": V_s,
+            "friction_coefficient": f,
+            "worm_tangential_load_lbf": W_wt,
+            "normal_tooth_force_lbf": W,
+            "W_y_lbf": W_y,
+            "W_z_lbf": W_z,
+            "reaction_A_lbf": statics["reactions"].get("A", {}),
+            "reaction_B_lbf": statics["reactions"].get("B", {}),
+            "efficiency": efficiency,
+        }
+        validation = self._build_validation_block(actual_reference, p.get("expected_textbook_reference_values"))
+
         return {
             "problem": self.solve_path,
             "title": self.problem.get("title", "Worm force analysis"),
@@ -532,6 +568,7 @@ class WormForceSolver(BaseGearSolver):
                 "efficiency": efficiency,
             },
             "outputs": statics,
+            "validation": validation,
         }
 
 

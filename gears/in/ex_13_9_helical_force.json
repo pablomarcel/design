@@ -12,29 +12,89 @@
     "pitch_radius_in": 0.8660254,
     "rotation_viewed_from_positive_shaft_axis": "clockwise",
     "helix_hand": "right",
-    "load_position_in": [13.0, 0.8660254, 0.0],
+    "load_position_in": [
+      13.0,
+      0.8660254,
+      0.0
+    ],
     "force_directions": {
-      "tangential_unit": [0, 0, 1],
-      "radial_unit": [0, -1, 0],
-      "axial_unit": [-1, 0, 0]
+      "tangential_unit": [
+        0,
+        0,
+        1
+      ],
+      "radial_unit": [
+        0,
+        -1,
+        0
+      ],
+      "axial_unit": [
+        -1,
+        0,
+        0
+      ]
     },
     "supports": [
       {
         "name": "A",
-        "position": [0.0, 0.0, 0.0],
-        "allow_components": {"x": true, "y": true, "z": true},
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "allow_components": {
+          "x": true,
+          "y": true,
+          "z": true
+        },
         "note": "Thrust taken out at A"
       },
       {
         "name": "B",
-        "position": [10.0, 0.0, 0.0],
-        "allow_components": {"x": false, "y": true, "z": true},
+        "position": [
+          10.0,
+          0.0,
+          0.0
+        ],
+        "allow_components": {
+          "x": false,
+          "y": true,
+          "z": true
+        },
         "note": "Radial bearing only"
       }
     ],
     "unknown_moments": [
-      {"name": "T_x", "axis": "x", "note": "Motor shaft torque balance"}
+      {
+        "name": "T_x",
+        "axis": "x",
+        "note": "Motor shaft torque balance"
+      }
     ],
-    "notes": "The point of application is offset by the pitch radius from the shaft axis, matching the example geometry."
+    "notes": [
+      "The point of application is offset by the pitch radius from the shaft axis, matching the example geometry.",
+      "Added expected_textbook_reference_values so the validation block is populated for Example 13-9."
+    ],
+    "expected_textbook_reference_values": {
+      "transverse_pressure_angle_deg": 22.79587726,
+      "transverse_diametral_pitch_teeth_per_in": 10.39230485,
+      "pitch_diameter_in": 1.73205081,
+      "pitch_line_velocity_ft_per_min": 816.20971391,
+      "transmitted_tangential_load_lbf": 40.43078566,
+      "radial_load_lbf": 16.99211416,
+      "axial_load_lbf": 23.34272499,
+      "normal_tooth_force_lbf": 49.68161816,
+      "reaction_A_lbf": {
+        "x": 23.34272499,
+        "y": -3.07609497,
+        "z": 12.1292357
+      },
+      "reaction_B_lbf": {
+        "x": 0.0,
+        "y": 20.06820914,
+        "z": -52.56002136
+      },
+      "applied_torque_from_Wt_lbf_in": 35.01408733
+    }
   }
 }

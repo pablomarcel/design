@@ -14,29 +14,95 @@
     "normal_pressure_angle_deg": 14.5,
     "worm_hand": "right",
     "friction_curve": "B",
-    "load_position_in": [1.5, 2.5, 0.0],
+    "load_position_in": [
+      1.5,
+      2.5,
+      0.0
+    ],
     "gear_force_directions": {
-      "axial_unit": [1, 0, 0],
-      "radial_unit": [0, 1, 0],
-      "tangential_unit": [0, 0, 1]
+      "axial_unit": [
+        1,
+        0,
+        0
+      ],
+      "radial_unit": [
+        0,
+        1,
+        0
+      ],
+      "tangential_unit": [
+        0,
+        0,
+        1
+      ]
     },
     "supports": [
       {
         "name": "A",
-        "position": [0.0, 0.0, 0.0],
-        "allow_components": {"x": false, "y": true, "z": true},
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "allow_components": {
+          "x": false,
+          "y": true,
+          "z": true
+        },
         "note": "Radial bearing"
       },
       {
         "name": "B",
-        "position": [4.0, 0.0, 0.0],
-        "allow_components": {"x": true, "y": true, "z": true},
+        "position": [
+          4.0,
+          0.0,
+          0.0
+        ],
+        "allow_components": {
+          "x": true,
+          "y": true,
+          "z": true
+        },
         "note": "Thrust bearing"
       }
     ],
     "unknown_moments": [
-      {"name": "T_x", "axis": "x", "note": "Output shaft torque balance"}
+      {
+        "name": "T_x",
+        "axis": "x",
+        "note": "Output shaft torque balance"
+      }
     ],
-    "notes": "Force directions are defined on the worm-gear shaft. Curve B from Figure 13-42 is used for friction coefficient interpolation."
+    "notes": [
+      "Force directions are defined on the worm-gear shaft. Curve B from Figure 13-42 is used for friction coefficient interpolation.",
+      "Added expected_textbook_reference_values so the validation block is populated for Example 13-10."
+    ],
+    "expected_textbook_reference_values": {
+      "axial_pitch_in": 0.52359878,
+      "gear_pitch_diameter_in": 5.0,
+      "center_distance_in": 3.5,
+      "lead_in": 1.04719755,
+      "lead_angle_deg": 9.46232221,
+      "worm_pitch_line_velocity_ft_per_min": 628.31853072,
+      "gear_speed_rpm": 80.0,
+      "gear_pitch_line_velocity_ft_per_min": 104.71975512,
+      "sliding_velocity_ft_per_min": 636.98540262,
+      "friction_coefficient": 0.02901919,
+      "worm_tangential_load_lbf": 52.52113122,
+      "normal_tooth_force_lbf": 279.68482815,
+      "W_y_lbf": 70.02748841,
+      "W_z_lbf": 265.75770521,
+      "reaction_A_lbf": {
+        "x": 0.0,
+        "y": 10.94147324,
+        "z": 166.09856576
+      },
+      "reaction_B_lbf": {
+        "x": -52.52113122,
+        "y": 59.08601516,
+        "z": 99.65913946
+      },
+      "efficiency": 0.84333581
+    }
   }
 }
