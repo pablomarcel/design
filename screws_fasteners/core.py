@@ -114,9 +114,6 @@ class SquareThreadPowerScrewSolver(BaseSolver):
         bearing_stress = -2.0 * first_thread_load_fraction * F / (math.pi * dm * engaged_threads * pitch)
         thread_bending_stress = 6.0 * first_thread_load_fraction * F / (math.pi * dr * engaged_threads * pitch)
 
-        # Textbook Example 8-1 stress state at the thread root:
-        # sigma_x = bending stress, sigma_y = axial compressive stress, sigma_z = 0,
-        # tau_yz = torsional circumferential shear, tau_xy = tau_zx = 0.
         sigma_x = thread_bending_stress
         sigma_y = sigma_compressive
         sigma_z = 0.0
@@ -124,14 +121,12 @@ class SquareThreadPowerScrewSolver(BaseSolver):
         tau_yz = tau_torsion
         tau_zx = 0.0
 
-        # Since there are no shear stresses on the x-face, sigma_x is already a principal stress.
         sigma_yz_avg = 0.5 * (sigma_y + sigma_z)
         sigma_yz_radius = math.sqrt(((sigma_y - sigma_z) / 2.0) ** 2 + tau_yz**2)
         sigma_yz_1 = sigma_yz_avg + sigma_yz_radius
         sigma_yz_2 = sigma_yz_avg - sigma_yz_radius
         sigma1, sigma2, sigma3 = order_desc([sigma_x, sigma_yz_1, sigma_yz_2])
 
-        # 3D von Mises from principal stresses (equivalent to Eq. 5-14 / 5-16 for this state).
         von_mises = math.sqrt(((sigma1 - sigma2) ** 2 + (sigma2 - sigma3) ** 2 + (sigma3 - sigma1) ** 2) / 2.0)
         tau_max = (sigma1 - sigma3) / 2.0
 
@@ -207,17 +202,20 @@ class FastenerMemberStiffnessSolver(BaseSolver):
             numerator = 0.5774 * math.pi * E_psi * d_in
             denominator = math.log((a * c) / (b * d))
             return numerator / denominator
-        k = math.pi * E_psi * d_in * tan_alpha / max(
+        return math.pi * E_psi * d_in * tan_alpha / max(
             1e-12,
             math.log(
                 ((D_in + 2.0 * t_in * tan_alpha - d_in) * (D_in + d_in))
                 / ((D_in + 2.0 * t_in * tan_alpha + d_in) * (D_in - d_in))
             ),
         )
-        return k
 
     @staticmethod
-    def _split_layers_for_half(layers: List[Dict[str, Any]], total_thickness: float, from_top: bool = True) -> List[Dict[str, Any]]:
+    def _split_layers_for_half(
+        layers: List[Dict[str, Any]],
+        total_thickness: float,
+        from_top: bool = True,
+    ) -> List[Dict[str, Any]]:
         midpoint = total_thickness / 2.0
         path = layers if from_top else list(reversed(layers))
         traversed = 0.0
@@ -229,27 +227,73 @@ class FastenerMemberStiffnessSolver(BaseSolver):
             remaining = midpoint - traversed
             use_t = min(t, remaining)
             if use_t > 0:
-                segments.append({
-                    "material": layer["material"],
-                    "thickness_in": use_t,
-                })
+                segments.append(
+                    {
+                        "material": str(layer["material"]),
+                        "thickness_in": use_t,
+                    }
+                )
                 traversed += use_t
         return segments
+
+    @staticmethod
+    def _merge_consecutive_same_material(segments: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        if not segments:
+            return []
+        merged: List[Dict[str, Any]] = [dict(segments[0])]
+        for seg in segments[1:]:
+            if str(seg["material"]).strip().lower() == str(merged[-1]["material"]).strip().lower():
+                merged[-1]["thickness_in"] = float(merged[-1]["thickness_in"]) + float(seg["thickness_in"])
+            else:
+                merged.append(dict(seg))
+        return merged
 
     def _build_material_lookup(self, material_names: List[str], overrides: Dict[str, float]) -> Dict[str, Dict[str, Any]]:
         result: Dict[str, Dict[str, Any]] = {}
         for name in material_names:
-            if name in result:
+            key = str(name)
+            if key in result:
                 continue
-            row = find_material_stiffness_row(name)
-            E = float(overrides.get(name, row["E_psi"]))
-            result[name] = {
+            row = find_material_stiffness_row(key)
+            E = float(overrides.get(key, row["E_psi"]))
+            result[key] = {
                 "table_row": row,
                 "E_psi": E,
                 "A": row.get("A"),
                 "B": row.get("B"),
             }
         return result
+
+    def _segment_stiffness_series(
+        self,
+        segments: List[Dict[str, Any]],
+        side: str,
+        d_in: float,
+        D_start: float,
+        cone_half_angle_deg: float,
+        material_lookup: Dict[str, Dict[str, Any]],
+    ) -> tuple[float, List[Dict[str, Any]]]:
+        compliance = 0.0
+        results: List[Dict[str, Any]] = []
+        D_current = D_start
+        for idx, seg in enumerate(segments, start=1):
+            material = str(seg["material"])
+            t = float(seg["thickness_in"])
+            E = float(material_lookup[material]["E_psi"])
+            k = self._frustum_stiffness(E, d_in, t, D_current, cone_half_angle_deg)
+            results.append(
+                {
+                    "side": side,
+                    "index": idx,
+                    "material": material,
+                    "thickness_in": t,
+                    "start_diameter_in": D_current,
+                    "stiffness_lbf_per_in": k,
+                }
+            )
+            compliance += 1.0 / k
+            D_current += 2.0 * t * math.tan(math.radians(cone_half_angle_deg))
+        return compliance, results
 
     def solve(self) -> SolveResult:
         p = self.inputs
@@ -287,46 +331,34 @@ class FastenerMemberStiffnessSolver(BaseSolver):
         pitch = 1.0 / tpi
 
         material_overrides = p.get("material_modulus_overrides_psi", {})
-        material_lookup = self._build_material_lookup([str(layer["material"]) for layer in layers], material_overrides)
+        material_names = [str(layer["material"]) for layer in layers]
+        material_lookup = self._build_material_lookup(material_names, material_overrides)
         total_grip = sum(float(layer["thickness_in"]) for layer in layers)
 
-        top_segments = self._split_layers_for_half(layers, total_grip, from_top=True)
-        bottom_segments = self._split_layers_for_half(layers, total_grip, from_top=False)
+        top_segments_raw = self._split_layers_for_half(layers, total_grip, from_top=True)
+        bottom_segments_raw = self._split_layers_for_half(layers, total_grip, from_top=False)
 
-        segment_results = []
-        compliance = 0.0
-        D_start = clamp_face_diameter
-        for idx, seg in enumerate(top_segments, start=1):
-            E = material_lookup[str(seg["material"])]["E_psi"]
-            t = float(seg["thickness_in"])
-            k = self._frustum_stiffness(E, d, t, D_start, cone_half_angle_deg)
-            segment_results.append({
-                "side": "top",
-                "index": idx,
-                "material": seg["material"],
-                "thickness_in": t,
-                "start_diameter_in": D_start,
-                "stiffness_lbf_per_in": k,
-            })
-            compliance += 1.0 / k
-            D_start += 2.0 * t * math.tan(math.radians(cone_half_angle_deg))
+        top_segments = self._merge_consecutive_same_material(top_segments_raw)
+        bottom_segments = self._merge_consecutive_same_material(bottom_segments_raw)
 
-        D_start = clamp_face_diameter
-        for idx, seg in enumerate(bottom_segments, start=1):
-            E = material_lookup[str(seg["material"])]["E_psi"]
-            t = float(seg["thickness_in"])
-            k = self._frustum_stiffness(E, d, t, D_start, cone_half_angle_deg)
-            segment_results.append({
-                "side": "bottom",
-                "index": idx,
-                "material": seg["material"],
-                "thickness_in": t,
-                "start_diameter_in": D_start,
-                "stiffness_lbf_per_in": k,
-            })
-            compliance += 1.0 / k
-            D_start += 2.0 * t * math.tan(math.radians(cone_half_angle_deg))
+        top_compliance, top_results = self._segment_stiffness_series(
+            top_segments,
+            "top",
+            d,
+            clamp_face_diameter,
+            cone_half_angle_deg,
+            material_lookup,
+        )
+        bottom_compliance, bottom_results = self._segment_stiffness_series(
+            bottom_segments,
+            "bottom",
+            d,
+            clamp_face_diameter,
+            cone_half_angle_deg,
+            material_lookup,
+        )
 
+        compliance = top_compliance + bottom_compliance
         km_frusta = 1.0 / compliance
 
         homogeneous_material = p.get("eq_8_23_material")
@@ -358,13 +390,15 @@ class FastenerMemberStiffnessSolver(BaseSolver):
             "unthreaded_length_in_grip_ld_in": ld_unthreaded_in_grip,
             "threaded_length_in_grip_lt_in": lt_threaded_in_grip,
             "clamp_face_diameter_in_used": clamp_face_diameter,
+            "top_half_segments_raw": top_segments_raw,
+            "bottom_half_segments_raw": bottom_segments_raw,
             "top_half_segments": top_segments,
             "bottom_half_segments": bottom_segments,
         }
         lookups: Dict[str, Any] = {
             "table_8_2": thread_row,
             "table_8_8": material_lookup,
-            "frusta_segments": segment_results,
+            "frusta_segments": top_results + bottom_results,
         }
         if washer_lookup is not None:
             lookups["table_a_32"] = washer_lookup
@@ -386,6 +420,7 @@ class FastenerMemberStiffnessSolver(BaseSolver):
 
         notes = [
             "The frusta route treats the compressed member as conical segments in series from each clamp face to the joint midplane.",
+            "Consecutive same-material half-segments are merged before stiffness evaluation so the reported frusta match the textbook Example 8-2 grouping.",
             "If clamp_face_diameter_in is omitted, the solver fetches the washer OD from table_a_32.csv.",
             "Bolt stiffness follows Shigley Eq. (8-17) using the tensile-stress area from table_8_2.csv.",
             "Eq. (8-23) is only evaluated when eq_8_23_material is explicitly provided, since it is intended for a single effective member material.",
