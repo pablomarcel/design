@@ -1,0 +1,31 @@
+{
+  "problem": "bolt_strength",
+  "title": "Example 8-3 bolt strength",
+  "inputs": {
+    "solve_path": "bolt_strength",
+    "nominal_diameter_in": 0.75,
+    "threads_per_inch": 16,
+    "thread_series": "UNF",
+    "bolt_length_in": 2.5,
+    "sae_grade": 5,
+    "external_load_kip": 6.0,
+    "initial_bolt_tension_kip": 25.0,
+    "bolt_stiffness_Mlbf_per_in": 6.5,
+    "member_stiffness_Mlbf_per_in": 13.8,
+    "torque_factor_K": 0.2,
+    "thread_friction": 0.15,
+    "collar_friction": 0.15,
+    "half_thread_angle_deg": 30.0
+  },
+  "expected_textbook_reference_values": {
+    "preload_stress_kpsi_approx": 53.2,
+    "service_stress_kpsi_approx": 60.9,
+    "proof_strength_kpsi": 85.0,
+    "torque_eq_8_27_lbf_in_approx": 3750.0
+  },
+  "notes": [
+    "Example 8-3 in Shigley: 3/4 in-16 UNF x 2 1/2 in SAE grade 5 bolt in a tension joint.",
+    "Eq. 8-27 uses T = K F_i d with K = 0.2.",
+    "Eq. 8-26 is evaluated with f = f_c = 0.15."
+  ]
+}

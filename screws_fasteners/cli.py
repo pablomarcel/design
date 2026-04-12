@@ -47,6 +47,20 @@ def _print_summary(result: Dict[str, Any]) -> None:
             ("Bolt stiffness (Mlbf/in)", outputs.get("bolt_stiffness_Mlbf_per_in")),
             ("Joint constant C", outputs.get("stiffness_ratio_C_bolt_over_joint")),
         ]
+    elif problem == "bolt_strength":
+        rows = [
+            ("Tensile-stress area At (in^2)", derived.get("tensile_stress_area_At_in2")),
+            ("Joint constant C", derived.get("stiffness_ratio_C_bolt_over_joint")),
+            ("Preload stress (kpsi)", outputs.get("preload_stress_kpsi")),
+            ("Service stress (kpsi)", outputs.get("service_stress_kpsi")),
+            ("Proof strength (kpsi)", outputs.get("proof_strength_kpsi")),
+            ("Yielding factor of safety np", outputs.get("yielding_factor_of_safety_np")),
+            ("Load factor nL", outputs.get("load_factor_nL")),
+            ("Separation safety factor", outputs.get("separation_safety_factor")),
+            ("Torque, Eq. 8-27 (lbf·in)", outputs.get("torque_eq_8_27_lbf_in")),
+            ("Torque, Eq. 8-26 (lbf·in)", outputs.get("torque_eq_8_26_lbf_in")),
+            ("Joint remains clamped", outputs.get("joint_remains_clamped")),
+        ]
 
     if rows:
         try_render_key_value_table(title, rows)
@@ -104,6 +118,29 @@ def _build_fastener_payload(args: argparse.Namespace) -> Dict[str, Any]:
     return payload
 
 
+def _build_bolt_strength_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "problem": "bolt_strength",
+        "title": args.title or "Bolt strength analysis",
+        "inputs": {
+            "solve_path": "bolt_strength",
+            "nominal_diameter_in": args.nominal_diameter_in,
+            "threads_per_inch": args.threads_per_inch,
+            "thread_series": args.thread_series,
+            "bolt_length_in": args.bolt_length_in,
+            "sae_grade": args.sae_grade,
+            "external_load_kip": args.external_load_kip,
+            "initial_bolt_tension_kip": args.initial_bolt_tension_kip,
+            "bolt_stiffness_Mlbf_per_in": args.bolt_stiffness_Mlbf_per_in,
+            "member_stiffness_Mlbf_per_in": args.member_stiffness_Mlbf_per_in,
+            "torque_factor_K": args.torque_factor_K,
+            "thread_friction": args.thread_friction,
+            "collar_friction": args.collar_friction,
+            "half_thread_angle_deg": args.half_thread_angle_deg,
+        },
+    }
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Shigley Chapter 8 screws and fasteners CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -150,6 +187,25 @@ def build_parser() -> argparse.ArgumentParser:
     fm.add_argument("--pretty", action="store_true")
     fm.add_argument("--show", action="store_true")
 
+    bs = sub.add_parser("bolt_strength", help="Direct preloaded-bolt strength calculation")
+    bs.add_argument("--title")
+    bs.add_argument("--nominal-diameter-in", type=float, required=True)
+    bs.add_argument("--threads-per-inch", type=int, required=True)
+    bs.add_argument("--thread-series", default="UNF")
+    bs.add_argument("--bolt-length-in", type=float, required=True)
+    bs.add_argument("--sae-grade", required=True)
+    bs.add_argument("--external-load-kip", type=float, required=True)
+    bs.add_argument("--initial-bolt-tension-kip", type=float, required=True)
+    bs.add_argument("--bolt-stiffness-Mlbf-per-in", type=float, required=True)
+    bs.add_argument("--member-stiffness-Mlbf-per-in", type=float, required=True)
+    bs.add_argument("--torque-factor-K", type=float, default=0.2)
+    bs.add_argument("--thread-friction", type=float, default=0.15)
+    bs.add_argument("--collar-friction", type=float, default=0.15)
+    bs.add_argument("--half-thread-angle-deg", type=float, default=30.0)
+    bs.add_argument("--outfile")
+    bs.add_argument("--pretty", action="store_true")
+    bs.add_argument("--show", action="store_true")
+
     return parser
 
 
@@ -181,6 +237,18 @@ def main() -> None:
     if args.command == "fastener_stiffness":
         result = app.solve_payload(
             _build_fastener_payload(args),
+            outfile=args.outfile,
+            pretty=args.pretty,
+        )
+        if args.show:
+            _print_summary(result)
+        else:
+            print(json.dumps(result, indent=2 if args.pretty else None))
+        return
+
+    if args.command == "bolt_strength":
+        result = app.solve_payload(
+            _build_bolt_strength_payload(args),
             outfile=args.outfile,
             pretty=args.pretty,
         )

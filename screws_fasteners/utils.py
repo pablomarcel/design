@@ -62,6 +62,13 @@ MATERIAL_E_MPSI_ALIASES = ("elastic_modulus_Mpsi", "E_Mpsi")
 MATERIAL_E_GPA_ALIASES = ("elastic_modulus_GPa", "E_GPa")
 
 
+PROOF_GRADE_ALIASES = ("sae_grade_no", "grade", "sae_grade")
+PROOF_SIZE_RANGE_ALIASES = ("size_range_inclusive_in", "size_range_in")
+PROOF_STRENGTH_ALIASES = ("minimum_proof_strength_kpsi", "proof_strength_kpsi", "Sp_kpsi")
+TENSILE_STRENGTH_ALIASES = ("minimum_tensile_strength_kpsi", "tensile_strength_kpsi", "Sut_kpsi")
+YIELD_STRENGTH_ALIASES = ("minimum_yield_strength_kpsi", "yield_strength_kpsi", "Sy_kpsi")
+
+
 def ensure_dirs() -> None:
     IN_DIR.mkdir(parents=True, exist_ok=True)
     OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -150,6 +157,32 @@ def _parse_fastener_size_and_type(text: Any) -> Tuple[Optional[float], Optional[
     return _parse_fractional_size(size_text), washer_type
 
 
+def _grade_matches(row_value: Any, requested_grade: Any) -> bool:
+    row_text = str(row_value).strip()
+    req_text = str(requested_grade).strip()
+    if row_text == req_text:
+        return True
+    try:
+        return float(row_text) == float(req_text)
+    except Exception:
+        return False
+
+
+def _size_in_range(size_in: float, range_text: Any) -> bool:
+    if range_text in (None, ""):
+        return False
+    raw = str(range_text).strip().replace("–", "-").replace("—", "-")
+    if "-" not in raw:
+        bound = _parse_fractional_size(raw)
+        return bound is not None and abs(float(size_in) - float(bound)) < 1e-12
+    left, right = raw.split("-", 1)
+    lo = _parse_fractional_size(left)
+    hi = _parse_fractional_size(right)
+    if lo is None or hi is None:
+        return False
+    return float(lo) <= float(size_in) <= float(hi)
+
+
 def find_thread_row(size_in: float, series: str, threads_per_inch: Optional[int] = None) -> Dict[str, Any]:
     series = str(series).strip().upper()
     rows = load_csv_rows("table_8_2.csv")
@@ -162,7 +195,6 @@ def find_thread_row(size_in: float, series: str, threads_per_inch: Optional[int]
         if abs(float(row_size) - float(size_in)) >= 1e-9:
             continue
 
-        # Handle wide Shigley-style table with separate UNC/UNF columns.
         prefix = prefix_map.get(series)
         if prefix and f"{prefix}_tensile_stress_area_At_in2" in row:
             row_tpi = row.get(f"{prefix}_threads_per_inch_N")
@@ -181,7 +213,6 @@ def find_thread_row(size_in: float, series: str, threads_per_inch: Optional[int]
                 canonical["minor_diameter_area_in2"] = float(minor_area)
             return canonical
 
-        # Handle narrow tables with explicit series column.
         row_series = _first_present(row, THREAD_SERIES_ALIASES)
         if row_series is None or str(row_series).strip().upper() != series:
             continue
@@ -203,6 +234,35 @@ def find_thread_row(size_in: float, series: str, threads_per_inch: Optional[int]
 
     detail = f" and {threads_per_inch} TPI" if threads_per_inch is not None else ""
     raise DataLookupError(f"No thread row found in table_8_2.csv for size {size_in} in and series {series}{detail}.")
+
+
+def find_proof_strength_row(sae_grade: Any, nominal_diameter_in: float) -> Dict[str, Any]:
+    rows = load_csv_rows("table_8_9.csv")
+    for row in rows:
+        row_grade = _first_present(row, PROOF_GRADE_ALIASES)
+        row_range = _first_present(row, PROOF_SIZE_RANGE_ALIASES)
+        if row_grade is None or row_range is None:
+            continue
+        if not _grade_matches(row_grade, sae_grade):
+            continue
+        if not _size_in_range(nominal_diameter_in, row_range):
+            continue
+        proof = _first_present(row, PROOF_STRENGTH_ALIASES)
+        tensile = _first_present(row, TENSILE_STRENGTH_ALIASES)
+        yield_strength = _first_present(row, YIELD_STRENGTH_ALIASES)
+        canonical = dict(row)
+        canonical.setdefault("sae_grade_no", row_grade)
+        canonical.setdefault("size_range_inclusive_in", row_range)
+        if proof not in (None, ""):
+            canonical.setdefault("minimum_proof_strength_kpsi", float(proof))
+        if tensile not in (None, ""):
+            canonical.setdefault("minimum_tensile_strength_kpsi", float(tensile))
+        if yield_strength not in (None, ""):
+            canonical.setdefault("minimum_yield_strength_kpsi", float(yield_strength))
+        return canonical
+    raise DataLookupError(
+        f"No proof-strength row found in table_8_9.csv for SAE grade {sae_grade} and nominal diameter {nominal_diameter_in} in."
+    )
 
 
 def find_washer_row(nominal_size_in: float, washer_type: str = "N") -> Dict[str, Any]:

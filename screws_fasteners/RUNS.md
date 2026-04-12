@@ -62,3 +62,32 @@ python -m cli fastener_stiffness \
   --layer gray\ cast\ iron:0.75 \
   --show
 ```
+
+## Example 8-3 Bolt Strength from file
+
+```bash
+python -m cli run \
+  --infile example_8_3_bolt_strength.json \
+  --outfile example_8_3_bolt_strength_out.json \
+  --pretty \
+  --show
+```
+
+## Example 8-3 Bolt Strength - cli
+
+```bash
+python -m cli bolt_strength \
+  --nominal-diameter-in 0.75 \
+  --threads-per-inch 16 \
+  --thread-series UNF \
+  --bolt-length-in 2.5 \
+  --sae-grade 5 \
+  --external-load-kip 6 \
+  --initial-bolt-tension-kip 25 \
+  --bolt-stiffness-Mlbf-per-in 6.5 \
+  --member-stiffness-Mlbf-per-in 13.8 \
+  --torque-factor-K 0.2 \
+  --thread-friction 0.15 \
+  --collar-friction 0.15 \
+  --show
+```

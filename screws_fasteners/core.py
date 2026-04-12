@@ -8,6 +8,7 @@ try:
     from .utils import (
         ValidationError,
         find_material_stiffness_row,
+        find_proof_strength_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -19,6 +20,7 @@ except ImportError:  # pragma: no cover
     from utils import (
         ValidationError,
         find_material_stiffness_row,
+        find_proof_strength_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -424,5 +426,135 @@ class FastenerMemberStiffnessSolver(BaseSolver):
             "If clamp_face_diameter_in is omitted, the solver fetches the washer OD from table_a_32.csv.",
             "Bolt stiffness follows Shigley Eq. (8-17) using the tensile-stress area from table_8_2.csv.",
             "Eq. (8-23) is only evaluated when eq_8_23_material is explicitly provided, since it is intended for a single effective member material.",
+        ]
+        return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
+
+
+class BoltStrengthSolver(BaseSolver):
+    solve_path = "bolt_strength"
+
+    def solve(self) -> SolveResult:
+        p = self.inputs
+        nominal_diameter_in = float(p["nominal_diameter_in"])
+        threads_per_inch = int(p["threads_per_inch"])
+        thread_series = str(p.get("thread_series", "UNF")).upper()
+        bolt_length_in = float(p["bolt_length_in"])
+        sae_grade = p["sae_grade"]
+        external_load_kip = float(p["external_load_kip"])
+        initial_bolt_tension_kip = float(p["initial_bolt_tension_kip"])
+        kb_Mlbf_per_in = float(p["bolt_stiffness_Mlbf_per_in"])
+        km_Mlbf_per_in = float(p["member_stiffness_Mlbf_per_in"])
+        torque_factor_K = float(p.get("torque_factor_K", 0.2))
+        thread_friction = float(p.get("thread_friction", 0.15))
+        collar_friction = float(p.get("collar_friction", thread_friction))
+        half_thread_angle_deg = float(p.get("half_thread_angle_deg", 30.0))
+
+        for name, value in [
+            ("nominal_diameter_in", nominal_diameter_in),
+            ("threads_per_inch", threads_per_inch),
+            ("bolt_length_in", bolt_length_in),
+            ("external_load_kip", external_load_kip),
+            ("initial_bolt_tension_kip", initial_bolt_tension_kip),
+            ("bolt_stiffness_Mlbf_per_in", kb_Mlbf_per_in),
+            ("member_stiffness_Mlbf_per_in", km_Mlbf_per_in),
+            ("torque_factor_K", torque_factor_K),
+        ]:
+            validate_positive(name, value)
+        for name, value in [
+            ("thread_friction", thread_friction),
+            ("collar_friction", collar_friction),
+            ("half_thread_angle_deg", half_thread_angle_deg),
+        ]:
+            validate_nonnegative(name, value)
+
+        thread_row = find_thread_row(nominal_diameter_in, thread_series, threads_per_inch=threads_per_inch)
+        proof_row = find_proof_strength_row(sae_grade, nominal_diameter_in)
+
+        At_in2 = float(thread_row["tensile_stress_area_in2"])
+        Ar_in2 = float(thread_row.get("minor_diameter_area_in2"))
+        dr_in = math.sqrt(4.0 * Ar_in2 / math.pi)
+        dm_in = 0.5 * (nominal_diameter_in + dr_in)
+        lead_in = 1.0 / threads_per_inch
+        lead_angle_rad = math.atan(lead_in / (math.pi * dm_in))
+
+        kb_lbf_per_in = kb_Mlbf_per_in * 1_000_000.0
+        km_lbf_per_in = km_Mlbf_per_in * 1_000_000.0
+        C = kb_lbf_per_in / (kb_lbf_per_in + km_lbf_per_in)
+
+        preload_stress_kpsi = initial_bolt_tension_kip / At_in2
+        bolt_load_due_to_service_kip = C * external_load_kip
+        service_bolt_load_kip = initial_bolt_tension_kip + bolt_load_due_to_service_kip
+        service_stress_kpsi = service_bolt_load_kip / At_in2
+        member_load_due_to_service_kip = (1.0 - C) * external_load_kip
+        resultant_member_load_kip = member_load_due_to_service_kip - initial_bolt_tension_kip
+
+        Sp_kpsi = float(proof_row["minimum_proof_strength_kpsi"])
+        preload_margin_to_proof_kpsi = Sp_kpsi - preload_stress_kpsi
+        service_margin_to_proof_kpsi = Sp_kpsi - service_stress_kpsi
+        preload_margin_percent_of_proof = 100.0 * preload_margin_to_proof_kpsi / Sp_kpsi
+        service_margin_percent_of_proof = 100.0 * service_margin_to_proof_kpsi / Sp_kpsi
+
+        proof_load_kip = Sp_kpsi * At_in2
+        yielding_factor_of_safety_np = proof_load_kip / service_bolt_load_kip
+        load_factor_nL = (proof_load_kip - initial_bolt_tension_kip) / (C * external_load_kip)
+        separation_load_kip = initial_bolt_tension_kip / (1.0 - C)
+        separation_safety_factor = separation_load_kip / external_load_kip
+
+        torque_eq_8_27_lbf_in = torque_factor_K * initial_bolt_tension_kip * 1000.0 * nominal_diameter_in
+        sec_alpha = 1.0 / math.cos(math.radians(half_thread_angle_deg))
+        tan_lambda = math.tan(lead_angle_rad)
+        torque_coefficient_eq_8_26 = (
+            (dm_in / (2.0 * nominal_diameter_in))
+            * ((tan_lambda + thread_friction * sec_alpha) / (1.0 - thread_friction * tan_lambda * sec_alpha))
+            + 0.625 * collar_friction
+        )
+        torque_eq_8_26_lbf_in = torque_coefficient_eq_8_26 * initial_bolt_tension_kip * 1000.0 * nominal_diameter_in
+        torque_difference_percent_vs_eq_8_27 = 100.0 * (torque_eq_8_26_lbf_in - torque_eq_8_27_lbf_in) / torque_eq_8_27_lbf_in
+
+        derived = {
+            "tensile_stress_area_At_in2": At_in2,
+            "minor_diameter_area_Ar_in2": Ar_in2,
+            "minor_diameter_dr_in": dr_in,
+            "mean_thread_diameter_dm_in": dm_in,
+            "lead_in": lead_in,
+            "lead_angle_deg": math.degrees(lead_angle_rad),
+            "stiffness_ratio_C_bolt_over_joint": C,
+            "bolt_load_due_to_service_kip": bolt_load_due_to_service_kip,
+            "member_load_due_to_service_kip": member_load_due_to_service_kip,
+            "proof_load_kip": proof_load_kip,
+            "separation_load_kip": separation_load_kip,
+            "torque_coefficient_eq_8_26": torque_coefficient_eq_8_26,
+        }
+        lookups = {
+            "table_8_2": thread_row,
+            "table_8_9": proof_row,
+        }
+        outputs = {
+            "preload_stress_kpsi": preload_stress_kpsi,
+            "service_stress_kpsi": service_stress_kpsi,
+            "proof_strength_kpsi": Sp_kpsi,
+            "preload_margin_to_proof_kpsi": preload_margin_to_proof_kpsi,
+            "service_margin_to_proof_kpsi": service_margin_to_proof_kpsi,
+            "preload_margin_to_proof_percent": preload_margin_percent_of_proof,
+            "service_margin_to_proof_percent": service_margin_percent_of_proof,
+            "resultant_bolt_load_kip": service_bolt_load_kip,
+            "resultant_member_load_kip": resultant_member_load_kip,
+            "joint_remains_clamped": resultant_member_load_kip < 0.0,
+            "yielding_factor_of_safety_np": yielding_factor_of_safety_np,
+            "load_factor_nL": load_factor_nL,
+            "separation_safety_factor": separation_safety_factor,
+            "torque_eq_8_27_lbf_in": torque_eq_8_27_lbf_in,
+            "torque_eq_8_27_lbf_ft": torque_eq_8_27_lbf_in / 12.0,
+            "torque_eq_8_26_lbf_in": torque_eq_8_26_lbf_in,
+            "torque_eq_8_26_lbf_ft": torque_eq_8_26_lbf_in / 12.0,
+            "torque_eq_8_26_percent_difference_vs_eq_8_27": torque_difference_percent_vs_eq_8_27,
+        }
+        notes = [
+            "This solve path follows Shigley Example 8-3 for a preloaded tension joint and keeps the pre-existing solve paths unchanged.",
+            "The preload and service stresses are computed with the tensile-stress area At from table_8_2.csv.",
+            "The service bolt load uses Eq. (8-24): Fb = CP + Fi, with C = kb / (kb + km).",
+            "The proof-strength comparison uses the SAE grade row from table_8_9.csv matched by nominal diameter range.",
+            "Eq. (8-27) uses T = K F_i d. Eq. (8-26) uses the thread/friction model with dm based on the average of the major and minor diameters.",
+            "The yielding factor of safety and load factor are additionally reported from Eqs. (8-28) and (8-29) on the following page because they are natural extensions of the same example family.",
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
