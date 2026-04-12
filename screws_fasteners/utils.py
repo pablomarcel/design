@@ -68,6 +68,10 @@ PROOF_STRENGTH_ALIASES = ("minimum_proof_strength_kpsi", "proof_strength_kpsi", 
 TENSILE_STRENGTH_ALIASES = ("minimum_tensile_strength_kpsi", "tensile_strength_kpsi", "Sut_kpsi")
 YIELD_STRENGTH_ALIASES = ("minimum_yield_strength_kpsi", "yield_strength_kpsi", "Sy_kpsi")
 
+ENDURANCE_GRADE_ALIASES = ("grade_or_class", "sae_grade", "sae_grade_no", "grade")
+ENDURANCE_SIZE_RANGE_ALIASES = ("size_range", "size_range_in", "size_range_inclusive_in")
+ENDURANCE_STRENGTH_ALIASES = ("endurance_strength", "endurance_strength_kpsi", "Se_kpsi")
+
 
 def ensure_dirs() -> None:
     IN_DIR.mkdir(parents=True, exist_ok=True)
@@ -391,6 +395,29 @@ def find_material_stiffness_row(material: str) -> Dict[str, Any]:
         return canonical
     raise DataLookupError(f"No material row found in table_8_8.csv for material '{material}'.")
 
+
+
+def find_endurance_strength_row(grade_or_class: Any, nominal_diameter_in: float) -> Dict[str, Any]:
+    rows = load_csv_rows("table_8_17.csv")
+    for row in rows:
+        row_grade = _first_present(row, ENDURANCE_GRADE_ALIASES)
+        row_range = _first_present(row, ENDURANCE_SIZE_RANGE_ALIASES)
+        if row_grade is None or row_range is None:
+            continue
+        if not _grade_matches(row_grade, grade_or_class):
+            continue
+        if not _size_in_range(nominal_diameter_in, row_range):
+            continue
+        endurance = _first_present(row, ENDURANCE_STRENGTH_ALIASES)
+        canonical = dict(row)
+        canonical.setdefault("grade_or_class", row_grade)
+        canonical.setdefault("size_range", row_range)
+        if endurance not in (None, ""):
+            canonical.setdefault("endurance_strength_kpsi", float(endurance))
+        return canonical
+    raise DataLookupError(
+        f"No endurance-strength row found in table_8_17.csv for grade/class {grade_or_class} and nominal diameter {nominal_diameter_in} in."
+    )
 
 def math_exp_safe(x: float) -> float:
     try:

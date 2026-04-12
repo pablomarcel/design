@@ -1,0 +1,9 @@
+grade_or_class,size_range,endurance_strength,endurance_strength_units,notes
+SAE 5,1/4-1,18.6,kpsi,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+SAE 5,1 1/8-1 1/2,16.3,kpsi,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+SAE 7,1/4-1 1/2,20.6,kpsi,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+SAE 8,1/4-1 1/2,23.2,kpsi,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+ISO 8.8,M16-M36,129,MPa,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+ISO 9.8,M1.6-M16,140,MPa,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+ISO 10.9,M5-M36,162,MPa,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"
+ISO 12.9,M1.6-M36,190,MPa,"Repeatedly applied, axial loading, fully corrected, including Kf as a strength reducer"

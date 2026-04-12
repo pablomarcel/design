@@ -1,0 +1,28 @@
+{
+  "problem": "fatigue_loading_tension_joint",
+  "title": "Example 8-5 fatigue loading of tension joints",
+  "inputs": {
+    "solve_path": "fatigue_loading_tension_joint",
+    "nominal_diameter_in": 0.625,
+    "threads_per_inch": 11,
+    "thread_series": "UNC",
+    "sae_grade": 5,
+    "washer_thickness_in": 0.0625,
+    "steel_cover_thickness_in": 0.625,
+    "steel_modulus_Mpsi": 30.0,
+    "cast_iron_base_thickness_in": 0.625,
+    "cast_iron_modulus_Mpsi": 16.0,
+    "max_force_per_screw_kip": 5.0,
+    "min_force_per_screw_kip": 0.0,
+    "preload_fraction_of_proof": 0.75,
+    "effective_washer_diameter_factor": 1.5,
+    "cone_half_angle_deg": 30.0,
+    "threaded_all_the_way": true,
+    "fatigue_criterion": "goodman",
+    "notes": [
+      "Example 8-5 style input. The problem statement data are kept in the JSON input.",
+      "S_p and S_ut are fetched from table_8_9.csv. The fully corrected endurance strength S_e is fetched from table_8_17.csv.",
+      "The member stiffness follows the three-frusta cap-screw model in Fig. 8-21 using the assumptions in the figure caption."
+    ]
+  }
+}

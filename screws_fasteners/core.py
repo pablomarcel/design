@@ -12,6 +12,8 @@ try:
         find_nut_dimensions_row,
         find_preferred_fraction_size_ge,
         find_proof_strength_row,
+        find_endurance_strength_row,
+        find_endurance_strength_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -27,6 +29,7 @@ except ImportError:  # pragma: no cover
         find_nut_dimensions_row,
         find_preferred_fraction_size_ge,
         find_proof_strength_row,
+        find_endurance_strength_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -706,3 +709,195 @@ class StaticallyLoadedTensionJointWithPreloadSolver(BaseSolver):
             "The number of bolts is obtained from the overload load-factor relation rearranged from Eq. (8-29), then rounded up to the next integer.",
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
+
+class FatigueLoadingTensionJointSolver(BaseSolver):
+    solve_path = "fatigue_loading_tension_joint"
+
+    @staticmethod
+    def _frustum_stiffness(E_Mpsi: float, d_in: float, t_in: float, D_in: float) -> float:
+        return 0.5774 * math.pi * E_Mpsi * d_in / math.log(
+            ((1.155 * t_in + D_in - d_in) * (D_in + d_in))
+            / ((1.155 * t_in + D_in + d_in) * (D_in - d_in))
+        )
+
+    def solve(self) -> SolveResult:
+        p = self.inputs
+        nominal_diameter_in = float(p["nominal_diameter_in"])
+        threads_per_inch = int(p["threads_per_inch"])
+        thread_series = str(p.get("thread_series", "UNC")).upper()
+        sae_grade = p["sae_grade"]
+        washer_thickness_in = float(p["washer_thickness_in"])
+        steel_cover_thickness_in = float(p["steel_cover_thickness_in"])
+        steel_modulus_Mpsi = float(p["steel_modulus_Mpsi"])
+        cast_iron_base_thickness_in = float(p["cast_iron_base_thickness_in"])
+        cast_iron_modulus_Mpsi = float(p["cast_iron_modulus_Mpsi"])
+        max_force_per_screw_kip = float(p["max_force_per_screw_kip"])
+        min_force_per_screw_kip = float(p.get("min_force_per_screw_kip", 0.0))
+        preload_fraction_of_proof = float(p.get("preload_fraction_of_proof", 0.75))
+        endurance_grade_override = p.get("endurance_grade_override", sae_grade)
+        effective_washer_diameter_factor = float(p.get("effective_washer_diameter_factor", 1.5))
+        cone_half_angle_deg = float(p.get("cone_half_angle_deg", 30.0))
+        threaded_all_the_way = bool(p.get("threaded_all_the_way", True))
+        fatigue_criterion = str(p.get("fatigue_criterion", "goodman")).lower()
+
+        for name, value in [
+            ("nominal_diameter_in", nominal_diameter_in),
+            ("threads_per_inch", threads_per_inch),
+            ("washer_thickness_in", washer_thickness_in),
+            ("steel_cover_thickness_in", steel_cover_thickness_in),
+            ("steel_modulus_Mpsi", steel_modulus_Mpsi),
+            ("cast_iron_base_thickness_in", cast_iron_base_thickness_in),
+            ("cast_iron_modulus_Mpsi", cast_iron_modulus_Mpsi),
+            ("max_force_per_screw_kip", max_force_per_screw_kip),
+            ("preload_fraction_of_proof", preload_fraction_of_proof),
+            ("effective_washer_diameter_factor", effective_washer_diameter_factor),
+        ]:
+            validate_positive(name, value)
+        validate_nonnegative("min_force_per_screw_kip", min_force_per_screw_kip)
+        validate_nonnegative("cone_half_angle_deg", cone_half_angle_deg)
+
+        if max_force_per_screw_kip < min_force_per_screw_kip:
+            raise ValidationError("max_force_per_screw_kip must be >= min_force_per_screw_kip.")
+
+        tan_alpha = math.tan(math.radians(cone_half_angle_deg))
+        if abs(cone_half_angle_deg - 30.0) > 1e-9:
+            raise ValidationError("This Example 8-5 solve path currently assumes the textbook cone half-angle of 30 degrees.")
+
+        thread_row = find_thread_row(nominal_diameter_in, thread_series, threads_per_inch=threads_per_inch)
+        proof_row = find_proof_strength_row(sae_grade, nominal_diameter_in)
+        endurance_row = find_endurance_strength_row(endurance_grade_override, nominal_diameter_in)
+
+        At_in2 = float(thread_row["tensile_stress_area_in2"])
+        D2_in = effective_washer_diameter_factor * nominal_diameter_in
+        h_in = steel_cover_thickness_in + washer_thickness_in
+        l_in = h_in + min(cast_iron_base_thickness_in, nominal_diameter_in) / 2.0
+        D1_in = D2_in + 2.0 * l_in * tan_alpha
+
+        k1_t_in = l_in / 2.0
+        k1_D_in = D2_in
+        k1_E_Mpsi = steel_modulus_Mpsi
+        k1_Mlbf_per_in = self._frustum_stiffness(k1_E_Mpsi, nominal_diameter_in, k1_t_in, k1_D_in)
+
+        k2_t_in = h_in - l_in / 2.0
+        k2_D_in = D2_in + 2.0 * (l_in - h_in) * tan_alpha
+        k2_E_Mpsi = steel_modulus_Mpsi
+        k2_Mlbf_per_in = self._frustum_stiffness(k2_E_Mpsi, nominal_diameter_in, k2_t_in, k2_D_in)
+
+        k3_t_in = l_in - h_in
+        k3_D_in = D2_in
+        k3_E_Mpsi = cast_iron_modulus_Mpsi
+        k3_Mlbf_per_in = self._frustum_stiffness(k3_E_Mpsi, nominal_diameter_in, k3_t_in, k3_D_in)
+
+        km_Mlbf_per_in = 1.0 / (1.0 / k1_Mlbf_per_in + 1.0 / k2_Mlbf_per_in + 1.0 / k3_Mlbf_per_in)
+
+        if threaded_all_the_way:
+            kb_Mlbf_per_in = At_in2 * steel_modulus_Mpsi / l_in
+        else:
+            Ad_in2 = math.pi * nominal_diameter_in**2 / 4.0
+            kb_Mlbf_per_in = Ad_in2 * At_in2 * steel_modulus_Mpsi / (Ad_in2 * l_in + At_in2 * 0.0)
+
+        C = kb_Mlbf_per_in / (kb_Mlbf_per_in + km_Mlbf_per_in)
+
+        Sp_kpsi = float(proof_row["minimum_proof_strength_kpsi"])
+        Sut_kpsi = float(proof_row["minimum_tensile_strength_kpsi"])
+        Se_kpsi = float(endurance_row["endurance_strength_kpsi"])
+
+        proof_load_kip = Sp_kpsi * At_in2
+        Fi_kip = preload_fraction_of_proof * proof_load_kip
+        sigma_i_kpsi = Fi_kip / At_in2
+
+        sigma_a_kpsi = C * (max_force_per_screw_kip - min_force_per_screw_kip) / (2.0 * At_in2)
+        sigma_m_kpsi = C * (max_force_per_screw_kip + min_force_per_screw_kip) / (2.0 * At_in2) + sigma_i_kpsi
+
+        goodman_nf = Se_kpsi * (Sut_kpsi - sigma_i_kpsi) / (sigma_a_kpsi * (Sut_kpsi + Se_kpsi))
+        gerber_nf = (
+            Sut_kpsi * math.sqrt(Sut_kpsi**2 + 4.0 * Se_kpsi * (Se_kpsi + sigma_i_kpsi))
+            - Sut_kpsi**2
+            - 2.0 * sigma_i_kpsi * Se_kpsi
+        ) / (2.0 * sigma_a_kpsi * Se_kpsi)
+        asme_elliptic_nf = (
+            Se_kpsi * (
+                Sp_kpsi * math.sqrt(Sp_kpsi**2 + Se_kpsi**2 - sigma_i_kpsi**2 - sigma_i_kpsi * Se_kpsi)
+            )
+        ) / (sigma_a_kpsi * (Sp_kpsi**2 + Se_kpsi**2))
+
+        traditional_yielding_np = Sp_kpsi / (sigma_m_kpsi + sigma_a_kpsi)
+        load_factor_nL = (proof_load_kip - Fi_kip) / (C * max_force_per_screw_kip)
+        separation_factor_n0 = Fi_kip / (max_force_per_screw_kip * (1.0 - C))
+
+        point_A = {"sigma_i_kpsi": sigma_i_kpsi}
+        point_B = {"sigma_a_kpsi": sigma_a_kpsi, "sigma_m_kpsi": sigma_m_kpsi}
+        point_C = {
+            "S_a_kpsi": goodman_nf * sigma_a_kpsi,
+            "S_m_kpsi": sigma_i_kpsi + goodman_nf * sigma_a_kpsi,
+        }
+        point_D = {
+            "S_a_kpsi": (Sp_kpsi - sigma_i_kpsi) / 2.0,
+            "S_m_kpsi": sigma_i_kpsi + (Sp_kpsi - sigma_i_kpsi) / 2.0,
+        }
+        point_E = {
+            "S_a_kpsi": gerber_nf * sigma_a_kpsi,
+            "S_m_kpsi": sigma_i_kpsi + gerber_nf * sigma_a_kpsi,
+        }
+        proof_line_factor_from_diagram = point_D["S_a_kpsi"] / sigma_a_kpsi
+
+        selected_fatigue_factor = {
+            "goodman": goodman_nf,
+            "gerber": gerber_nf,
+            "asme_elliptic": asme_elliptic_nf,
+        }.get(fatigue_criterion, goodman_nf)
+
+        derived = {
+            "tensile_stress_area_At_in2": At_in2,
+            "effective_grip_h_in": h_in,
+            "effective_grip_l_in": l_in,
+            "effective_washer_diameter_D2_in": D2_in,
+            "expanded_frustum_diameter_D1_in": D1_in,
+            "proof_load_per_screw_kip": proof_load_kip,
+            "preload_per_screw_kip": Fi_kip,
+            "preload_stress_sigma_i_kpsi": sigma_i_kpsi,
+            "alternating_stress_sigma_a_kpsi": sigma_a_kpsi,
+            "midrange_stress_sigma_m_kpsi": sigma_m_kpsi,
+            "frustum_stiffnesses_Mlbf_per_in": {
+                "k1_upper_steel": k1_Mlbf_per_in,
+                "k2_middle_steel": k2_Mlbf_per_in,
+                "k3_lower_cast_iron": k3_Mlbf_per_in,
+            },
+            "fatigue_diagram_points_kpsi": {
+                "A": point_A,
+                "B": point_B,
+                "C_modified_goodman": point_C,
+                "D_proof_strength_line": point_D,
+                "E_gerber": point_E,
+            },
+        }
+        lookups = {
+            "table_8_2": thread_row,
+            "table_8_9": proof_row,
+            "table_8_17": endurance_row,
+        }
+        outputs = {
+            "bolt_stiffness_kb_Mlbf_per_in": kb_Mlbf_per_in,
+            "member_stiffness_km_Mlbf_per_in": km_Mlbf_per_in,
+            "joint_constant_C": C,
+            "traditional_yielding_factor_of_safety_np": traditional_yielding_np,
+            "load_factor_nL": load_factor_nL,
+            "joint_separation_factor_n0": separation_factor_n0,
+            "fatigue_factor_of_safety_goodman": goodman_nf,
+            "fatigue_factor_of_safety_gerber": gerber_nf,
+            "fatigue_factor_of_safety_asme_elliptic": asme_elliptic_nf,
+            "proof_line_factor_from_fatigue_diagram": proof_line_factor_from_diagram,
+            "selected_fatigue_criterion": fatigue_criterion,
+            "selected_fatigue_factor_of_safety": selected_fatigue_factor,
+        }
+        notes = [
+            "This solve path follows Shigley Example 8-5 additively and leaves the existing solve paths intact.",
+            "The member stiffness follows the three-frusta cap-screw model in Fig. 8-21, using the assumptions in the figure caption.",
+            "For this example family, h = t_cover + t_washer and l = h + min(t_base, d)/2.",
+            "The bolt is treated as short and threaded all the way, so k_b = A_t E / l per the textbook Example 8-5 route.",
+            "The repeated-load fatigue route uses P_min = 0 by default, giving sigma_m = sigma_a + sigma_i.",
+            "The table-driven fully corrected endurance strength S_e is fetched from table_8_17.csv, while S_p and S_ut are fetched from table_8_9.csv.",
+            "The proof-line factor from the fatigue diagram is numerically the same as the overload load factor n_L for this repeated-loading case.",
+        ]
+        return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
+

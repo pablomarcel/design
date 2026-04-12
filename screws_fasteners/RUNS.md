@@ -2,7 +2,7 @@
 
 Run these commands from inside the `screws_fasteners` package directory.
 
-## Example 8-1 from file
+## Example 8-1 - from file
 
 ```bash
 python -m cli run \
@@ -12,7 +12,7 @@ python -m cli run \
   --show
 ```
 
-## Example 8-2 mixed-material joint from file
+## Example 8-2 mixed-material joint - from file
 
 ```bash
 python -m cli run \
@@ -22,7 +22,7 @@ python -m cli run \
   --show
 ```
 
-## Example 8-2 all-steel joint from file
+## Example 8-2 all-steel joint - from file
 
 ```bash
 python -m cli run \
@@ -32,7 +32,7 @@ python -m cli run \
   --show
 ```
 
-## Direct square-thread power screw solve
+## Direct square-thread power screw solve - cli
 
 ```bash
 python -m cli power_screw \
@@ -48,7 +48,7 @@ python -m cli power_screw \
   --show
 ```
 
-## Direct fastener/member stiffness solve
+## Direct fastener/member stiffness solve - cli
 
 ```bash
 python -m cli fastener_stiffness \
@@ -63,7 +63,7 @@ python -m cli fastener_stiffness \
   --show
 ```
 
-## Example 8-3 Bolt Strength from file
+## Example 8-3 Bolt Strength - from file
 
 ```bash
 python -m cli run \
@@ -92,7 +92,7 @@ python -m cli bolt_strength \
   --show
 ```
 
-## Example 8-4 Statically Loaded Tension Joint with Preload from file
+## Example 8-4 Statically Loaded Tension Joint with Preload - from file
 
 ```bash
 python -m cli run \
@@ -102,7 +102,7 @@ python -m cli run \
   --show
 ```
 
-## Example 8-4 Statically Loaded Tension Joint with Preload from file - auto
+## Example 8-4 Statically Loaded Tension Joint with Preload - auto - from file
 
 ```bash
 python -m cli run \
@@ -168,5 +168,33 @@ python -m cli tension_joint_preload \
   --member-material-astm-number 25 \
   --member-modulus-Mpsi-override 14.0 \
   --eq-8-23-material "Gray Cast Iron" \
+  --show
+```
+
+## Example 8-5 Fatigue Loading of Tension Joints - from file
+
+```bash
+python -m cli run \
+  --infile example_8_5_fatigue_loading_tension_joint.json \
+  --outfile example_8_5_fatigue_loading_tension_joint_out.json \
+  --pretty \
+  --show
+```
+
+## Example 8-5 Fatigue Loading of Tension Joints - cli
+
+```bash
+python -m cli fatigue_tension_joint \
+  --nominal-diameter-in 0.625 \
+  --threads-per-inch 11 \
+  --thread-series UNC \
+  --sae-grade 5 \
+  --washer-thickness-in 0.0625 \
+  --steel-cover-thickness-in 0.625 \
+  --steel-modulus-Mpsi 30 \
+  --cast-iron-base-thickness-in 0.625 \
+  --cast-iron-modulus-Mpsi 16 \
+  --max-force-per-screw-kip 5 \
+  --min-force-per-screw-kip 0 \
   --show
 ```

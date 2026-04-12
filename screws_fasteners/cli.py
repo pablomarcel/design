@@ -74,6 +74,19 @@ def _print_summary(result: Dict[str, Any]) -> None:
             ("Yielding factor of safety np", outputs.get("yielding_factor_of_safety_np")),
             ("Joint separation load factor n0", outputs.get("joint_separation_load_factor_n0")),
         ]
+    elif problem == "fatigue_loading_tension_joint":
+        rows = [
+            ("Bolt stiffness kb (Mlbf/in)", outputs.get("bolt_stiffness_kb_Mlbf_per_in")),
+            ("Member stiffness km (Mlbf/in)", outputs.get("member_stiffness_km_Mlbf_per_in")),
+            ("Joint constant C", outputs.get("joint_constant_C")),
+            ("Yielding factor of safety np", outputs.get("traditional_yielding_factor_of_safety_np")),
+            ("Load factor nL", outputs.get("load_factor_nL")),
+            ("Separation factor n0", outputs.get("joint_separation_factor_n0")),
+            ("Fatigue FoS Goodman", outputs.get("fatigue_factor_of_safety_goodman")),
+            ("Fatigue FoS Gerber", outputs.get("fatigue_factor_of_safety_gerber")),
+            ("Fatigue FoS ASME-elliptic", outputs.get("fatigue_factor_of_safety_asme_elliptic")),
+            ("Selected fatigue FoS", outputs.get("selected_fatigue_factor_of_safety")),
+        ]
 
     if rows:
         try_render_key_value_table(title, rows)
@@ -181,6 +194,35 @@ def _build_tension_joint_preload_payload(args: argparse.Namespace) -> Dict[str, 
     return payload
 
 
+
+def _build_fatigue_tension_joint_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    payload = {
+        "problem": "fatigue_loading_tension_joint",
+        "title": args.title or "Fatigue loading of tension joints",
+        "inputs": {
+            "solve_path": "fatigue_loading_tension_joint",
+            "nominal_diameter_in": args.nominal_diameter_in,
+            "threads_per_inch": args.threads_per_inch,
+            "thread_series": args.thread_series,
+            "sae_grade": args.sae_grade,
+            "washer_thickness_in": args.washer_thickness_in,
+            "steel_cover_thickness_in": args.steel_cover_thickness_in,
+            "steel_modulus_Mpsi": args.steel_modulus_Mpsi,
+            "cast_iron_base_thickness_in": args.cast_iron_base_thickness_in,
+            "cast_iron_modulus_Mpsi": args.cast_iron_modulus_Mpsi,
+            "max_force_per_screw_kip": args.max_force_per_screw_kip,
+            "min_force_per_screw_kip": args.min_force_per_screw_kip,
+            "preload_fraction_of_proof": args.preload_fraction_of_proof,
+            "effective_washer_diameter_factor": args.effective_washer_diameter_factor,
+            "cone_half_angle_deg": args.cone_half_angle_deg,
+            "threaded_all_the_way": not args.not_threaded_all_the_way,
+            "fatigue_criterion": args.fatigue_criterion,
+        },
+    }
+    if args.endurance_grade_override is not None:
+        payload["inputs"]["endurance_grade_override"] = args.endurance_grade_override
+    return payload
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Shigley Chapter 8 screws and fasteners CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -268,6 +310,30 @@ def build_parser() -> argparse.ArgumentParser:
     tj.add_argument("--pretty", action="store_true")
     tj.add_argument("--show", action="store_true")
 
+
+    ft = sub.add_parser("fatigue_tension_joint", help="Direct fatigue loading of tension joints calculation")
+    ft.add_argument("--title")
+    ft.add_argument("--nominal-diameter-in", type=float, required=True)
+    ft.add_argument("--threads-per-inch", type=int, required=True)
+    ft.add_argument("--thread-series", default="UNC")
+    ft.add_argument("--sae-grade", required=True)
+    ft.add_argument("--washer-thickness-in", type=float, required=True)
+    ft.add_argument("--steel-cover-thickness-in", type=float, required=True)
+    ft.add_argument("--steel-modulus-Mpsi", type=float, required=True)
+    ft.add_argument("--cast-iron-base-thickness-in", type=float, required=True)
+    ft.add_argument("--cast-iron-modulus-Mpsi", type=float, required=True)
+    ft.add_argument("--max-force-per-screw-kip", type=float, required=True)
+    ft.add_argument("--min-force-per-screw-kip", type=float, default=0.0)
+    ft.add_argument("--preload-fraction-of-proof", type=float, default=0.75)
+    ft.add_argument("--effective-washer-diameter-factor", type=float, default=1.5)
+    ft.add_argument("--cone-half-angle-deg", type=float, default=30.0)
+    ft.add_argument("--endurance-grade-override")
+    ft.add_argument("--fatigue-criterion", default="goodman", choices=["goodman", "gerber", "asme_elliptic"])
+    ft.add_argument("--not-threaded-all-the-way", action="store_true")
+    ft.add_argument("--outfile")
+    ft.add_argument("--pretty", action="store_true")
+    ft.add_argument("--show", action="store_true")
+
     return parser
 
 
@@ -302,6 +368,15 @@ def main() -> None:
 
     if args.command == "bolt_strength":
         result = app.solve_payload(_build_bolt_strength_payload(args), outfile=args.outfile, pretty=args.pretty)
+        if args.show:
+            _print_summary(result)
+        else:
+            print(json.dumps(result, indent=2 if args.pretty else None))
+        return
+
+
+    if args.command == "fatigue_tension_joint":
+        result = app.solve_payload(_build_fatigue_tension_joint_payload(args), outfile=args.outfile, pretty=args.pretty)
         if args.show:
             _print_summary(result)
         else:
