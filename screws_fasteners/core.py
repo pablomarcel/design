@@ -114,16 +114,25 @@ class SquareThreadPowerScrewSolver(BaseSolver):
         bearing_stress = -2.0 * first_thread_load_fraction * F / (math.pi * dm * engaged_threads * pitch)
         thread_bending_stress = 6.0 * first_thread_load_fraction * F / (math.pi * dr * engaged_threads * pitch)
 
+        # Textbook Example 8-1 stress state at the thread root:
+        # sigma_x = bending stress, sigma_y = axial compressive stress, sigma_z = 0,
+        # tau_yz = torsional circumferential shear, tau_xy = tau_zx = 0.
         sigma_x = thread_bending_stress
         sigma_y = sigma_compressive
-        tau_xy = tau_torsion
-        von_mises = math.sqrt(sigma_x**2 - sigma_x * sigma_y + sigma_y**2 + 3.0 * tau_xy**2)
+        sigma_z = 0.0
+        tau_xy = 0.0
+        tau_yz = tau_torsion
+        tau_zx = 0.0
 
-        sigma_avg = 0.5 * (sigma_x + sigma_y)
-        radius = math.sqrt(((sigma_x - sigma_y) / 2.0) ** 2 + tau_xy**2)
-        sigma1_2d = sigma_avg + radius
-        sigma2_2d = sigma_avg - radius
-        sigma1, sigma2, sigma3 = order_desc([sigma1_2d, sigma2_2d, 0.0])
+        # Since there are no shear stresses on the x-face, sigma_x is already a principal stress.
+        sigma_yz_avg = 0.5 * (sigma_y + sigma_z)
+        sigma_yz_radius = math.sqrt(((sigma_y - sigma_z) / 2.0) ** 2 + tau_yz**2)
+        sigma_yz_1 = sigma_yz_avg + sigma_yz_radius
+        sigma_yz_2 = sigma_yz_avg - sigma_yz_radius
+        sigma1, sigma2, sigma3 = order_desc([sigma_x, sigma_yz_1, sigma_yz_2])
+
+        # 3D von Mises from principal stresses (equivalent to Eq. 5-14 / 5-16 for this state).
+        von_mises = math.sqrt(((sigma1 - sigma2) ** 2 + (sigma2 - sigma3) ** 2 + (sigma3 - sigma1) ** 2) / 2.0)
         tau_max = (sigma1 - sigma3) / 2.0
 
         derived = {
@@ -151,6 +160,14 @@ class SquareThreadPowerScrewSolver(BaseSolver):
             "body_torsional_shear_stress_MPa": tau_torsion,
             "thread_bearing_stress_MPa": bearing_stress,
             "thread_bending_stress_MPa": thread_bending_stress,
+            "root_stress_state_MPa": {
+                "sigma_x": sigma_x,
+                "sigma_y": sigma_y,
+                "sigma_z": sigma_z,
+                "tau_xy": tau_xy,
+                "tau_yz": tau_yz,
+                "tau_zx": tau_zx,
+            },
             "principal_stresses_root_MPa": {
                 "sigma_1": sigma1,
                 "sigma_2": sigma2,
@@ -163,7 +180,9 @@ class SquareThreadPowerScrewSolver(BaseSolver):
             "Square-thread geometry follows Shigley Example 8-1 conventions: thread depth = p/2 and thread width = p/2.",
             "Stresses are reported as N/mm^2, numerically equal to MPa.",
             "Thread-root bending and bearing stresses use the user-specified first_thread_load_fraction and engaged_threads.",
-            "The root-state von Mises stress uses the plane-stress form shown in the supplied exhibits (Shigley Eq. 5-15).",
+            "The root stress state follows textbook Example 8-1: sigma_x = bending, sigma_y = axial compression, sigma_z = 0, tau_yz = torsional shear, with no shear on the x-face.",
+            "The remaining two principal stresses are obtained from the yz-plane stress transformation (Shigley Eq. 3-13 / 3-15).",
+            "The von Mises stress is computed from the three principal stresses using the 3D form consistent with Shigley Sec. 5-5.",
             "The maximum shear stress is computed from the ordered principal stresses using Shigley Eq. 3-16.",
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)

@@ -23,6 +23,7 @@ def _print_summary(result: Dict[str, Any]) -> None:
     rows: RowList = []
 
     if problem == "square_thread_power_screw":
+        principal = outputs.get("principal_stresses_root_MPa", {})
         rows = [
             ("Pitch diameter (mm)", derived.get("pitch_diameter_mm")),
             ("Minor diameter (mm)", derived.get("minor_diameter_mm")),
@@ -30,6 +31,9 @@ def _print_summary(result: Dict[str, Any]) -> None:
             ("Raise torque (N·m)", outputs.get("total_torque_raise_N_m")),
             ("Lower torque (N·m)", outputs.get("total_torque_lower_N_m")),
             ("Efficiency (%)", outputs.get("raising_efficiency_percent")),
+            ("Principal stress σ1 (MPa)", principal.get("sigma_1")),
+            ("Principal stress σ2 (MPa)", principal.get("sigma_2")),
+            ("Principal stress σ3 (MPa)", principal.get("sigma_3")),
             ("Von Mises root stress (MPa)", outputs.get("von_mises_stress_root_MPa")),
             ("Max shear root stress (MPa)", outputs.get("maximum_shear_stress_root_MPa")),
             ("Self-locking on threads", outputs.get("self_locking_on_threads")),
