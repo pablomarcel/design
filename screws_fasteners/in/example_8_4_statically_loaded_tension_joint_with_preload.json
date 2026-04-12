@@ -1,0 +1,25 @@
+{
+  "problem": "statically_loaded_tension_joint_with_preload",
+  "title": "Example 8-4 statically loaded tension joint with preload",
+  "inputs": {
+    "solve_path": "statically_loaded_tension_joint_with_preload",
+    "nominal_diameter_in": 0.625,
+    "threads_per_inch": 11,
+    "thread_series": "UNC",
+    "sae_grade": 5,
+    "grip_length_in": 1.5,
+    "total_separating_force_kip": 36.0,
+    "desired_load_factor_nL": 2.0,
+    "bolts_reused": true,
+    "extra_threads_beyond_nut": 2.0,
+    "bolt_modulus_material": "Steel",
+    "member_material_astm_number": 25,
+    "member_modulus_Mpsi_override": 14.0,
+    "eq_8_23_material": "Steel",
+    "use_eq_8_22_for_design": true,
+    "notes": [
+      "Example 8-4 style input. Grade 25 cast iron modulus is fetched from table_a_24_gray_cast_iron.csv and the textbook-selected E = 14 Mpsi is enforced through member_modulus_Mpsi_override.",
+      "Bolt length is selected from table_a_17.csv using grip length + regular-hex nut thickness from table_a_31.csv + two exposed threads."
+    ]
+  }
+}

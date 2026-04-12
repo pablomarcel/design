@@ -1,0 +1,9 @@
+titanium_alloy,footnote,condition,yield_strength_Sy_MPa,yield_strength_Sy_kpsi,tensile_strength_Sut_MPa,tensile_strength_Sut_kpsi,elongation_percent_in_2in,hardness_value,hardness_scale
+Ti-35A,Commercially pure alpha titanium,Annealed,210,30,275,40,30,135,HB
+Ti-50A,Commercially pure alpha titanium,Annealed,310,45,380,55,25,215,HB
+Ti-0.2 Pd,,Annealed,280,40,340,50,28,200,HB
+Ti-5 Al-2.5 Sn,,Annealed,760,110,790,115,16,36,HRC
+Ti-8 Al-1 Mo-1 V,,Annealed,900,130,965,140,15,39,HRC
+Ti-6 Al-6 V-2 Sn,,Annealed,970,140,1030,150,14,38,HRC
+Ti-6Al-4V,,Annealed,830,120,900,130,14,36,HRC
+Ti-13 V-11 Cr-3 Al,,Sol. + aging,1207,175,1276,185,8,40,HRC

@@ -304,6 +304,62 @@ def find_washer_row(nominal_size_in: float, washer_type: str = "N") -> Dict[str,
     )
 
 
+def find_nut_dimensions_row(nominal_size_in: float) -> Dict[str, Any]:
+    rows = load_csv_rows("table_a_31.csv")
+    for row in rows:
+        if str(row.get("system", "")).strip().lower() != "inch":
+            continue
+        row_size = row.get("nominal_size_in")
+        if row_size in (None, ""):
+            continue
+        if abs(float(row_size) - float(nominal_size_in)) >= 1e-9:
+            continue
+        canonical = dict(row)
+        for key in (
+            "nominal_size_in",
+            "width_W_value",
+            "height_regular_hex_value",
+            "height_thick_or_slotted_value",
+            "height_jam_value",
+        ):
+            if canonical.get(key, "") not in (None, ""):
+                canonical[key] = float(canonical[key])
+        return canonical
+    raise DataLookupError(f"No nut-dimensions row found in table_a_31.csv for nominal size {nominal_size_in} in.")
+
+
+def find_preferred_fraction_size_ge(required_length_in: float) -> Dict[str, Any]:
+    candidates = []
+    for row in load_csv_rows("table_a_17.csv"):
+        if str(row.get("section", "")).strip() != "fraction_of_inches":
+            continue
+        value = row.get("value")
+        if value in (None, ""):
+            continue
+        value = float(value)
+        if value + 1e-12 >= float(required_length_in):
+            candidates.append({"label": row.get("label"), "value_in": value, "section": row.get("section")})
+    if not candidates:
+        raise DataLookupError(f"No preferred fractional length found in table_a_17.csv that is >= {required_length_in} in.")
+    return min(candidates, key=lambda item: item["value_in"])
+
+
+def find_gray_cast_iron_row(astm_number: Any) -> Dict[str, Any]:
+    rows = load_csv_rows("table_a_24_gray_cast_iron.csv")
+    for row in rows:
+        if str(row.get("astm_number", "")).strip() != str(astm_number).strip():
+            continue
+        canonical = dict(row)
+        for key in canonical:
+            if canonical[key] not in (None, ""):
+                try:
+                    canonical[key] = float(canonical[key]) if "." in str(canonical[key]) else int(canonical[key])
+                except Exception:
+                    pass
+        return canonical
+    raise DataLookupError(f"No gray cast iron row found in table_a_24_gray_cast_iron.csv for ASTM number {astm_number}.")
+
+
 def find_material_stiffness_row(material: str) -> Dict[str, Any]:
     target = normalize_material_name(material)
     rows = load_csv_rows("table_8_8.csv")
@@ -410,7 +466,7 @@ def try_render_key_value_table(title: str, rows: List[tuple[str, Any]]) -> None:
     try:
         from rich import box
         from rich.console import Console
-        from rich.table import Column, Table
+        from rich.table import Table
 
         console = Console()
         table = Table(

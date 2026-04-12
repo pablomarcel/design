@@ -7,7 +7,10 @@ from typing import Any, Dict, List
 try:
     from .utils import (
         ValidationError,
+        find_gray_cast_iron_row,
         find_material_stiffness_row,
+        find_nut_dimensions_row,
+        find_preferred_fraction_size_ge,
         find_proof_strength_row,
         find_thread_row,
         find_washer_row,
@@ -19,7 +22,10 @@ try:
 except ImportError:  # pragma: no cover
     from utils import (
         ValidationError,
+        find_gray_cast_iron_row,
         find_material_stiffness_row,
+        find_nut_dimensions_row,
+        find_preferred_fraction_size_ge,
         find_proof_strength_row,
         find_thread_row,
         find_washer_row,
@@ -556,5 +562,143 @@ class BoltStrengthSolver(BaseSolver):
             "The proof-strength comparison uses the SAE grade row from table_8_9.csv matched by nominal diameter range.",
             "Eq. (8-27) uses T = K F_i d. Eq. (8-26) uses the thread/friction model with dm based on the average of the major and minor diameters.",
             "The yielding factor of safety and load factor are additionally reported from Eqs. (8-28) and (8-29) on the following page because they are natural extensions of the same example family.",
+        ]
+        return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
+
+
+class StaticallyLoadedTensionJointWithPreloadSolver(BaseSolver):
+    solve_path = "statically_loaded_tension_joint_with_preload"
+
+    def solve(self) -> SolveResult:
+        p = self.inputs
+        nominal_diameter_in = float(p["nominal_diameter_in"])
+        threads_per_inch = int(p["threads_per_inch"])
+        thread_series = str(p.get("thread_series", "UNC")).upper()
+        sae_grade = p["sae_grade"]
+        grip_length_in = float(p["grip_length_in"])
+        total_separating_force_kip = float(p["total_separating_force_kip"])
+        desired_load_factor_nL = float(p["desired_load_factor_nL"])
+        bolts_reused = bool(p.get("bolts_reused", True))
+        extra_threads_beyond_nut = float(p.get("extra_threads_beyond_nut", 2.0))
+        bolt_modulus_material = str(p.get("bolt_modulus_material", "Steel"))
+        member_material_astm_number = p["member_material_astm_number"]
+        member_modulus_Mpsi_override = p.get("member_modulus_Mpsi_override")
+        eq_8_23_material = str(p.get("eq_8_23_material", bolt_modulus_material))
+        use_eq_8_22_for_design = bool(p.get("use_eq_8_22_for_design", True))
+
+        for name, value in [
+            ("nominal_diameter_in", nominal_diameter_in),
+            ("threads_per_inch", threads_per_inch),
+            ("grip_length_in", grip_length_in),
+            ("total_separating_force_kip", total_separating_force_kip),
+            ("desired_load_factor_nL", desired_load_factor_nL),
+            ("extra_threads_beyond_nut", extra_threads_beyond_nut),
+        ]:
+            validate_positive(name, value)
+
+        thread_row = find_thread_row(nominal_diameter_in, thread_series, threads_per_inch=threads_per_inch)
+        proof_row = find_proof_strength_row(sae_grade, nominal_diameter_in)
+        nut_row = find_nut_dimensions_row(nominal_diameter_in)
+        preferred_length_row = find_preferred_fraction_size_ge(
+            float(nut_row["height_regular_hex_value"]) + grip_length_in + extra_threads_beyond_nut / threads_per_inch
+        )
+        bolt_material_row = find_material_stiffness_row(bolt_modulus_material)
+        eq_8_23_row = find_material_stiffness_row(eq_8_23_material)
+        cast_iron_row = find_gray_cast_iron_row(member_material_astm_number)
+
+        nut_thickness_in = float(nut_row["height_regular_hex_value"])
+        extra_thread_allowance_in = extra_threads_beyond_nut / threads_per_inch
+        minimum_required_bolt_length_in = nut_thickness_in + grip_length_in + extra_thread_allowance_in
+        selected_bolt_length_in = float(preferred_length_row["value_in"])
+
+        At_in2 = float(thread_row["tensile_stress_area_in2"])
+        Ad_in2 = math.pi * nominal_diameter_in**2 / 4.0
+
+        LT_in = 2.0 * nominal_diameter_in + (0.25 if selected_bolt_length_in <= 6.0 else 0.5)
+        ld_in = min(max(selected_bolt_length_in - LT_in, 0.0), grip_length_in)
+        lt_in = grip_length_in - ld_in
+
+        E_bolt_Mpsi = float(bolt_material_row["E_psi"]) / 1e6
+        kb_Mlbf_per_in = Ad_in2 * At_in2 * E_bolt_Mpsi / (Ad_in2 * lt_in + At_in2 * ld_in)
+
+        if member_modulus_Mpsi_override is not None:
+            E_member_Mpsi = float(member_modulus_Mpsi_override)
+        else:
+            E_member_Mpsi = float(cast_iron_row["modulus_of_elasticity_tension_max_Mpsi"])
+
+        num_eq_8_22 = 0.5774 * math.pi * E_member_Mpsi * nominal_diameter_in
+        den_eq_8_22 = 2.0 * math.log(
+            5.0 * (0.5774 * grip_length_in + 0.5 * nominal_diameter_in)
+            / (0.5774 * grip_length_in + 2.5 * nominal_diameter_in)
+        )
+        km_eq_8_22_Mlbf_per_in = num_eq_8_22 / den_eq_8_22
+
+        A = float(eq_8_23_row["A"])
+        B = float(eq_8_23_row["B"])
+        km_eq_8_23_Mlbf_per_in = E_member_Mpsi * nominal_diameter_in * A * math_exp_safe(B * nominal_diameter_in / grip_length_in)
+
+        km_design_Mlbf_per_in = km_eq_8_22_Mlbf_per_in if use_eq_8_22_for_design else km_eq_8_23_Mlbf_per_in
+        C = kb_Mlbf_per_in / (kb_Mlbf_per_in + km_design_Mlbf_per_in)
+
+        Sp_kpsi = float(proof_row["minimum_proof_strength_kpsi"])
+        proof_load_kip = Sp_kpsi * At_in2
+        preload_fraction = 0.75 if bolts_reused else 0.90
+        Fi_kip = preload_fraction * proof_load_kip
+
+        required_bolt_count_real = C * desired_load_factor_nL * total_separating_force_kip / (proof_load_kip - Fi_kip)
+        required_bolt_count = math.ceil(required_bolt_count_real)
+        force_per_bolt_kip = total_separating_force_kip / required_bolt_count
+
+        realized_load_factor_nL = (proof_load_kip - Fi_kip) / (C * force_per_bolt_kip)
+        yielding_factor_of_safety_np = proof_load_kip / (C * force_per_bolt_kip + Fi_kip)
+        separation_load_factor_n0 = Fi_kip / (force_per_bolt_kip * (1.0 - C))
+
+        derived = {
+            "nut_thickness_in": nut_thickness_in,
+            "extra_thread_allowance_in": extra_thread_allowance_in,
+            "minimum_required_bolt_length_in": minimum_required_bolt_length_in,
+            "selected_bolt_length_in": selected_bolt_length_in,
+            "selected_bolt_length_label": preferred_length_row["label"],
+            "estimated_thread_length_LT_in": LT_in,
+            "unthreaded_length_in_grip_ld_in": ld_in,
+            "threaded_length_in_grip_lt_in": lt_in,
+            "tensile_stress_area_At_in2": At_in2,
+            "major_diameter_area_Ad_in2": Ad_in2,
+            "bolt_modulus_Mpsi": E_bolt_Mpsi,
+            "member_modulus_Mpsi_used": E_member_Mpsi,
+            "proof_load_per_bolt_kip": proof_load_kip,
+            "recommended_preload_per_bolt_kip": Fi_kip,
+            "required_bolt_count_real": required_bolt_count_real,
+            "force_per_bolt_with_selected_N_kip": force_per_bolt_kip,
+        }
+        lookups = {
+            "table_8_2": thread_row,
+            "table_8_9": proof_row,
+            "table_a_17_selected_length": preferred_length_row,
+            "table_a_31": nut_row,
+            "table_a_24_gray_cast_iron": cast_iron_row,
+            "table_8_8_bolt_material": bolt_material_row,
+            "table_8_8_eq_8_23_material": eq_8_23_row,
+        }
+        outputs = {
+            "bolt_stiffness_kb_Mlbf_per_in": kb_Mlbf_per_in,
+            "member_stiffness_km_eq_8_22_Mlbf_per_in": km_eq_8_22_Mlbf_per_in,
+            "member_stiffness_km_eq_8_23_Mlbf_per_in": km_eq_8_23_Mlbf_per_in,
+            "stiffness_constant_C": C,
+            "recommended_preload_fraction_of_proof": preload_fraction,
+            "recommended_preload_per_bolt_kip": Fi_kip,
+            "required_number_of_bolts": required_bolt_count,
+            "realized_load_factor_nL": realized_load_factor_nL,
+            "yielding_factor_of_safety_np": yielding_factor_of_safety_np,
+            "joint_separation_load_factor_n0": separation_load_factor_n0,
+        }
+        notes = [
+            "This solve path follows Shigley Example 8-4 additively and leaves the existing solve paths intact.",
+            "The minimum bolt length is computed from grip length + regular-hex nut thickness from table_a_31.csv + the specified extra exposed threads.",
+            "The selected bolt length is the next preferred fractional inch size from table_a_17.csv.",
+            "Bolt stiffness uses Shigley Eq. (8-17) with At from table_8_2.csv and E from table_8_8.csv.",
+            "Member stiffness is reported by both Eq. (8-22) and Eq. (8-23). The design value of C uses the route selected by use_eq_8_22_for_design.",
+            "The preload recommendation follows Eq. (8-31): 0.75 Fp for reused nonpermanent fasteners, or 0.90 Fp otherwise.",
+            "The number of bolts is obtained from the overload load-factor relation rearranged from Eq. (8-29), then rounded up to the next integer.",
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)

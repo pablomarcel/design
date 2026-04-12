@@ -91,3 +91,31 @@ python -m cli bolt_strength \
   --collar-friction 0.15 \
   --show
 ```
+
+## Example 8-4 Statically Loaded Tension Joint with Preload from file
+
+```bash
+python -m cli run \
+  --infile example_8_4_statically_loaded_tension_joint_with_preload.json \
+  --outfile example_8_4_statically_loaded_tension_joint_with_preload_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli tension_joint_preload \
+  --nominal-diameter-in 0.625 \
+  --threads-per-inch 11 \
+  --thread-series UNC \
+  --sae-grade 5 \
+  --grip-length-in 1.5 \
+  --total-separating-force-kip 36 \
+  --desired-load-factor-nL 2 \
+  --bolts-reused \
+  --extra-threads-beyond-nut 2 \
+  --bolt-modulus-material Steel \
+  --member-material-astm-number 25 \
+  --member-modulus-Mpsi-override 14.0 \
+  --eq-8-23-material Steel \
+  --show
+```

@@ -1,0 +1,15 @@
+product_form,aluminum_association_number,temper,yield_strength_MPa,yield_strength_kpsi,tensile_strength_Sut_MPa,tensile_strength_Sut_kpsi,fatigue_strength_Sf_MPa,fatigue_strength_Sf_kpsi,elongation_percent_in_2in,brinell_hardness_HB,casting_note
+wrought,2017,O,70,10,179,26,90,13,22,45,
+wrought,2024,O,76,11,186,27,90,13,22,47,
+wrought,2024,T3,345,50,482,70,138,20,16,120,
+wrought,3003,H12,117,17,131,19,55,8,20,35,
+wrought,3003,H16,165,24,179,26,65,9.5,14,47,
+wrought,3004,H34,186,27,234,34,103,15,12,63,
+wrought,3004,H38,234,34,276,40,110,16,6,77,
+wrought,5052,H32,186,27,234,34,117,17,18,62,
+wrought,5052,H36,234,34,269,39,124,18,10,74,
+cast,319.0,T6,165,24,248,36,69,10,2.0,80,Sand casting
+cast,333.0,T5,172,25,234,34,83,12,1.0,100,Permanent-mold casting
+cast,333.0,T6,207,30,289,42,103,15,1.5,105,Permanent-mold casting
+cast,335.0,T6,172,25,241,35,62,9,3.0,80,Sand casting
+cast,335.0,T7,248,36,262,38,62,9,0.5,85,Sand casting
