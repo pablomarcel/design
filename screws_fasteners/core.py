@@ -583,7 +583,10 @@ class StaticallyLoadedTensionJointWithPreloadSolver(BaseSolver):
         bolt_modulus_material = str(p.get("bolt_modulus_material", "Steel"))
         member_material_astm_number = p["member_material_astm_number"]
         member_modulus_Mpsi_override = p.get("member_modulus_Mpsi_override")
-        eq_8_23_material = str(p.get("eq_8_23_material", bolt_modulus_material))
+        eq_8_23_material = p.get("eq_8_23_material")
+        if eq_8_23_material in (None, ""):
+            eq_8_23_material = "Gray Cast Iron"
+        eq_8_23_material = str(eq_8_23_material)
         use_eq_8_22_for_design = bool(p.get("use_eq_8_22_for_design", True))
 
         for name, value in [
@@ -698,6 +701,7 @@ class StaticallyLoadedTensionJointWithPreloadSolver(BaseSolver):
             "The selected bolt length is the next preferred fractional inch size from table_a_17.csv.",
             "Bolt stiffness uses Shigley Eq. (8-17) with At from table_8_2.csv and E from table_8_8.csv.",
             "Member stiffness is reported by both Eq. (8-22) and Eq. (8-23). The design value of C uses the route selected by use_eq_8_22_for_design.",
+            "If eq_8_23_material is omitted, the solver defaults the Eq. (8-23) comparison material to the member side for this example family: Gray Cast Iron.",
             "The preload recommendation follows Eq. (8-31): 0.75 Fp for reused nonpermanent fasteners, or 0.90 Fp otherwise.",
             "The number of bolts is obtained from the overload load-factor relation rearranged from Eq. (8-29), then rounded up to the next integer.",
         ]

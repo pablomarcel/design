@@ -171,12 +171,13 @@ def _build_tension_joint_preload_payload(args: argparse.Namespace) -> Dict[str, 
             "extra_threads_beyond_nut": args.extra_threads_beyond_nut,
             "bolt_modulus_material": args.bolt_modulus_material,
             "member_material_astm_number": args.member_material_astm_number,
-            "eq_8_23_material": args.eq_8_23_material,
             "use_eq_8_22_for_design": not args.use_eq_8_23_for_design,
         },
     }
     if args.member_modulus_Mpsi_override is not None:
         payload["inputs"]["member_modulus_Mpsi_override"] = args.member_modulus_Mpsi_override
+    if args.eq_8_23_material is not None:
+        payload["inputs"]["eq_8_23_material"] = args.eq_8_23_material
     return payload
 
 
@@ -261,7 +262,7 @@ def build_parser() -> argparse.ArgumentParser:
     tj.add_argument("--bolt-modulus-material", default="Steel")
     tj.add_argument("--member-material-astm-number", required=True)
     tj.add_argument("--member-modulus-Mpsi-override", type=float)
-    tj.add_argument("--eq-8-23-material", default="Steel")
+    tj.add_argument("--eq-8-23-material")
     tj.add_argument("--use-eq-8-23-for-design", action="store_true")
     tj.add_argument("--outfile")
     tj.add_argument("--pretty", action="store_true")

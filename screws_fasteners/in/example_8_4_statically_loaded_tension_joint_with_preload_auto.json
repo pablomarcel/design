@@ -1,6 +1,6 @@
 {
   "problem": "statically_loaded_tension_joint_with_preload",
-  "title": "Example 8-4 statically loaded tension joint with preload",
+  "title": "Example 8-4 statically loaded tension joint with preload (auto Eq. 8-23 material default)",
   "inputs": {
     "solve_path": "statically_loaded_tension_joint_with_preload",
     "nominal_diameter_in": 0.625,
@@ -15,13 +15,11 @@
     "bolt_modulus_material": "Steel",
     "member_material_astm_number": 25,
     "member_modulus_Mpsi_override": 14.0,
-    "eq_8_23_material": "Gray Cast Iron",
     "use_eq_8_22_for_design": true,
     "notes": [
-      "Textbook-faithful Example 8-4 input.",
-      "Grade 25 cast iron modulus is fetched from table_a_24_gray_cast_iron.csv and the textbook-selected E = 14 Mpsi is enforced through member_modulus_Mpsi_override.",
-      "Eq. (8-23) is evaluated on the member side using gray cast iron constants from table_8_8.csv.",
-      "Bolt length is selected from table_a_17.csv using grip length + regular-hex nut thickness from table_a_31.csv + two exposed threads."
+      "Same Example 8-4 input, but eq_8_23_material is intentionally omitted.",
+      "The upgraded solver should now default the Eq. (8-23) comparison material to Gray Cast Iron rather than Steel.",
+      "This file is useful as a regression check for the new default behavior."
     ]
   }
 }

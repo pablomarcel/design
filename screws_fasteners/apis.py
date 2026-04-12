@@ -29,8 +29,6 @@ SOLVER_REGISTRY = {
 
 
 class SolverAPI:
-    """Thin API layer that chooses the correct class-based solver."""
-
     @staticmethod
     def solve(payload: Dict[str, Any]) -> Dict[str, Any]:
         if "inputs" in payload:
