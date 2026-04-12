@@ -9,7 +9,6 @@ try:
         SquareThreadPowerScrewSolver,
         StaticallyLoadedTensionJointWithPreloadSolver,
         FatigueLoadingTensionJointSolver,
-        FatigueLoadingTensionJointSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover

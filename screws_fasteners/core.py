@@ -13,7 +13,6 @@ try:
         find_preferred_fraction_size_ge,
         find_proof_strength_row,
         find_endurance_strength_row,
-        find_endurance_strength_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,

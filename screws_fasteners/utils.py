@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import math
+import re
 from dataclasses import asdict, is_dataclass
 from fractions import Fraction
 from pathlib import Path
@@ -161,24 +162,50 @@ def _parse_fastener_size_and_type(text: Any) -> Tuple[Optional[float], Optional[
     return _parse_fractional_size(size_text), washer_type
 
 
+def _normalize_grade_label(value: Any) -> str:
+    raw = str(value).strip().lower()
+    if not raw:
+        return ""
+    raw = raw.replace("–", "-").replace("—", "-")
+    raw = raw.replace("sae", "")
+    raw = raw.replace("iso", "")
+    raw = raw.replace("metric", "")
+    raw = raw.replace("grade", "")
+    raw = raw.replace("class", "")
+    raw = raw.replace("property", "")
+    raw = raw.replace(" ", "")
+    raw = raw.strip("-_:")
+    return raw
+
+
 def _grade_matches(row_value: Any, requested_grade: Any) -> bool:
     row_text = str(row_value).strip()
     req_text = str(requested_grade).strip()
     if row_text == req_text:
         return True
     try:
-        return float(row_text) == float(req_text)
+        if float(row_text) == float(req_text):
+            return True
     except Exception:
-        return False
+        pass
+    return _normalize_grade_label(row_text) == _normalize_grade_label(req_text)
 
 
 def _size_in_range(size_in: float, range_text: Any) -> bool:
     if range_text in (None, ""):
         return False
     raw = str(range_text).strip().replace("–", "-").replace("—", "-")
+    if not raw:
+        return False
+
+    # Metric notation such as M16-M36 is not intended to match inch sizes.
+    if "M" in raw.upper():
+        return False
+
     if "-" not in raw:
         bound = _parse_fractional_size(raw)
         return bound is not None and abs(float(size_in) - float(bound)) < 1e-12
+
     left, right = raw.split("-", 1)
     lo = _parse_fractional_size(left)
     hi = _parse_fractional_size(right)
@@ -408,13 +435,29 @@ def find_endurance_strength_row(grade_or_class: Any, nominal_diameter_in: float)
             continue
         if not _size_in_range(nominal_diameter_in, row_range):
             continue
+
         endurance = _first_present(row, ENDURANCE_STRENGTH_ALIASES)
+        units = str(row.get("endurance_strength_units", "kpsi")).strip().lower()
+
+        if endurance in (None, ""):
+            raise DataLookupError(
+                f"Matched table_8_17.csv row for grade/class {grade_or_class}, but no endurance strength value was found."
+            )
+
+        endurance_value = float(endurance)
+        if units == "mpa":
+            endurance_kpsi = endurance_value / 6.894757293168361
+        else:
+            endurance_kpsi = endurance_value
+
         canonical = dict(row)
         canonical.setdefault("grade_or_class", row_grade)
         canonical.setdefault("size_range", row_range)
-        if endurance not in (None, ""):
-            canonical.setdefault("endurance_strength_kpsi", float(endurance))
+        canonical["endurance_strength_kpsi"] = endurance_kpsi
+        canonical["endurance_strength_source_units"] = units
+        canonical["requested_grade_or_class"] = grade_or_class
         return canonical
+
     raise DataLookupError(
         f"No endurance-strength row found in table_8_17.csv for grade/class {grade_or_class} and nominal diameter {nominal_diameter_in} in."
     )
