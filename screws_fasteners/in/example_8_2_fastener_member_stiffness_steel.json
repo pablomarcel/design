@@ -1,0 +1,29 @@
+{
+  "problem": "fastener_member_stiffness",
+  "title": "Example 8-2 style fastener/member stiffness, all steel",
+  "inputs": {
+    "solve_path": "fastener_member_stiffness",
+    "nominal_diameter_in": 0.5,
+    "threads_per_inch": 20,
+    "thread_series": "UNF",
+    "bolt_length_in": 1.5,
+    "bolt_modulus_psi": 30000000.0,
+    "washer_type": "N",
+    "layers": [
+      {
+        "material": "steel",
+        "thickness_in": 0.095
+      },
+      {
+        "material": "steel",
+        "thickness_in": 0.5
+      },
+      {
+        "material": "steel",
+        "thickness_in": 0.75
+      }
+    ],
+    "eq_8_23_material": "steel",
+    "clamp_face_diameter_in": 0.75
+  }
+}

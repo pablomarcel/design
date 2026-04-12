@@ -1,0 +1,19 @@
+{
+  "problem": "square_thread_power_screw",
+  "title": "Example 8-1 style square-thread power screw analysis",
+  "inputs": {
+    "solve_path": "square_thread_power_screw",
+    "major_diameter_mm": 32.0,
+    "pitch_mm": 4.0,
+    "starts": 2,
+    "friction_thread": 0.08,
+    "friction_collar": 0.08,
+    "collar_mean_diameter_mm": 40.0,
+    "axial_load_N": 6400.0,
+    "engaged_threads": 1.0,
+    "first_thread_load_fraction": 0.38,
+    "notes": [
+      "Conservative Shigley-style thread-root stress setup: first_thread_load_fraction = 0.38 and engaged_threads = 1.0."
+    ]
+  }
+}
