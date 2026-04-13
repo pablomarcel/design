@@ -1,8 +1,8 @@
+
 from __future__ import annotations
 
-import math
 from dataclasses import dataclass
-from typing import Any, Dict, List, Mapping, Tuple
+from typing import Any, Dict, Mapping, Tuple
 
 try:
     from .utils import ValidationError, angle_deg_from_x, evaluate_expression, find_data_file, load_json, magnitude_2d
@@ -72,7 +72,20 @@ class WeldGeometryEngine:
             "j_u_mm3": j_u_mm3,
             "j_mm4": j_mm4,
             "points_mm": points,
+            "coordinate_system_note": self._coordinate_system_note(weld_type),
         }
+
+    def _coordinate_system_note(self, weld_type: int) -> str:
+        if weld_type == 4:
+            return (
+                "For weld_type 4, point coordinates mirror Shigley Fig. 9-15 / 9-16. "
+                "The local x-coordinate measures downward from the top weld, and the local y-coordinate measures "
+                "to the right from the left weld. With this convention: C = top-left, D = top-right, "
+                "A = bottom-right, and B = bottom-left."
+            )
+        return (
+            "Point coordinates are reported in the solver's local 2D weld-group coordinate system for the selected weld type."
+        )
 
     def _canonical_points_mm(self, weld_type: int, geometry: Mapping[str, float]) -> Dict[str, Tuple[float, float]]:
         g = {k: float(v) for k, v in geometry.items()}
@@ -87,7 +100,12 @@ class WeldGeometryEngine:
             return {"A": (0.0, 0.0), "B": (0.0, d), "C": (b, 0.0)}
         if weld_type == 4:
             b, d = g["b"], g["d"]
-            return {"C": (0.0, 0.0), "D": (0.0, d), "B": (b, d), "A": (b, 0.0)}
+            return {
+                "A": (b, d),
+                "B": (b, 0.0),
+                "C": (0.0, 0.0),
+                "D": (0.0, d),
+            }
         if weld_type == 5:
             b, d = g["b"], g["d"]
             return {"A": (0.0, 0.0), "B": (0.0, d), "C": (b, d), "D": (b, 0.0)}
@@ -131,8 +149,6 @@ class WeldGroupTorsionSolver:
                 label=label,
                 point=point,
                 centroid=centroid,
-                V_N=V_N,
-                A_mm2=A_mm2,
                 J_mm4=J_mm4,
                 M_N_mm=M_N_mm,
                 primary_tau_MPa=primary_tau_MPa,
@@ -143,6 +159,11 @@ class WeldGroupTorsionSolver:
             evaluated_points.append(point_result)
             if max_point is None or point_result["resultant_shear_stress_MPa"] > max_point["resultant_shear_stress_MPa"]:
                 max_point = point_result
+
+        tol = 1e-9
+        critical_labels = [
+            p["label"] for p in evaluated_points if abs(p["resultant_shear_stress_MPa"] - max_point["resultant_shear_stress_MPa"]) <= tol
+        ]
 
         return {
             "problem": self.solve_path,
@@ -164,16 +185,19 @@ class WeldGroupTorsionSolver:
                 "centroid_mm": {"x": x_bar, "y": y_bar},
                 "unit_second_polar_moment_mm3": geometry_eval["j_u_mm3"],
                 "polar_moment_mm4": J_mm4,
+                "coordinate_system_note": geometry_eval["coordinate_system_note"],
                 "load_line_mm": {"x": load_line[0], "y": load_line[1]},
                 "moment_arm_mm": e_mm,
                 "moment_N_mm": M_N_mm,
                 "moment_N_m": M_N_mm / 1000.0,
                 "points_evaluated": evaluated_points,
                 "critical_point": max_point,
+                "critical_point_labels": critical_labels,
             },
             "summary": {
                 "maximum_shear_stress_MPa": max_point["resultant_shear_stress_MPa"],
                 "critical_point_label": max_point["label"],
+                "critical_point_labels": critical_labels,
             },
         }
 
@@ -283,8 +307,6 @@ class WeldGroupTorsionSolver:
         label: str,
         point: Tuple[float, float],
         centroid: Tuple[float, float],
-        V_N: float,
-        A_mm2: float,
         J_mm4: float,
         M_N_mm: float,
         primary_tau_MPa: float,
@@ -298,9 +320,13 @@ class WeldGroupTorsionSolver:
         tau_secondary_MPa = (M_N_mm * r_mm / J_mm4) if J_mm4 else 0.0
 
         if combination_model == "tangential":
-            tx, ty = self._tangential_unit_vector(x_rel, y_rel, torsion_sign)
-            tau2_x = tau_secondary_MPa * tx
-            tau2_y = tau_secondary_MPa * ty
+            tau2_x, tau2_y = self._tangential_components(
+                tau_secondary_MPa=tau_secondary_MPa,
+                x_rel=x_rel,
+                y_rel=y_rel,
+                r_mm=r_mm,
+                torsion_sign=torsion_sign,
+            )
         else:
             tau2_x, tau2_y = self._shigley_radial_components(
                 tau_secondary_MPa=tau_secondary_MPa,
@@ -355,6 +381,19 @@ class WeldGroupTorsionSolver:
         tau2_x = tau_secondary_MPa * (abs(x_rel) / r_mm)
         tau2_y = tau_secondary_MPa * (y_rel / r_mm)
         return tau2_x, tau2_y
+
+    def _tangential_components(
+        self,
+        tau_secondary_MPa: float,
+        x_rel: float,
+        y_rel: float,
+        r_mm: float,
+        torsion_sign: str,
+    ) -> Tuple[float, float]:
+        if r_mm == 0:
+            return (0.0, 0.0)
+        tx, ty = self._tangential_unit_vector(x_rel, y_rel, torsion_sign)
+        return tau_secondary_MPa * tx, tau_secondary_MPa * ty
 
     def _tangential_unit_vector(self, x_rel: float, y_rel: float, torsion_sign: str) -> Tuple[float, float]:
         r = magnitude_2d(x_rel, y_rel)
