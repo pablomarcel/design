@@ -424,6 +424,29 @@ def find_material_stiffness_row(material: str) -> Dict[str, Any]:
 
 
 
+
+def find_a20_steel_row(sae_aisi_no: Any, processing: str) -> Dict[str, Any]:
+    rows = load_csv_rows("table_a_20.csv")
+    proc_req = str(processing).strip().upper()
+    for row in rows:
+        row_sae = row.get("sae_aisi_no", row.get("aisi_no", row.get("sae_no")))
+        row_proc = row.get("processing", row.get("process"))
+        if row_sae in (None, "") or row_proc in (None, ""):
+            continue
+        if str(row_sae).strip() != str(sae_aisi_no).strip():
+            continue
+        if str(row_proc).strip().upper() != proc_req:
+            continue
+        canonical = dict(row)
+        if canonical.get("tensile_strength_kpsi", "") not in (None, ""):
+            canonical["tensile_strength_kpsi"] = float(canonical["tensile_strength_kpsi"])
+        if canonical.get("yield_strength_kpsi", "") not in (None, ""):
+            canonical["yield_strength_kpsi"] = float(canonical["yield_strength_kpsi"])
+        return canonical
+    raise DataLookupError(
+        f"No steel row found in table_a_20.csv for SAE/AISI {sae_aisi_no} and processing {processing}."
+    )
+
 def find_endurance_strength_row(grade_or_class: Any, nominal_diameter_in: float) -> Dict[str, Any]:
     rows = load_csv_rows("table_8_17.csv")
     for row in rows:

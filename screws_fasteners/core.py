@@ -13,6 +13,7 @@ try:
         find_preferred_fraction_size_ge,
         find_proof_strength_row,
         find_endurance_strength_row,
+        find_a20_steel_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -29,6 +30,7 @@ except ImportError:  # pragma: no cover
         find_preferred_fraction_size_ge,
         find_proof_strength_row,
         find_endurance_strength_row,
+        find_a20_steel_row,
         find_thread_row,
         find_washer_row,
         math_exp_safe,
@@ -900,3 +902,118 @@ class FatigueLoadingTensionJointSolver(BaseSolver):
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
 
+
+
+class ShearLoadedBoltedJointSolver(BaseSolver):
+    solve_path = "shear_loaded_bolted_joint"
+
+    def solve(self) -> SolveResult:
+        p = self.inputs
+        nominal_diameter_in = float(p["nominal_diameter_in"])
+        threads_per_inch = int(p["threads_per_inch"])
+        thread_series = str(p.get("thread_series", "UNF")).upper()
+        bolt_grade = p["bolt_grade"]
+        design_factor_nd = float(p["design_factor_nd"])
+        member_material_sae_aisi_no = p["member_material_sae_aisi_no"]
+        member_processing = str(p["member_processing"]).upper()
+        member_width_in = float(p["member_width_in"])
+        member_thickness_in = float(p["member_thickness_in"])
+        splice_plate_thickness_in = float(p["splice_plate_thickness_in"])
+        bolt_count_total = int(p["bolt_count_total"])
+        bolts_per_loaded_side = int(p["bolts_per_loaded_side"])
+        edge_bolt_count = int(p["edge_bolt_count"])
+        shear_planes_total = int(p["shear_planes_total"])
+        hole_diameter_in = float(p.get("hole_diameter_in", nominal_diameter_in))
+        edge_distance_center_to_edge_in = float(p["edge_distance_center_to_edge_in"])
+        holes_in_critical_section = int(p["holes_in_critical_section"])
+
+        for name, value in [
+            ("nominal_diameter_in", nominal_diameter_in),
+            ("threads_per_inch", threads_per_inch),
+            ("design_factor_nd", design_factor_nd),
+            ("member_width_in", member_width_in),
+            ("member_thickness_in", member_thickness_in),
+            ("splice_plate_thickness_in", splice_plate_thickness_in),
+            ("bolt_count_total", bolt_count_total),
+            ("bolts_per_loaded_side", bolts_per_loaded_side),
+            ("edge_bolt_count", edge_bolt_count),
+            ("shear_planes_total", shear_planes_total),
+            ("hole_diameter_in", hole_diameter_in),
+            ("edge_distance_center_to_edge_in", edge_distance_center_to_edge_in),
+            ("holes_in_critical_section", holes_in_critical_section),
+        ]:
+            validate_positive(name, value)
+
+        thread_row = find_thread_row(nominal_diameter_in, thread_series, threads_per_inch=threads_per_inch)
+        bolt_row = find_proof_strength_row(bolt_grade, nominal_diameter_in)
+        member_row = find_a20_steel_row(member_material_sae_aisi_no, member_processing)
+
+        Ar_in2 = float(thread_row["minor_diameter_area_in2"])
+        bolt_Sy_kpsi = float(bolt_row["minimum_yield_strength_kpsi"])
+        bolt_Sut_kpsi = float(bolt_row["minimum_tensile_strength_kpsi"])
+        bolt_Sp_kpsi = float(bolt_row["minimum_proof_strength_kpsi"])
+        member_Sy_kpsi = float(member_row["yield_strength_kpsi"])
+        member_Sut_kpsi = float(member_row["tensile_strength_kpsi"])
+
+        clear_edge_distance_a_in = edge_distance_center_to_edge_in - hole_diameter_in / 2.0
+        net_section_width_in = member_width_in - holes_in_critical_section * hole_diameter_in
+        bolt_shank_area_in2 = math.pi * nominal_diameter_in**2 / 4.0
+
+        F_bearing_in_bolts_kip = (bolts_per_loaded_side * member_thickness_in * hole_diameter_in * bolt_Sy_kpsi) / design_factor_nd
+        F_bearing_in_members_kip = (bolts_per_loaded_side * member_thickness_in * hole_diameter_in * member_Sy_kpsi) / design_factor_nd
+        F_bolt_shear_shank_kip = (0.577 * shear_planes_total * bolt_shank_area_in2 * bolt_Sy_kpsi) / design_factor_nd
+        F_bolt_shear_thread_kip = (0.577 * shear_planes_total * Ar_in2 * bolt_Sy_kpsi) / design_factor_nd
+        F_edge_shear_member_kip = (2.0 * edge_bolt_count * clear_edge_distance_a_in * member_thickness_in * 0.577 * member_Sy_kpsi) / design_factor_nd
+        F_member_tension_yield_kip = (net_section_width_in * member_thickness_in * member_Sy_kpsi) / design_factor_nd
+
+        failure_modes = {
+            "bearing_in_bolts_all_bolts_loaded_kip": F_bearing_in_bolts_kip,
+            "bearing_in_members_all_bolts_active_kip": F_bearing_in_members_kip,
+            "shear_of_bolt_all_active_shank_in_shear_planes_kip": F_bolt_shear_shank_kip,
+            "shear_of_bolt_all_active_threads_in_shear_planes_kip": F_bolt_shear_thread_kip,
+            "edge_shearing_of_member_at_margin_bolts_kip": F_edge_shear_member_kip,
+            "tensile_yielding_of_members_across_bolt_holes_kip": F_member_tension_yield_kip,
+        }
+        governing_failure_mode, governing_static_load_kip = min(failure_modes.items(), key=lambda kv: kv[1])
+
+        derived = {
+            "bolt_minor_diameter_area_Ar_in2": Ar_in2,
+            "bolt_shank_area_in2": bolt_shank_area_in2,
+            "member_yield_strength_kpsi": member_Sy_kpsi,
+            "member_tensile_strength_kpsi": member_Sut_kpsi,
+            "bolt_proof_strength_kpsi": bolt_Sp_kpsi,
+            "bolt_yield_strength_kpsi": bolt_Sy_kpsi,
+            "bolt_tensile_strength_kpsi": bolt_Sut_kpsi,
+            "clear_edge_distance_a_in": clear_edge_distance_a_in,
+            "net_section_width_in": net_section_width_in,
+            "member_bar_area_in2": member_width_in * member_thickness_in,
+            "splice_plate_area_in2": member_width_in * splice_plate_thickness_in,
+            "bolt_count_total": bolt_count_total,
+            "splice_plate_thickness_in": splice_plate_thickness_in,
+        }
+        lookups = {
+            "table_8_2": thread_row,
+            "table_8_9": bolt_row,
+            "table_a_20": member_row,
+        }
+        outputs = {
+            "bearing_in_bolts_all_bolts_loaded_kip": F_bearing_in_bolts_kip,
+            "bearing_in_members_all_bolts_active_kip": F_bearing_in_members_kip,
+            "shear_of_bolt_all_active_shank_in_shear_planes_kip": F_bolt_shear_shank_kip,
+            "shear_of_bolt_all_active_threads_in_shear_planes_kip": F_bolt_shear_thread_kip,
+            "edge_shearing_of_member_at_margin_bolts_kip": F_edge_shear_member_kip,
+            "tensile_yielding_of_members_across_bolt_holes_kip": F_member_tension_yield_kip,
+            "governing_static_load_kip": governing_static_load_kip,
+            "governing_failure_mode": governing_failure_mode,
+            "preferred_bolt_shear_design_capacity_kip": F_bolt_shear_shank_kip,
+            "preferred_bolt_shear_design_mode": "shear_of_bolt_all_active_shank_in_shear_planes_kip",
+        }
+        notes = [
+            "This solve path follows Shigley Example 8-6 additively and leaves the existing solve paths intact.",
+            "Member properties are fetched from table_a_20.csv using the SAE/AISI number and the HR/CD processing route from the input JSON.",
+            "Bolt strengths are fetched from table_8_9.csv using the bolt grade and nominal diameter.",
+            "Thread minor area Ar is fetched from table_8_2.csv for the case where threads extend into a shear plane.",
+            "For member-related stresses, each splice plate carries F/2 but also has half the area of the 1-by-4 center bars, so the resulting stresses are the same as in the center bars.",
+            "The governing static load is the minimum across the standard Example 8-6 failure modes. The textbook also comments on the preferred bolt-shear design value assuming shanks, not threads, occupy the shear planes.",
+        ]
+        return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)

@@ -198,3 +198,37 @@ python -m cli fatigue_tension_joint \
   --min-force-per-screw-kip 0 \
   --show
 ```
+
+## Example 8-6 Bolted and Riveted Joints Loaded in Shear - from file
+
+```bash
+python -m cli run \
+  --infile example_8_6_bolted_shear_joint.json \
+  --outfile example_8_6_bolted_shear_joint_out.json \
+  --pretty \
+  --show
+```
+
+## Example 8-6 Bolted and Riveted Joints Loaded in Shear - cli
+
+```bash
+python -m cli shear_loaded_joint \
+  --nominal-diameter-in 0.75 \
+  --threads-per-inch 16 \
+  --thread-series UNF \
+  --bolt-grade 5 \
+  --design-factor-nd 1.5 \
+  --member-material-sae-aisi-no 1018 \
+  --member-processing CD \
+  --member-width-in 4.0 \
+  --member-thickness-in 1.0 \
+  --splice-plate-thickness-in 0.5 \
+  --bolt-count-total 4 \
+  --bolts-per-loaded-side 2 \
+  --edge-bolt-count 2 \
+  --shear-planes-total 4 \
+  --hole-diameter-in 0.75 \
+  --edge-distance-center-to-edge-in 1.5 \
+  --holes-in-critical-section 2 \
+  --show
+```

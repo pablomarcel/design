@@ -1,0 +1,29 @@
+{
+  "problem": "shear_loaded_bolted_joint",
+  "title": "Example 8-6 bolted and riveted joints loaded in shear",
+  "inputs": {
+    "solve_path": "shear_loaded_bolted_joint",
+    "nominal_diameter_in": 0.75,
+    "threads_per_inch": 16,
+    "thread_series": "UNF",
+    "bolt_grade": 5,
+    "design_factor_nd": 1.5,
+    "member_material_sae_aisi_no": "1018",
+    "member_processing": "CD",
+    "member_width_in": 4.0,
+    "member_thickness_in": 1.0,
+    "splice_plate_thickness_in": 0.5,
+    "bolt_count_total": 4,
+    "bolts_per_loaded_side": 2,
+    "edge_bolt_count": 2,
+    "shear_planes_total": 4,
+    "hole_diameter_in": 0.75,
+    "edge_distance_center_to_edge_in": 1.5,
+    "holes_in_critical_section": 2,
+    "notes": [
+      "Example 8-6 style input. The problem statement data are kept in the JSON input.",
+      "Member properties are fetched from table_a_20.csv using SAE/AISI 1018 and the cold-drawn processing route.",
+      "Bolt proof, yield, and tensile strengths are fetched from table_8_9.csv. The thread minor area route uses table_8_2.csv."
+    ]
+  }
+}

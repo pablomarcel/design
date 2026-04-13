@@ -74,6 +74,17 @@ def _print_summary(result: Dict[str, Any]) -> None:
             ("Yielding factor of safety np", outputs.get("yielding_factor_of_safety_np")),
             ("Joint separation load factor n0", outputs.get("joint_separation_load_factor_n0")),
         ]
+    elif problem == "shear_loaded_bolted_joint":
+        rows = [
+            ("Bearing in bolts (kip)", outputs.get("bearing_in_bolts_all_bolts_loaded_kip")),
+            ("Bearing in members (kip)", outputs.get("bearing_in_members_all_bolts_active_kip")),
+            ("Bolt shear, shanks in planes (kip)", outputs.get("shear_of_bolt_all_active_shank_in_shear_planes_kip")),
+            ("Bolt shear, threads in planes (kip)", outputs.get("shear_of_bolt_all_active_threads_in_shear_planes_kip")),
+            ("Edge shearing of member (kip)", outputs.get("edge_shearing_of_member_at_margin_bolts_kip")),
+            ("Member tensile yielding (kip)", outputs.get("tensile_yielding_of_members_across_bolt_holes_kip")),
+            ("Governing static load (kip)", outputs.get("governing_static_load_kip")),
+            ("Governing failure mode", outputs.get("governing_failure_mode")),
+        ]
     elif problem == "fatigue_loading_tension_joint":
         rows = [
             ("Bolt stiffness kb (Mlbf/in)", outputs.get("bolt_stiffness_kb_Mlbf_per_in")),
@@ -223,6 +234,33 @@ def _build_fatigue_tension_joint_payload(args: argparse.Namespace) -> Dict[str, 
         payload["inputs"]["endurance_grade_override"] = args.endurance_grade_override
     return payload
 
+
+def _build_shear_loaded_joint_payload(args: argparse.Namespace) -> Dict[str, Any]:
+    return {
+        "problem": "shear_loaded_bolted_joint",
+        "title": args.title or "Bolted and riveted joints loaded in shear",
+        "inputs": {
+            "solve_path": "shear_loaded_bolted_joint",
+            "nominal_diameter_in": args.nominal_diameter_in,
+            "threads_per_inch": args.threads_per_inch,
+            "thread_series": args.thread_series,
+            "bolt_grade": args.bolt_grade,
+            "design_factor_nd": args.design_factor_nd,
+            "member_material_sae_aisi_no": args.member_material_sae_aisi_no,
+            "member_processing": args.member_processing,
+            "member_width_in": args.member_width_in,
+            "member_thickness_in": args.member_thickness_in,
+            "splice_plate_thickness_in": args.splice_plate_thickness_in,
+            "bolt_count_total": args.bolt_count_total,
+            "bolts_per_loaded_side": args.bolts_per_loaded_side,
+            "edge_bolt_count": args.edge_bolt_count,
+            "shear_planes_total": args.shear_planes_total,
+            "hole_diameter_in": args.hole_diameter_in,
+            "edge_distance_center_to_edge_in": args.edge_distance_center_to_edge_in,
+            "holes_in_critical_section": args.holes_in_critical_section,
+        },
+    }
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Shigley Chapter 8 screws and fasteners CLI")
     sub = parser.add_subparsers(dest="command", required=True)
@@ -311,6 +349,29 @@ def build_parser() -> argparse.ArgumentParser:
     tj.add_argument("--show", action="store_true")
 
 
+    sj = sub.add_parser("shear_loaded_joint", help="Direct bolted and riveted joints loaded in shear calculation")
+    sj.add_argument("--title")
+    sj.add_argument("--nominal-diameter-in", type=float, required=True)
+    sj.add_argument("--threads-per-inch", type=int, required=True)
+    sj.add_argument("--thread-series", default="UNF")
+    sj.add_argument("--bolt-grade", required=True)
+    sj.add_argument("--design-factor-nd", type=float, required=True)
+    sj.add_argument("--member-material-sae-aisi-no", required=True)
+    sj.add_argument("--member-processing", required=True)
+    sj.add_argument("--member-width-in", type=float, required=True)
+    sj.add_argument("--member-thickness-in", type=float, required=True)
+    sj.add_argument("--splice-plate-thickness-in", type=float, required=True)
+    sj.add_argument("--bolt-count-total", type=int, required=True)
+    sj.add_argument("--bolts-per-loaded-side", type=int, required=True)
+    sj.add_argument("--edge-bolt-count", type=int, required=True)
+    sj.add_argument("--shear-planes-total", type=int, required=True)
+    sj.add_argument("--hole-diameter-in", type=float, required=True)
+    sj.add_argument("--edge-distance-center-to-edge-in", type=float, required=True)
+    sj.add_argument("--holes-in-critical-section", type=int, required=True)
+    sj.add_argument("--outfile")
+    sj.add_argument("--pretty", action="store_true")
+    sj.add_argument("--show", action="store_true")
+
     ft = sub.add_parser("fatigue_tension_joint", help="Direct fatigue loading of tension joints calculation")
     ft.add_argument("--title")
     ft.add_argument("--nominal-diameter-in", type=float, required=True)
@@ -374,6 +435,14 @@ def main() -> None:
             print(json.dumps(result, indent=2 if args.pretty else None))
         return
 
+
+    if args.command == "shear_loaded_joint":
+        result = app.solve_payload(_build_shear_loaded_joint_payload(args), outfile=args.outfile, pretty=args.pretty)
+        if args.show:
+            _print_summary(result)
+        else:
+            print(json.dumps(result, indent=2 if args.pretty else None))
+        return
 
     if args.command == "fatigue_tension_joint":
         result = app.solve_payload(_build_fatigue_tension_joint_payload(args), outfile=args.outfile, pretty=args.pretty)
