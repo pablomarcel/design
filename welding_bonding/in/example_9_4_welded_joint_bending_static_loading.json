@@ -11,7 +11,7 @@
     "d": 2.0
   },
   "c_in": 1.0,
-  "electrode_class": "E60xx",
+  "electrode_class": "E60XX",
   "electrode_strength_level_exx": 60,
   "attachment_material_sae_aisi_no": "1018",
   "attachment_material_processing": "HR",

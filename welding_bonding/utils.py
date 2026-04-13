@@ -5,7 +5,7 @@ import json
 import math
 from fractions import Fraction
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Mapping, Optional
+from typing import Any, Dict, List, Mapping, Optional
 
 ROOT_DIR = Path(__file__).resolve().parent
 DATA_CANDIDATES = [ROOT_DIR / 'data', ROOT_DIR.parent / 'data', Path('/mnt/data')]

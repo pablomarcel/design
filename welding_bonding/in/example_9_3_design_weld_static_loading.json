@@ -4,7 +4,7 @@
   "solve_path": "design_weld_static_loading",
   "load_kip": 24.0,
   "weld_size_in": 0.3125,
-  "electrode_class": "E70xx",
+  "electrode_class": "E70XX",
   "top_weld_y_in": 4.0,
   "bottom_weld_y_in": 0.0,
   "attachment_section_rectangles": [
@@ -19,13 +19,8 @@
       "centroid_y_in": 3.0
     }
   ],
-  "attachment_material_sae_aisi_no": null,
-  "attachment_material_processing": null,
-  "round_to_nearest_fraction_in": "1/4",
-  "notes": [
-    "A36 strengths are entered directly through the algorithm assumptions in the textbook example.",
-    "Because table_a_20.csv is for steel grades, use the explicit strengths below if you want exact A36 values in a future extension."
-  ],
+  "design_mode": "textbook_weld_only",
+  "round_to_nearest_fraction_in": null,
   "attachment_material_custom": {
     "yield_strength_kpsi": 36.0,
     "tensile_strength_kpsi": 58.0

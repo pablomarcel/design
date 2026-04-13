@@ -455,11 +455,17 @@ class ParallelWeldStaticLoadingSolver:
         sigma_allow_base = self.allowables.base_allowable_tension_kpsi(Sy)
         t_in = float(geom['attachment_thickness_in'])
         width_in = float(geom['attachment_width_in'])
-        tau_actual = F_kip / (2.0 * h_in * l_each_in)
-        sigma_actual = F_kip / (t_in * width_in)
+
+        shear_area_adjacent_to_weld_in2 = 2.0 * h_in * l_each_in
+        tension_area_shank_in2 = t_in * width_in
+        tau_actual = F_kip / shear_area_adjacent_to_weld_in2
+        sigma_actual = F_kip / tension_area_shank_in2
+
         shear_ok = tau_actual <= tau_allow_base + 1e-12
         tension_ok = sigma_actual <= sigma_allow_base + 1e-12
         attachment_ok = shear_ok and tension_ok
+        at_allowable_limit = abs(tau_actual - tau_allow_base) <= 1e-12 or abs(sigma_actual - sigma_allow_base) <= 1e-12
+
         return {
             'problem': self.solve_path,
             'title': inputs.get('title', 'Parallel weld under static loading'),
@@ -471,8 +477,10 @@ class ParallelWeldStaticLoadingSolver:
                 },
                 'table_a_20': material,
                 'table_9_4': {
-                    'base_allowable_shear_expression': '0.40*S_y',
-                    'base_allowable_tension_expression': '0.60*S_y',
+                    'weld_allowable_shear_expression': '0.30*S_ut',
+                    'base_metal_shear_limit_expression': '0.40*S_y',
+                    'base_metal_tension_limit_expression': '0.60*S_y',
+                    'base_metal_shear_limit_note': 'This is the Table 9-4 footnote limit on base metal, not the weld-metal shear row.',
                 },
             },
             'derived': {
@@ -481,22 +489,27 @@ class ParallelWeldStaticLoadingSolver:
                     'allowable_force_per_unit_length_kip_per_in': force_per_in,
                     'allowable_total_force_kip': weld_capacity,
                     'applied_force_kip': F_kip,
+                    'margin_ratio_allowable_over_applied': weld_capacity / F_kip,
                     'is_satisfactory': weld_ok,
                 },
                 'attachment': {
                     'yield_strength_kpsi': Sy,
+                    'shear_area_adjacent_to_weld_in2': shear_area_adjacent_to_weld_in2,
                     'allowable_shear_stress_kpsi': tau_allow_base,
                     'actual_shear_stress_adjacent_to_weld_kpsi': tau_actual,
+                    'tension_area_shank_in2': tension_area_shank_in2,
                     'allowable_tension_stress_kpsi': sigma_allow_base,
                     'actual_tension_stress_shank_kpsi': sigma_actual,
                     'shear_check_is_satisfactory': shear_ok,
                     'tension_check_is_satisfactory': tension_ok,
                     'is_satisfactory': attachment_ok,
+                    'is_exactly_at_allowable_limit': at_allowable_limit,
                 },
             },
             'summary': {
                 'weld_metal_is_satisfactory': weld_ok,
                 'attachment_is_satisfactory': attachment_ok,
+                'attachment_is_borderline_at_allowable_limit': at_allowable_limit,
             },
         }
 
@@ -527,7 +540,10 @@ class DesignWeldStaticLoadingSolver:
         l1_weld = F / (0.707 * h * weld_tau_allow * (1.0 + ratio))
         l2_weld = ratio * l1_weld
 
-        material = inputs.get('attachment_material_custom') or self.materials.get(sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'), processing=inputs.get('attachment_material_processing'))
+        material = inputs.get('attachment_material_custom') or self.materials.get(
+            sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'),
+            processing=inputs.get('attachment_material_processing'),
+        )
         base_tau_allow = self.allowables.base_allowable_shear_kpsi(float(material['yield_strength_kpsi']))
         l1_base = F / (h * base_tau_allow * (1.0 + ratio))
         l2_base = ratio * l1_base
@@ -536,17 +552,24 @@ class DesignWeldStaticLoadingSolver:
         sigma_actual = F / attachment_area
         shank_ok = sigma_actual <= sigma_allow + 1e-12
 
-        controlling = 'base_metal' if (l1_base + l2_base) >= (l1_weld + l2_weld) else 'weld_metal'
-        l1_req = l1_base if controlling == 'base_metal' else l1_weld
-        l2_req = l2_base if controlling == 'base_metal' else l2_weld
-        decision = inputs.get('round_to_nearest_fraction_in')
-        if decision:
-            step = parse_decimal_or_fraction(decision)
-            l1_nom = self._round_up_to_step(l1_req, step)
-            l2_nom = self._round_up_to_step(ratio * l1_nom, step)
+        design_mode = str(inputs.get('design_mode', 'textbook_weld_only'))
+        rounding_step = parse_decimal_or_fraction(inputs.get('round_to_nearest_fraction_in'))
+        if design_mode == 'extended_governing_case':
+            controlling = 'base_metal' if (l1_base + l2_base) >= (l1_weld + l2_weld) else 'weld_metal'
+            l1_req = l1_base if controlling == 'base_metal' else l1_weld
+            l2_req = l2_base if controlling == 'base_metal' else l2_weld
         else:
-            l1_nom = l1_req
-            l2_nom = l2_req
+            controlling = 'weld_metal'
+            l1_req = l1_weld
+            l2_req = l2_weld
+
+        if rounding_step:
+            l1_selected = self._round_up_to_step(l1_req, rounding_step)
+            l2_selected = self._round_up_to_step(l2_req, rounding_step)
+        else:
+            l1_selected = l1_req
+            l2_selected = l2_req
+
         return {
             'problem': self.solve_path,
             'title': inputs.get('title', 'Design of weld under static loading'),
@@ -568,21 +591,23 @@ class DesignWeldStaticLoadingSolver:
                     'required_l1_in': l1_weld,
                     'required_l2_in': l2_weld,
                 },
-                'base_metal_design': {
+                'base_metal_check': {
                     'allowable_shear_stress_kpsi': base_tau_allow,
-                    'required_l1_in': l1_base,
-                    'required_l2_in': l2_base,
+                    'required_l1_in_if_base_shear_governed': l1_base,
+                    'required_l2_in_if_base_shear_governed': l2_base,
                     'allowable_tension_stress_kpsi': sigma_allow,
                     'actual_shank_tension_stress_kpsi': sigma_actual,
                     'shank_is_satisfactory': shank_ok,
+                    'note': 'Reported as an additional adequacy check. It does not override the textbook weld-sizing result unless design_mode is set to extended_governing_case.',
                 },
+                'design_mode_used': design_mode,
                 'controlling_case': controlling,
-                'selected_lengths_in': {'l1': l1_nom, 'l2': l2_nom},
+                'selected_lengths_in': {'l1': l1_selected, 'l2': l2_selected},
             },
             'summary': {
                 'controlling_case': controlling,
-                'selected_l1_in': l1_nom,
-                'selected_l2_in': l2_nom,
+                'selected_l1_in': l1_selected,
+                'selected_l2_in': l2_selected,
             },
         }
 
@@ -634,7 +659,10 @@ class WeldedJointBendingStaticLoadingSolver:
         Sy_weld = electrode['yield_strength_kpsi']
         n_weld_conventional = 0.577 * Sy_weld / tau_resultant
 
-        material = self.materials.get(sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'), processing=inputs.get('attachment_material_processing'))
+        material = self.materials.get(
+            sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'),
+            processing=inputs.get('attachment_material_processing'),
+        )
         b = float(inputs['attachment_section_b_in'])
         d = float(inputs['attachment_section_d_in'])
         section_modulus = b * d**2 / 6.0
@@ -643,8 +671,7 @@ class WeldedJointBendingStaticLoadingSolver:
 
         exx = int(inputs['electrode_strength_level_exx'])
         tau_allow_code = self.schedule.allowable_shear_stress_kpsi(exx)
-        included_factor = 0.577 * Sy_weld / tau_allow_code
-        n_weld_code = included_factor * tau_allow_code / tau_resultant
+        n_weld_code = tau_allow_code / tau_resultant
         design_factor = float(inputs.get('design_factor', 1.0))
         return {
             'problem': self.solve_path,
@@ -681,9 +708,10 @@ class WeldedJointBendingStaticLoadingSolver:
                 },
                 'weld_metal_code_method': {
                     'allowable_shear_stress_kpsi': tau_allow_code,
-                    'included_factor_of_safety_at_allowable': included_factor,
+                    'actual_resultant_shear_kpsi': tau_resultant,
                     'factor_of_safety': n_weld_code,
-                    'is_satisfactory': tau_resultant <= tau_allow_code + 1e-12,
+                    'is_satisfactory_for_design_factor': n_weld_code >= design_factor,
+                    'is_satisfactory_at_code_allowable': tau_resultant <= tau_allow_code + 1e-12,
                 },
             },
             'summary': {
