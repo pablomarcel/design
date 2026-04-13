@@ -1,0 +1,6 @@
+type_of_loading,type_of_weld,permissible_stress_expression,design_factor_n_min,design_factor_n_max,notes
+Tension,Butt,0.60*S_y,1.67,1.67,
+Bearing,Butt,0.90*S_y,1.11,1.11,
+Bending,Butt,0.60-0.66*S_y,1.52,1.67,permissible stress is given as a range
+Simple compression,Butt,0.60*S_y,1.67,1.67,
+Shear,Butt or fillet,0.30*S_ut,,,shear stress on base metal should not exceed 0.40*S_y of base metal

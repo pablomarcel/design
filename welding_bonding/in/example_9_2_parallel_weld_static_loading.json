@@ -1,0 +1,16 @@
+{
+  "problem": "parallel_weld_static_loading",
+  "title": "Example 9-2 parallel weld static loading",
+  "solve_path": "parallel_weld_static_loading",
+  "load_kip": 16.5,
+  "weld_size_in": 0.375,
+  "electrode_strength_level_exx": 70,
+  "geometry": {
+    "weld_length_each_in": 2.0,
+    "number_of_welds": 2,
+    "attachment_thickness_in": 0.5,
+    "attachment_width_in": 2.0
+  },
+  "attachment_material_uns_no": "G10150",
+  "attachment_material_processing": "HR"
+}

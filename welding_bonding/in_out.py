@@ -12,8 +12,8 @@ except ImportError:  # pragma: no cover
 class IOHandler:
     def __init__(self, root_dir: Optional[Path] = None) -> None:
         self.root_dir = Path(root_dir) if root_dir else ROOT_DIR
-        self.in_dir = self.root_dir / "in"
-        self.out_dir = self.root_dir / "out"
+        self.in_dir = self.root_dir / 'in'
+        self.out_dir = self.root_dir / 'out'
 
     def read_input_file(self, infile: str | Path) -> Dict[str, Any]:
         path = coerce_path(infile, base_dir=self.in_dir)

@@ -1,0 +1,21 @@
+{
+  "problem": "welded_joint_bending_static_loading",
+  "title": "Example 9-4 welded joint in bending static loading",
+  "solve_path": "welded_joint_bending_static_loading",
+  "load_lbf": 500.0,
+  "moment_arm_in": 6.0,
+  "weld_size_in": 0.375,
+  "weld_type": 2,
+  "geometry": {
+    "b": 0.375,
+    "d": 2.0
+  },
+  "c_in": 1.0,
+  "electrode_class": "E60xx",
+  "electrode_strength_level_exx": 60,
+  "attachment_material_sae_aisi_no": "1018",
+  "attachment_material_processing": "HR",
+  "attachment_section_b_in": 0.375,
+  "attachment_section_d_in": 2.0,
+  "design_factor": 3.0
+}

@@ -1,0 +1,109 @@
+{
+  "table": "9-2",
+  "title": "Bending Properties of Fillet Welds",
+  "units_note": "I_u is the unit second moment of area, taken about a horizontal axis through G, the centroid of the weld group. The plane of the bending couple is normal to the plane of the paper and parallel to the y-axis. All welds are of the same size.",
+  "footnote": "I_u, unit second moment of area, is taken about a horizontal axis through G, the centroid of the weld group; h is weld size; the plane of the bending couple is normal to the plane of the paper and parallel to the y-axis; all welds are of the same size.",
+  "schema": {
+    "weld_type": "integer identifier matching the textbook row number",
+    "throat_area_formula": "string expression for A",
+    "location_of_G": {
+      "x_bar_formula": "string expression for x-bar, or null if not explicitly given in the table",
+      "y_bar_formula": "string expression for y-bar, or null if not explicitly given in the table",
+      "note": "optional note when the centroid location is conveyed graphically rather than by explicit formulas"
+    },
+    "unit_second_moment_formula": "string expression for I_u"
+  },
+  "rows": [
+    {
+      "weld_type": 1,
+      "description": "single vertical line weld",
+      "throat_area_formula": "A = 0.707*h*d",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = 0",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = d^3/12"
+    },
+    {
+      "weld_type": 2,
+      "description": "two parallel vertical line welds separated by b",
+      "throat_area_formula": "A = 1.414*h*d",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = d^3/6"
+    },
+    {
+      "weld_type": 3,
+      "description": "two parallel horizontal line welds of length b separated by d",
+      "throat_area_formula": "A = 1.414*h*b",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = b*d^2/2"
+    },
+    {
+      "weld_type": 4,
+      "description": "C-shaped weld with two horizontal legs b and one vertical leg d",
+      "throat_area_formula": "A = 0.707*h*(2*b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b^2/(2*b + d)",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = d^2*(6*b + d)/12"
+    },
+    {
+      "weld_type": 5,
+      "description": "U-shaped weld with one horizontal top leg b and two vertical legs d",
+      "throat_area_formula": "A = 0.707*h*(b + 2*d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d^2/(b + 2*d)"
+      },
+      "unit_second_moment_formula": "I_u = 2*d^3/3 - 2*d^2*y_bar + (b + 2*d)*y_bar^2"
+    },
+    {
+      "weld_type": 6,
+      "description": "rectangular closed weld with width b and height d",
+      "throat_area_formula": "A = 1.414*h*(b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = d^2*(3*b + d)/6"
+    },
+    {
+      "weld_type": 7,
+      "description": "U-shaped weld mirrored from type 5",
+      "throat_area_formula": "A = 0.707*h*(b + 2*d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d^2/(b + 2*d)"
+      },
+      "unit_second_moment_formula": "I_u = 2*d^3/3 - 2*d^2*y_bar + (b + 2*d)*y_bar^2"
+    },
+    {
+      "weld_type": 8,
+      "description": "I-shaped weld with two horizontal legs b and two vertical legs d centered",
+      "throat_area_formula": "A = 1.414*h*(b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_moment_formula": "I_u = d^2*(3*b + d)/6"
+    },
+    {
+      "weld_type": 9,
+      "description": "circular weld of radius r",
+      "throat_area_formula": "A = 1.414*pi*h*r",
+      "location_of_G": {
+        "x_bar_formula": null,
+        "y_bar_formula": null,
+        "note": "Centroid G is at the center of the circular weld group. The table conveys this graphically rather than with explicit x_bar and y_bar formulas."
+      },
+      "unit_second_moment_formula": "I_u = pi*r^3"
+    }
+  ]
+}

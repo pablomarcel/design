@@ -37,3 +37,33 @@ python -m cli torsion \
   --pretty \
   --show
 ```
+
+## Example 9-2
+
+```bash
+python -m cli run \
+  --infile example_9_2_parallel_weld_static_loading.json \
+  --outfile example_9_2_parallel_weld_static_loading_out.json \
+  --pretty \
+  --show
+```
+
+## Example 9-3
+
+```bash
+python -m cli run \
+  --infile example_9_3_design_weld_static_loading.json \
+  --outfile example_9_3_design_weld_static_loading_out.json \
+  --pretty \
+  --show
+```
+
+## Example 9-4
+
+```bash
+python -m cli run \
+  --infile example_9_4_welded_joint_bending_static_loading.json \
+  --outfile example_9_4_welded_joint_bending_static_loading_out.json \
+  --pretty \
+  --show
+```

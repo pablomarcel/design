@@ -1,0 +1,271 @@
+{
+  "table": "9-6",
+  "title": "Allowable Steady Loads and Minimum Fillet Weld Sizes",
+  "units": {
+    "strength_level_of_weld_metal": "EXX in ksi",
+    "allowable_shear_stress_on_throat": "ksi",
+    "allowable_unit_force": "kip/linear in",
+    "leg_size_h": "in",
+    "material_thickness": "in",
+    "weld_size": "in"
+  },
+  "schedule_a": {
+    "title": "Allowable Load for Various Sizes of Fillet Welds",
+    "strength_levels_exx_ksi": [
+      60,
+      70,
+      80,
+      90,
+      100,
+      110,
+      120
+    ],
+    "strength_levels_starred": {
+      "60": true,
+      "70": true,
+      "80": false,
+      "90": true,
+      "100": false,
+      "110": true,
+      "120": false
+    },
+    "allowable_shear_stress_on_throat_ksi": {
+      "60": 18.0,
+      "70": 21.0,
+      "80": 24.0,
+      "90": 27.0,
+      "100": 30.0,
+      "110": 33.0,
+      "120": 36.0
+    },
+    "allowable_unit_force_formula_kip_per_linear_in": {
+      "60": "f = 12.73*h",
+      "70": "f = 14.85*h",
+      "80": "f = 16.97*h",
+      "90": "f = 19.09*h",
+      "100": "f = 21.21*h",
+      "110": "f = 23.33*h",
+      "120": "f = 25.45*h"
+    },
+    "allowable_unit_force_coefficients_kip_per_linear_in_per_in": {
+      "60": 12.73,
+      "70": 14.85,
+      "80": 16.97,
+      "90": 19.09,
+      "100": 21.21,
+      "110": 23.33,
+      "120": 25.45
+    },
+    "allowable_unit_force_by_leg_size": [
+      {
+        "leg_size_h_in": "1",
+        "values_kip_per_linear_in": {
+          "60": 12.73,
+          "70": 14.85,
+          "80": 16.97,
+          "90": 19.09,
+          "100": 21.21,
+          "110": 23.33,
+          "120": 25.45
+        }
+      },
+      {
+        "leg_size_h_in": "7/8",
+        "values_kip_per_linear_in": {
+          "60": 11.14,
+          "70": 12.99,
+          "80": 14.85,
+          "90": 16.7,
+          "100": 18.57,
+          "110": 20.41,
+          "120": 22.27
+        }
+      },
+      {
+        "leg_size_h_in": "3/4",
+        "values_kip_per_linear_in": {
+          "60": 9.55,
+          "70": 11.14,
+          "80": 12.73,
+          "90": 14.32,
+          "100": 15.92,
+          "110": 17.5,
+          "120": 19.09
+        }
+      },
+      {
+        "leg_size_h_in": "5/8",
+        "values_kip_per_linear_in": {
+          "60": 7.96,
+          "70": 9.28,
+          "80": 10.61,
+          "90": 11.93,
+          "100": 13.27,
+          "110": 14.58,
+          "120": 15.91
+        }
+      },
+      {
+        "leg_size_h_in": "1/2",
+        "values_kip_per_linear_in": {
+          "60": 6.37,
+          "70": 7.42,
+          "80": 8.48,
+          "90": 9.54,
+          "100": 10.61,
+          "110": 11.67,
+          "120": 12.73
+        }
+      },
+      {
+        "leg_size_h_in": "7/16",
+        "values_kip_per_linear_in": {
+          "60": 5.57,
+          "70": 6.5,
+          "80": 7.42,
+          "90": 8.35,
+          "100": 9.28,
+          "110": 10.21,
+          "120": 11.14
+        }
+      },
+      {
+        "leg_size_h_in": "3/8",
+        "values_kip_per_linear_in": {
+          "60": 4.77,
+          "70": 5.57,
+          "80": 6.36,
+          "90": 7.16,
+          "100": 7.95,
+          "110": 8.75,
+          "120": 9.54
+        }
+      },
+      {
+        "leg_size_h_in": "5/16",
+        "values_kip_per_linear_in": {
+          "60": 3.98,
+          "70": 4.64,
+          "80": 5.3,
+          "90": 5.97,
+          "100": 6.63,
+          "110": 7.29,
+          "120": 7.95
+        }
+      },
+      {
+        "leg_size_h_in": "1/4",
+        "values_kip_per_linear_in": {
+          "60": 3.18,
+          "70": 3.71,
+          "80": 4.24,
+          "90": 4.77,
+          "100": 5.3,
+          "110": 5.83,
+          "120": 6.36
+        }
+      },
+      {
+        "leg_size_h_in": "3/16",
+        "values_kip_per_linear_in": {
+          "60": 2.39,
+          "70": 2.78,
+          "80": 3.18,
+          "90": 3.58,
+          "100": 3.98,
+          "110": 4.38,
+          "120": 4.77
+        }
+      },
+      {
+        "leg_size_h_in": "1/8",
+        "values_kip_per_linear_in": {
+          "60": 1.59,
+          "70": 1.86,
+          "80": 2.12,
+          "90": 2.39,
+          "100": 2.65,
+          "110": 2.92,
+          "120": 3.18
+        }
+      },
+      {
+        "leg_size_h_in": "1/16",
+        "values_kip_per_linear_in": {
+          "60": 0.795,
+          "70": 0.93,
+          "80": 1.06,
+          "90": 1.19,
+          "100": 1.33,
+          "110": 1.46,
+          "120": 1.59
+        }
+      }
+    ],
+    "notes": [
+      "Allowable shear stress on throat applies to fillet weld or partial penetration groove weld.",
+      "Footnote formula: f = 0.707 * h * tau_all.",
+      "Starred strength levels are fillet welds actually tested by the joint AISC-AWS Task Committee."
+    ]
+  },
+  "schedule_b": {
+    "title": "Minimum Fillet Weld Size, h",
+    "rows": [
+      {
+        "thicker_part_min_in": null,
+        "thicker_part_max_in": "1/4",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "1/8",
+        "note_marker": "*"
+      },
+      {
+        "thicker_part_min_in": "1/4",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": "1/2",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "3/16"
+      },
+      {
+        "thicker_part_min_in": "1/2",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": "3/4",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "1/4"
+      },
+      {
+        "thicker_part_min_in": "3/4",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": "1-1/2",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "5/16",
+        "note_marker": "†"
+      },
+      {
+        "thicker_part_min_in": "1-1/2",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": "2-1/4",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "3/8"
+      },
+      {
+        "thicker_part_min_in": "2-1/4",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": "6",
+        "thicker_part_max_inclusive": true,
+        "weld_size_in": "1/2"
+      },
+      {
+        "thicker_part_min_in": "6",
+        "thicker_part_min_exclusive": true,
+        "thicker_part_max_in": null,
+        "weld_size_in": "5/8"
+      }
+    ],
+    "notes": [
+      "Weld size not to exceed the thickness of the thinner part.",
+      "Minimum size for bridge application does not go below 3/16 in.",
+      "For minimum fillet weld size, schedule does not go above 5/16 in fillet weld for every 3/4 in material."
+    ]
+  },
+  "source_note": "From Omer W. Blodgett (ed.), Stress Allowables Affect Weldment Design, D412, The James F. Lincoln Arc Welding Foundation, Cleveland, May 1991, p. 3. Reprinted by permission of Lincoln Electric Company."
+}

@@ -1,0 +1,7 @@
+aws_electrode_number,tensile_strength_kpsi,tensile_strength_MPa,yield_strength_kpsi,yield_strength_MPa,percent_elongation_min,percent_elongation_max,percent_elongation_note
+E60xx,62,427,50,345,17,25,range
+E70xx,70,482,57,393,22,22,single_value
+E80xx,80,551,67,462,19,19,single_value
+E90xx,90,620,77,531,14,17,range
+E100xx,100,689,87,600,13,16,range
+E120xx,120,827,107,737,14,14,single_value
