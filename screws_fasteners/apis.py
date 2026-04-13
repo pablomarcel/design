@@ -10,6 +10,7 @@ try:
         StaticallyLoadedTensionJointWithPreloadSolver,
         FatigueLoadingTensionJointSolver,
         ShearLoadedBoltedJointSolver,
+        EccentricShearJointSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -20,6 +21,7 @@ except ImportError:  # pragma: no cover
         StaticallyLoadedTensionJointWithPreloadSolver,
         FatigueLoadingTensionJointSolver,
         ShearLoadedBoltedJointSolver,
+        EccentricShearJointSolver,
     )
     from utils import ValidationError
 
@@ -31,6 +33,7 @@ SOLVER_REGISTRY = {
     StaticallyLoadedTensionJointWithPreloadSolver.solve_path: StaticallyLoadedTensionJointWithPreloadSolver,
     FatigueLoadingTensionJointSolver.solve_path: FatigueLoadingTensionJointSolver,
     ShearLoadedBoltedJointSolver.solve_path: ShearLoadedBoltedJointSolver,
+    EccentricShearJointSolver.solve_path: EccentricShearJointSolver,
 }
 
 

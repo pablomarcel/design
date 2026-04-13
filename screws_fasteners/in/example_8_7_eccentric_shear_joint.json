@@ -1,0 +1,69 @@
+{
+  "problem": "eccentric_shear_joint",
+  "title": "Example 8-7 shear joints with eccentric loading",
+  "inputs": {
+    "solve_path": "eccentric_shear_joint",
+    "bolt_diameter_mm": 16.0,
+    "shear_planes": 1,
+    "applied_force_N": {
+      "Fx": 0.0,
+      "Fy": -16000.0
+    },
+    "load_application_point_mm": {
+      "x": 425.0,
+      "y": 0.0
+    },
+    "bearing_thicknesses_mm": [
+      10.0,
+      15.0
+    ],
+    "bolts": [
+      {
+        "id": "A",
+        "x_mm": 75.0,
+        "y_mm": -60.0
+      },
+      {
+        "id": "B",
+        "x_mm": 75.0,
+        "y_mm": 60.0
+      },
+      {
+        "id": "C",
+        "x_mm": -75.0,
+        "y_mm": 60.0
+      },
+      {
+        "id": "D",
+        "x_mm": -75.0,
+        "y_mm": -60.0
+      }
+    ],
+    "bending_section": {
+      "load_component_N": 16000.0,
+      "moment_arm_mm": 350.0,
+      "width_mm": 15.0,
+      "height_mm": 200.0,
+      "c_mm": 100.0,
+      "cutouts": [
+        {
+          "width_mm": 15.0,
+          "height_mm": 16.0,
+          "y_offset_mm": 60.0
+        },
+        {
+          "width_mm": 15.0,
+          "height_mm": 16.0,
+          "y_offset_mm": -60.0
+        }
+      ]
+    },
+    "notes": [
+      "Example 8-7 style input. The bolt pattern and geometry are defined entirely in the JSON input.",
+      "The external load is 16 kN downward at x = 425 mm relative to the bolt-group centroid shown in the textbook figure.",
+      "The bolts are M16 and the threads are assumed not to extend into the joint, so the shank area is used for shear stress.",
+      "The maximum bearing stress is evaluated against the listed bearing thicknesses; the 10-mm channel web governs in the textbook example.",
+      "The critical bending section is modeled as a 15-by-200 mm rectangle with two 15-by-16 mm rectangular cutouts centered at y = \u00b160 mm."
+    ]
+  }
+}

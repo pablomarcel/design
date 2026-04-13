@@ -1017,3 +1017,230 @@ class ShearLoadedBoltedJointSolver(BaseSolver):
             "The governing static load is the minimum across the standard Example 8-6 failure modes. The textbook also comments on the preferred bolt-shear design value assuming shanks, not threads, occupy the shear planes.",
         ]
         return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)
+
+
+class EccentricShearJointSolver(BaseSolver):
+    solve_path = "eccentric_shear_joint"
+
+    @staticmethod
+    def _global_bolt_area_mm2(inputs: Dict[str, Any]) -> float:
+        if inputs.get("bolt_area_mm2") not in (None, ""):
+            return float(inputs["bolt_area_mm2"])
+        if inputs.get("bolt_diameter_mm") not in (None, ""):
+            d = float(inputs["bolt_diameter_mm"])
+            return math.pi * d**2 / 4.0
+        raise ValidationError(
+            "eccentric_shear_joint requires either bolt_area_mm2 or bolt_diameter_mm when per-bolt areas are not given."
+        )
+
+    def solve(self) -> SolveResult:
+        p = self.inputs
+        bolts = p.get("bolts", [])
+        if not isinstance(bolts, list) or not bolts:
+            raise ValidationError("eccentric_shear_joint requires a non-empty 'bolts' list.")
+
+        applied_force = p.get("applied_force_N", {})
+        Fx = float(applied_force.get("Fx", 0.0))
+        Fy = float(applied_force.get("Fy", 0.0))
+
+        load_point = p.get("load_application_point_mm", {})
+        x_load = float(load_point.get("x", 0.0))
+        y_load = float(load_point.get("y", 0.0))
+        applied_couple_N_mm = float(p.get("applied_couple_N_mm", 0.0))
+
+        default_shear_planes = int(p.get("shear_planes", 1))
+        validate_positive("shear_planes", default_shear_planes)
+
+        bearing_thicknesses = [float(v) for v in p.get("bearing_thicknesses_mm", [])]
+        for idx, t in enumerate(bearing_thicknesses, start=1):
+            validate_positive(f"bearing_thicknesses_mm[{idx}]", t)
+
+        section = p.get("bending_section")
+        global_area_mm2 = self._global_bolt_area_mm2(p)
+        global_diameter_mm = float(p["bolt_diameter_mm"]) if p.get("bolt_diameter_mm") not in (None, "") else None
+
+        bolt_rows = []
+        for idx, bolt in enumerate(bolts, start=1):
+            bolt_id = str(bolt.get("id", f"B{idx}"))
+            x = float(bolt["x_mm"])
+            y = float(bolt["y_mm"])
+            centroid_area_mm2 = float(bolt.get("centroid_area_mm2", bolt.get("shear_area_mm2", global_area_mm2)))
+            shear_area_mm2 = float(bolt.get("shear_area_mm2", global_area_mm2))
+            diameter_mm = float(bolt.get("diameter_mm", global_diameter_mm if global_diameter_mm is not None else 0.0))
+            shear_planes = int(bolt.get("shear_planes", default_shear_planes))
+            validate_positive(f"{bolt_id}.centroid_area_mm2", centroid_area_mm2)
+            validate_positive(f"{bolt_id}.shear_area_mm2", shear_area_mm2)
+            validate_positive(f"{bolt_id}.diameter_mm", diameter_mm)
+            validate_positive(f"{bolt_id}.shear_planes", shear_planes)
+            bolt_rows.append(
+                {
+                    "id": bolt_id,
+                    "x_mm": x,
+                    "y_mm": y,
+                    "centroid_area_mm2": centroid_area_mm2,
+                    "shear_area_mm2": shear_area_mm2,
+                    "diameter_mm": diameter_mm,
+                    "shear_planes": shear_planes,
+                }
+            )
+
+        area_sum = sum(b["centroid_area_mm2"] for b in bolt_rows)
+        x_bar = sum(b["centroid_area_mm2"] * b["x_mm"] for b in bolt_rows) / area_sum
+        y_bar = sum(b["centroid_area_mm2"] * b["y_mm"] for b in bolt_rows) / area_sum
+
+        Mz_N_mm = (x_load - x_bar) * Fy - (y_load - y_bar) * Fx + applied_couple_N_mm
+
+        J_area_r2_mm4 = 0.0
+        for b in bolt_rows:
+            xr = b["x_mm"] - x_bar
+            yr = b["y_mm"] - y_bar
+            b["x_rel_mm"] = xr
+            b["y_rel_mm"] = yr
+            b["r_mm"] = math.hypot(xr, yr)
+            J_area_r2_mm4 += b["centroid_area_mm2"] * (xr**2 + yr**2)
+
+        if abs(Mz_N_mm) > 0.0 and J_area_r2_mm4 <= 0.0:
+            raise ValidationError("Invalid bolt pattern for eccentric loading: Σ(A r^2) must be > 0.")
+
+        per_bolt = {}
+        resultant_magnitudes = []
+        shear_stresses = []
+        bearing_stresses = []
+
+        for b in bolt_rows:
+            area_fraction = b["centroid_area_mm2"] / area_sum
+            Fp_x = Fx * area_fraction
+            Fp_y = Fy * area_fraction
+
+            coeff = (Mz_N_mm / J_area_r2_mm4) if J_area_r2_mm4 > 0.0 else 0.0
+            Fm_x = coeff * b["centroid_area_mm2"] * (-b["y_rel_mm"])
+            Fm_y = coeff * b["centroid_area_mm2"] * (b["x_rel_mm"])
+
+            Fr_x = Fp_x + Fm_x
+            Fr_y = Fp_y + Fm_y
+            Fr_N = math.hypot(Fr_x, Fr_y)
+
+            tau_MPa = Fr_N / (b["shear_area_mm2"] * b["shear_planes"])
+
+            max_bearing_MPa = None
+            critical_bearing_thickness_mm = None
+            if bearing_thicknesses:
+                candidates = [(Fr_N / (t * b["diameter_mm"]), t) for t in bearing_thicknesses]
+                max_bearing_MPa, critical_bearing_thickness_mm = max(candidates, key=lambda item: item[0])
+
+            per_bolt[b["id"]] = {
+                "coordinates_mm": {"x": b["x_mm"], "y": b["y_mm"]},
+                "coordinates_relative_to_centroid_mm": {"x": b["x_rel_mm"], "y": b["y_rel_mm"]},
+                "radius_from_centroid_mm": b["r_mm"],
+                "primary_shear_vector_N": {"Fx": Fp_x, "Fy": Fp_y},
+                "secondary_shear_vector_N": {"Fx": Fm_x, "Fy": Fm_y},
+                "resultant_shear_vector_N": {"Fx": Fr_x, "Fy": Fr_y},
+                "resultant_load_N": Fr_N,
+                "resultant_load_kN": Fr_N / 1000.0,
+                "maximum_shear_stress_MPa": tau_MPa,
+                "maximum_bearing_stress_MPa": max_bearing_MPa,
+                "critical_bearing_thickness_mm": critical_bearing_thickness_mm,
+            }
+
+            resultant_magnitudes.append((b["id"], Fr_N))
+            shear_stresses.append((b["id"], tau_MPa))
+            if max_bearing_MPa is not None:
+                bearing_stresses.append((b["id"], max_bearing_MPa))
+
+        bending_outputs = {}
+        if section:
+            load_component_N = float(section.get("load_component_N", math.hypot(Fx, Fy)))
+            if section.get("bending_moment_N_mm") not in (None, ""):
+                bending_moment_N_mm = float(section["bending_moment_N_mm"])
+            else:
+                moment_arm_mm = float(section["moment_arm_mm"])
+                bending_moment_N_mm = load_component_N * moment_arm_mm
+
+            width_mm = float(section["width_mm"])
+            height_mm = float(section["height_mm"])
+            c_mm = float(section.get("c_mm", height_mm / 2.0))
+            validate_positive("bending_section.width_mm", width_mm)
+            validate_positive("bending_section.height_mm", height_mm)
+            validate_positive("bending_section.c_mm", c_mm)
+
+            I_rect_mm4 = width_mm * height_mm**3 / 12.0
+            I_cutouts_mm4 = 0.0
+            cutout_rows = []
+            for idx, cut in enumerate(section.get("cutouts", []), start=1):
+                w = float(cut["width_mm"])
+                h = float(cut["height_mm"])
+                yoff = float(cut.get("y_offset_mm", 0.0))
+                area = w * h
+                I_local = w * h**3 / 12.0
+                I_shifted = I_local + area * yoff**2
+                I_cutouts_mm4 += I_shifted
+                cutout_rows.append(
+                    {
+                        "index": idx,
+                        "width_mm": w,
+                        "height_mm": h,
+                        "y_offset_mm": yoff,
+                        "area_mm2": area,
+                        "local_second_moment_mm4": I_local,
+                        "shifted_second_moment_mm4": I_shifted,
+                    }
+                )
+
+            I_net_mm4 = I_rect_mm4 - I_cutouts_mm4
+            if I_net_mm4 <= 0.0:
+                raise ValidationError("Computed net second moment of area is <= 0 for bending_section.")
+            sigma_b_MPa = bending_moment_N_mm * c_mm / I_net_mm4
+
+            bending_outputs = {
+                "bending_moment_N_mm": bending_moment_N_mm,
+                "bending_moment_N_m": bending_moment_N_mm / 1000.0,
+                "gross_second_moment_mm4": I_rect_mm4,
+                "removed_second_moment_mm4": I_cutouts_mm4,
+                "net_second_moment_mm4": I_net_mm4,
+                "critical_bending_stress_MPa": sigma_b_MPa,
+                "cutouts": cutout_rows,
+            }
+
+        critical_load = max(resultant_magnitudes, key=lambda item: item[1])
+        critical_shear = max(shear_stresses, key=lambda item: item[1])
+        critical_bearing = max(bearing_stresses, key=lambda item: item[1]) if bearing_stresses else None
+
+        derived = {
+            "centroid_mm": {"x": x_bar, "y": y_bar},
+            "applied_force_N": {"Fx": Fx, "Fy": Fy},
+            "load_application_point_mm": {"x": x_load, "y": y_load},
+            "applied_moment_about_centroid_N_mm": Mz_N_mm,
+            "polar_area_moment_sum_A_r2_mm4": J_area_r2_mm4,
+            "bolt_count": len(bolt_rows),
+        }
+        lookups = {}
+        outputs = {
+            "per_bolt": per_bolt,
+            "critical_bolt_by_resultant_load": {
+                "id": critical_load[0],
+                "resultant_load_N": critical_load[1],
+                "resultant_load_kN": critical_load[1] / 1000.0,
+            },
+            "critical_bolt_by_shear_stress": {
+                "id": critical_shear[0],
+                "maximum_shear_stress_MPa": critical_shear[1],
+            },
+            "critical_bolt_by_bearing_stress": None if critical_bearing is None else {
+                "id": critical_bearing[0],
+                "maximum_bearing_stress_MPa": critical_bearing[1],
+            },
+        }
+        if bending_outputs:
+            outputs["bending_section"] = bending_outputs
+
+        notes = [
+            "This solve path follows the Shigley Example 8-7 eccentric shear-joint method additively and leaves the existing solve paths intact.",
+            "The bolt-group centroid is computed from the bolt-pattern area centroid. When all bolts are the same size, this reduces to the geometric centroid.",
+            "The direct shear load is distributed in proportion to bolt centroid area. For identical bolts, this becomes equal division of the applied force.",
+            "The secondary shear due to eccentricity is computed from M_z and the polar area-moment sum Σ(A r^2), giving force vectors tangent to circles centered at the centroid.",
+            "Resultant bolt loads are obtained by vector addition of the direct and secondary shear vectors.",
+            "Shear stresses are reported as MPa because N/mm^2 = MPa.",
+            "Maximum bearing stress per bolt is computed using the listed bearing thicknesses.",
+            "If bending_section is supplied, the critical bending stress is computed from M c / I using a rectangle with user-defined rectangular cutouts.",
+        ]
+        return SolveResult(self.problem, self.title, p, derived, lookups, outputs, notes)

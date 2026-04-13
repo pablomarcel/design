@@ -232,3 +232,13 @@ python -m cli shear_loaded_joint \
   --holes-in-critical-section 2 \
   --show
 ```
+
+## Example 8-7 Shear Joints with Eccentric Loading - from file
+
+```bash
+python -m cli run \
+  --infile example_8_7_eccentric_shear_joint.json \
+  --outfile example_8_7_eccentric_shear_joint_out.json \
+  --pretty \
+  --show
+```

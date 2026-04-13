@@ -85,6 +85,20 @@ def _print_summary(result: Dict[str, Any]) -> None:
             ("Governing static load (kip)", outputs.get("governing_static_load_kip")),
             ("Governing failure mode", outputs.get("governing_failure_mode")),
         ]
+    elif problem == "eccentric_shear_joint":
+        critical_load = outputs.get("critical_bolt_by_resultant_load", {})
+        critical_shear = outputs.get("critical_bolt_by_shear_stress", {})
+        critical_bearing = outputs.get("critical_bolt_by_bearing_stress", {}) or {}
+        bending = outputs.get("bending_section", {})
+        rows = [
+            ("Critical bolt by resultant", critical_load.get("id")),
+            ("Max resultant bolt load (kN)", critical_load.get("resultant_load_kN")),
+            ("Critical bolt by shear stress", critical_shear.get("id")),
+            ("Max shear stress (MPa)", critical_shear.get("maximum_shear_stress_MPa")),
+            ("Critical bolt by bearing stress", critical_bearing.get("id")),
+            ("Max bearing stress (MPa)", critical_bearing.get("maximum_bearing_stress_MPa")),
+            ("Critical bending stress (MPa)", bending.get("critical_bending_stress_MPa")),
+        ]
     elif problem == "fatigue_loading_tension_joint":
         rows = [
             ("Bolt stiffness kb (Mlbf/in)", outputs.get("bolt_stiffness_kb_Mlbf_per_in")),
