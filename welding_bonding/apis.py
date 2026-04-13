@@ -1,0 +1,28 @@
+from __future__ import annotations
+
+from typing import Any, Dict, Mapping
+
+try:
+    from .core import WeldGroupTorsionSolver
+except ImportError:  # pragma: no cover
+    from core import WeldGroupTorsionSolver
+
+
+class SolverAPI:
+    def __init__(self) -> None:
+        self._solvers = {
+            WeldGroupTorsionSolver.solve_path: WeldGroupTorsionSolver(),
+        }
+
+    def available_solve_paths(self) -> list[str]:
+        return sorted(self._solvers.keys())
+
+    def solve(self, payload: Mapping[str, Any]) -> Dict[str, Any]:
+        solve_path = payload.get("solve_path")
+        if not solve_path:
+            raise ValueError("Input payload is missing 'solve_path'")
+        if solve_path not in self._solvers:
+            raise ValueError(
+                f"Unsupported solve_path {solve_path!r}. Available solve paths: {', '.join(self.available_solve_paths())}"
+            )
+        return self._solvers[solve_path].solve(payload)

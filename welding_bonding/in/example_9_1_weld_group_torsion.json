@@ -1,0 +1,50 @@
+{
+  "problem": "weld_group_torsion",
+  "title": "Example 9-1 welded fitting into channel",
+  "solve_path": "weld_group_torsion",
+  "weld_type": 4,
+  "weld_size_mm": 6.0,
+  "geometry": {
+    "b": 56.0,
+    "d": 190.0
+  },
+  "total_force_N": 50000.0,
+  "group_share_count": 2,
+  "primary_shear_direction": "negative_x",
+  "torsion_sign": "ccw",
+  "notes": [
+    "This input models one side plate only, as done in Shigley Example 9-1.",
+    "The 50-kN external load is divided equally between two symmetric welded side plates.",
+    "The load line is horizontal, so the moment arm is the vertical offset from the weld-group centroid to the load line.",
+    "For this geometry, Shigley reports x_bar = 10.4 mm from the left leg and y_bar = d/2 = 95 mm. The eccentricity used for the moment calculation is l = 100 + 10.4 = 110.4 mm, giving M = 25 kN * 110.4 mm = 2760 N\u00b7m."
+  ],
+  "expected_textbook_reference_values": {
+    "throat_area_mm2": 1280.0,
+    "primary_shear_stress_MPa": 19.5,
+    "centroid_mm": {
+      "x": 10.4,
+      "y": 95.0
+    },
+    "point_radii_mm": {
+      "A": 105.0,
+      "B": 95.6,
+      "C": 95.6,
+      "D": 105.0
+    },
+    "polar_moment_mm4": 7070000.0,
+    "moment_N_m": 2760.0,
+    "secondary_shear_MPa": {
+      "A": 41.0,
+      "B": 37.3,
+      "C": 37.3,
+      "D": 41.0
+    },
+    "maximum_shear_stress_MPa": 43.9,
+    "critical_points": [
+      "C",
+      "D"
+    ]
+  },
+  "moment_arm_mm": 110.4,
+  "combination_model": "shigley_radial"
+}

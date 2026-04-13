@@ -1,0 +1,79 @@
+{
+  "table": "9-1",
+  "title": "Torsional Properties of Fillet Welds",
+  "units_note": "All welds are of unit width. Plane of torque couple is in the plane of the paper.",
+  "footnote": "G is the centroid of the weld group; h is weld size; plane of torque couple is in the plane of the paper; all welds are of unit width.",
+  "schema": {
+    "weld_type": "integer identifier matching the textbook row number",
+    "throat_area_formula": "string expression for A",
+    "location_of_G": {
+      "x_bar_formula": "string expression for x-bar, or null if not explicitly given in the table",
+      "y_bar_formula": "string expression for y-bar, or null if not explicitly given in the table",
+      "note": "optional note when the centroid location is conveyed graphically rather than by explicit formulas"
+    },
+    "unit_second_polar_moment_formula": "string expression for J_u"
+  },
+  "rows": [
+    {
+      "weld_type": 1,
+      "description": "single vertical line weld",
+      "throat_area_formula": "A = 0.707*h*d",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = 0",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_polar_moment_formula": "J_u = d^3/12"
+    },
+    {
+      "weld_type": 2,
+      "description": "two parallel vertical line welds separated by b",
+      "throat_area_formula": "A = 1.414*h*d",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_polar_moment_formula": "J_u = d*(3*b^2 + d^2)/6"
+    },
+    {
+      "weld_type": 3,
+      "description": "L-shaped weld with legs b and d",
+      "throat_area_formula": "A = 0.707*h*(b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b^2/(2*(b + d))",
+        "y_bar_formula": "y_bar = d^2/(2*(b + d))"
+      },
+      "unit_second_polar_moment_formula": "J_u = (((b + d)^4) - 6*b^2*d^2)/(12*(b + d))"
+    },
+    {
+      "weld_type": 4,
+      "description": "C-shaped weld with two horizontal legs b and one vertical leg d",
+      "throat_area_formula": "A = 0.707*h*(2*b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b^2/(2*b + d)",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_polar_moment_formula": "J_u = (8*b^3 + 6*b*d^2 + d^3)/12 - b^4/(2*b + d)"
+    },
+    {
+      "weld_type": 5,
+      "description": "rectangular closed weld with width b and height d",
+      "throat_area_formula": "A = 1.414*h*(b + d)",
+      "location_of_G": {
+        "x_bar_formula": "x_bar = b/2",
+        "y_bar_formula": "y_bar = d/2"
+      },
+      "unit_second_polar_moment_formula": "J_u = (b + d)^3/6"
+    },
+    {
+      "weld_type": 6,
+      "description": "circular weld of radius r",
+      "throat_area_formula": "A = 1.414*pi*h*r",
+      "location_of_G": {
+        "x_bar_formula": null,
+        "y_bar_formula": null,
+        "note": "Centroid G is at the center of the circular weld group. The table conveys this graphically rather than with explicit x_bar and y_bar formulas."
+      },
+      "unit_second_polar_moment_formula": "J_u = 2*pi*r^3"
+    }
+  ]
+}
