@@ -3,10 +3,20 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    from .core import DigitizedDataRepository, FatigueStrengthSolver, SurfaceFactorSolver
+    from .core import (
+        DigitizedDataRepository,
+        FatigueStrengthSolver,
+        SurfaceFactorSolver,
+        SizeFactorSolver,
+    )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
-    from core import DigitizedDataRepository, FatigueStrengthSolver, SurfaceFactorSolver
+    from core import (
+        DigitizedDataRepository,
+        FatigueStrengthSolver,
+        SurfaceFactorSolver,
+        SizeFactorSolver,
+    )
     from utils import ValidationError
 
 
@@ -17,9 +27,11 @@ class SolverAPI:
         repository = DigitizedDataRepository(data_dir=data_dir)
         fatigue_strength_solver = FatigueStrengthSolver(repository=repository)
         surface_factor_solver = SurfaceFactorSolver(repository=repository)
+        size_factor_solver = SizeFactorSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
+            size_factor_solver.solve_path: size_factor_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

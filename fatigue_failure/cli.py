@@ -63,6 +63,22 @@ class FatigueFailureCLI:
         sf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         sf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+        size_parser = subparsers.add_parser(
+            "size_factor",
+            help="Direct CLI entry point for Example 6-4 style Marin size-factor calculations.",
+        )
+        size_parser.add_argument("--title", default="Size factor analysis from CLI flags")
+        size_parser.add_argument("--loading-type", choices=["bending", "torsion", "axial"], default="bending")
+        size_parser.add_argument("--mode", choices=["rotating", "nonrotating"], default="rotating")
+        size_parser.add_argument("--diameter-mm", type=float, help="Diameter in mm for rotating mode, or for nonrotating solid_round.")
+        size_parser.add_argument("--shape", choices=["solid_round", "rectangle", "i_shape", "channel"], help="Nonrotating Table 6-3 shape.")
+        size_parser.add_argument("--axis", choices=["axis_1_1", "axis_2_2"], help="Axis selection for nonrotating I-shape or channel.")
+        size_parser.add_argument("--sut-mpa", type=float, help="Problem statement ultimate tensile strength in MPa.")
+        size_parser.add_argument("--expected-kb", type=float, help="Optional reference kb value for verification.")
+        size_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        size_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        size_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -115,6 +131,32 @@ class FatigueFailureCLI:
             "inputs": inputs,
         }
 
+    def _payload_from_size_factor_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        case: dict[str, Any] = {
+            "name": "size_factor_case",
+            "mode": args.mode,
+        }
+        if args.mode == "rotating":
+            case["diameter_mm"] = args.diameter_mm
+        else:
+            case["shape"] = args.shape or "solid_round"
+            case["axis"] = args.axis
+            if (args.shape or "solid_round") == "solid_round" and args.diameter_mm is not None:
+                case["shape_parameters_mm"] = {"d": args.diameter_mm}
+        inputs: dict[str, Any] = {
+            "solve_path": "size_factor",
+            "loading_type": args.loading_type,
+            "sut_MPa": args.sut_mpa,
+            "cases": [case],
+        }
+        if args.expected_kb is not None:
+            inputs["expected_textbook_reference_values"] = {"case_results": {"size_factor_case": args.expected_kb}}
+        return {
+            "problem": "size_factor",
+            "title": args.title,
+            "inputs": inputs,
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -138,26 +180,22 @@ class FatigueFailureCLI:
 
             if args.command == "fatigue_strength":
                 payload = self._payload_from_fatigue_strength_args(args)
-                result = self.app.solve_payload(payload, outfile=args.outfile, pretty=args.pretty)
-                if args.show or not args.outfile:
-                    print(json_text(result, pretty=args.pretty or True))
-                else:
-                    resolved = self.app.io.resolve_output_path(args.outfile)
-                    print(f"Wrote {resolved}")
-                return 0
-
-            if args.command == "surface_factor":
+            elif args.command == "surface_factor":
                 payload = self._payload_from_surface_factor_args(args)
-                result = self.app.solve_payload(payload, outfile=args.outfile, pretty=args.pretty)
-                if args.show or not args.outfile:
-                    print(json_text(result, pretty=args.pretty or True))
-                else:
-                    resolved = self.app.io.resolve_output_path(args.outfile)
-                    print(f"Wrote {resolved}")
-                return 0
+            elif args.command == "size_factor":
+                payload = self._payload_from_size_factor_args(args)
+            else:
+                self.parser.error(f"Unsupported command: {args.command}")
+                return 2
 
-            self.parser.error(f"Unsupported command: {args.command}")
-            return 2
+            result = self.app.solve_payload(payload, outfile=args.outfile, pretty=args.pretty)
+            if args.show or not args.outfile:
+                print(json_text(result, pretty=args.pretty or True))
+            else:
+                resolved = self.app.io.resolve_output_path(args.outfile)
+                print(f"Wrote {resolved}")
+            return 0
+
         except FatigueFailureError as exc:
             print(f"ERROR: {exc}", file=sys.stderr)
             return 1

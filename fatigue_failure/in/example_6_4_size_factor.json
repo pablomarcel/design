@@ -1,0 +1,37 @@
+{
+  "problem": "size_factor",
+  "title": "Example 6-4 size factor for a shouldered steel shaft",
+  "inputs": {
+    "solve_path": "size_factor",
+    "loading_type": "bending",
+    "sut_MPa": 690.0,
+    "shaft_small_diameter_mm": 32.0,
+    "shoulder_diameter_mm": 38.0,
+    "cases": [
+      {
+        "name": "part_a_rotating_mode",
+        "mode": "rotating",
+        "diameter_mm": 32.0
+      },
+      {
+        "name": "part_b_nonrotating_mode",
+        "mode": "nonrotating",
+        "shape": "solid_round",
+        "shape_parameters_mm": {
+          "d": 32.0
+        }
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "case_results": {
+        "part_a_rotating_mode": 0.858,
+        "part_b_nonrotating_mode": 0.954
+      }
+    },
+    "notes": [
+      "This file follows Example 6-4 on p297-p298.",
+      "The problem statement ultimate strength is included as a given, even though Eqs. (6-20) and (6-21) do not use it directly.",
+      "For the nonrotating case, the solver fetches the solid-round relation from Table 6-3 and computes d_e = 0.370 d before applying Eq. (6-20)."
+    ]
+  }
+}

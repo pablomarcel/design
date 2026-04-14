@@ -63,3 +63,36 @@ python -m cli surface_factor \
   --pretty \
   --show
 ```
+
+## Example 6-4 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_4_size_factor.json \
+  --outfile example_6_4_size_factor_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli size_factor \
+  --loading-type bending \
+  --mode rotating \
+  --diameter-mm 32 \
+  --sut-mpa 690 \
+  --expected-kb 0.858 \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli size_factor \
+  --loading-type bending \
+  --mode nonrotating \
+  --shape solid_round \
+  --diameter-mm 32 \
+  --sut-mpa 690 \
+  --expected-kb 0.954 \
+  --pretty \
+  --show
+```

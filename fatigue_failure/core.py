@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import csv
+import json
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,15 +15,20 @@ try:
         coalesce,
         ensure_at_least,
         ensure_positive,
+        in_to_mm,
         kpsi_to_mpa,
         linear_interpolate,
         log10,
+        mm_to_in,
         mpa_to_kpsi,
+        normalize_axis_name,
         normalize_processing,
+        normalize_shape_name,
         normalize_steel_name,
         normalize_surface_finish,
         package_root,
         relative_error_percent,
+        safe_eval_expression,
         safe_round,
         summarize_matches,
     )
@@ -34,15 +40,20 @@ except ImportError:  # pragma: no cover
         coalesce,
         ensure_at_least,
         ensure_positive,
+        in_to_mm,
         kpsi_to_mpa,
         linear_interpolate,
         log10,
+        mm_to_in,
         mpa_to_kpsi,
+        normalize_axis_name,
         normalize_processing,
+        normalize_shape_name,
         normalize_steel_name,
         normalize_surface_finish,
         package_root,
         relative_error_percent,
+        safe_eval_expression,
         safe_round,
         summarize_matches,
     )
@@ -124,6 +135,7 @@ class DigitizedDataRepository:
         self._steel_rows: list[SteelRecord] | None = None
         self._figure_6_18_rows: list[dict[str, float]] | None = None
         self._surface_finish_rows: list[SurfaceFinishRecord] | None = None
+        self._table_6_3_payload: dict[str, Any] | None = None
 
     def _read_csv(self, filename: str) -> list[dict[str, str]]:
         path = self.data_dir / filename
@@ -131,6 +143,13 @@ class DigitizedDataRepository:
             raise DataLookupError(f"Required data file was not found: {path}")
         with path.open("r", encoding="utf-8", newline="") as handle:
             return list(csv.DictReader(handle))
+
+    def _read_json(self, filename: str) -> dict[str, Any]:
+        path = self.data_dir / filename
+        if not path.exists():
+            raise DataLookupError(f"Required data file was not found: {path}")
+        with path.open("r", encoding="utf-8") as handle:
+            return json.load(handle)
 
     @property
     def steel_rows(self) -> list[SteelRecord]:
@@ -158,6 +177,12 @@ class DigitizedDataRepository:
                 SurfaceFinishRecord.from_row(row) for row in self._read_csv("table_6_2.csv")
             ]
         return self._surface_finish_rows
+
+    @property
+    def table_6_3_payload(self) -> dict[str, Any]:
+        if self._table_6_3_payload is None:
+            self._table_6_3_payload = self._read_json("table_6_3.json")
+        return self._table_6_3_payload
 
     def find_steel_record(self, sae_aisi_no: str | int, processing: str | None = None) -> SteelRecord:
         target_grade = normalize_steel_name(sae_aisi_no)
@@ -218,6 +243,15 @@ class DigitizedDataRepository:
             "source": "figure_6_18_interpolated",
             "note": "Interpolated from figure_6_18.csv.",
         }
+
+    def table_6_3_entry(self, shape: str) -> dict[str, Any]:
+        target = normalize_shape_name(shape)
+        entries = self.table_6_3_payload.get("entries", [])
+        for entry in entries:
+            if normalize_shape_name(entry.get("shape")) == target:
+                return entry
+        available = [entry.get("shape") for entry in entries]
+        raise DataLookupError(f"No Table 6-3 entry was found for shape={shape!r}. Available shapes: {available}")
 
 
 class FatigueStrengthSolver:
@@ -354,8 +388,6 @@ class FatigueStrengthSolver:
         se_kpsi = ensure_positive("se_kpsi", endurance_info["se_kpsi"])
         f_value = ensure_positive("fatigue_strength_fraction_f", f_info["f"])
         sf_low_kpsi = f_value * sut_kpsi
-        if sf_low_kpsi <= 0 or se_kpsi <= 0:
-            raise ValidationError("Resolved S-N anchor stresses must be positive.")
 
         a_kpsi = (sf_low_kpsi ** 2) / se_kpsi
         b = log10(se_kpsi / sf_low_kpsi) / log10(n_endurance / n_low)
@@ -425,28 +457,28 @@ class FatigueStrengthSolver:
                         "reference": expected_ref[key],
                         "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
                     }
-            if stress_queries:
-                expected_strength = expected_ref.get("stress_query_results", {})
-                for item in stress_queries:
-                    if item["name"] in expected_strength:
-                        verification[f"stress_query::{item['name']}"] = {
-                            "actual": item["stress_kpsi"],
-                            "reference": expected_strength[item["name"]],
-                            "relative_error_percent": safe_round(
-                                relative_error_percent(item["stress_kpsi"], float(expected_strength[item["name"]]))
-                            ),
-                        }
-            if life_queries:
-                expected_life = expected_ref.get("life_query_results", {})
-                for item in life_queries:
-                    if item["name"] in expected_life:
-                        verification[f"life_query::{item['name']}"] = {
-                            "actual": item["cycles"],
-                            "reference": expected_life[item["name"]],
-                            "relative_error_percent": safe_round(
-                                relative_error_percent(item["cycles"], float(expected_life[item["name"]]))
-                            ),
-                        }
+
+            expected_strength = expected_ref.get("stress_query_results", {})
+            for item in stress_queries:
+                if item["name"] in expected_strength:
+                    verification[f"stress_query::{item['name']}"] = {
+                        "actual": item["stress_kpsi"],
+                        "reference": expected_strength[item["name"]],
+                        "relative_error_percent": safe_round(
+                            relative_error_percent(item["stress_kpsi"], float(expected_strength[item["name"]]))
+                        ),
+                    }
+
+            expected_life = expected_ref.get("life_query_results", {})
+            for item in life_queries:
+                if item["name"] in expected_life:
+                    verification[f"life_query::{item['name']}"] = {
+                        "actual": item["cycles"],
+                        "reference": expected_life[item["name"]],
+                        "relative_error_percent": safe_round(
+                            relative_error_percent(item["cycles"], float(expected_life[item["name"]]))
+                        ),
+                    }
 
         output = {
             "problem": payload.get("problem", self.solve_path),
@@ -586,9 +618,7 @@ class SurfaceFactorSolver:
             "problem": payload.get("problem", self.solve_path),
             "title": payload.get("title", "Surface factor analysis"),
             "inputs": inputs,
-            "lookups": {
-                "table_6_2": finish_record.to_dict(),
-            },
+            "lookups": {"table_6_2": finish_record.to_dict()},
             "derived": {
                 "surface_finish_normalized": normalize_surface_finish(finish_record.surface_finish),
                 "sut_kpsi": safe_round(sut_info["sut_kpsi"]),
@@ -597,14 +627,12 @@ class SurfaceFactorSolver:
                 "b_exponent": safe_round(b_selected),
                 "strength_unit_used_for_eq_6_19": "MPa" if unit_key == "mpa" else "kpsi",
                 "sut_used_in_eq_6_19": safe_round(sut_selected),
-                "eq_6_19_selected": f"k_a = {safe_round(a_selected)} * Sut^({safe_round(b_selected)}) [{('MPa' if unit_key == 'mpa' else 'kpsi')}]",
+                "eq_6_19_selected": f"k_a = {safe_round(a_selected)} * Sut^({safe_round(b_selected)}) [{'MPa' if unit_key == 'mpa' else 'kpsi'}]",
                 "ka_from_MPa_form": safe_round(ka_from_mpa),
                 "ka_from_kpsi_form": safe_round(ka_from_kpsi),
                 "cross_unit_difference_percent": safe_round(relative_error_percent(ka_from_kpsi, ka_from_mpa)),
             },
-            "results": {
-                "ka": safe_round(ka_selected),
-            },
+            "results": {"ka": safe_round(ka_selected)},
             "meta": {
                 "solve_path": self.solve_path,
                 "implemented_equations": ["6-19"],
@@ -612,6 +640,295 @@ class SurfaceFactorSolver:
                     "This solver targets Example 6-3 style Marin surface-factor calculations.",
                     "The Table 6-2 coefficients are read from table_6_2.csv, not hardcoded in the input file.",
                     "If both MPa and kpsi strengths are provided, the selected strength_unit controls which Table 6-2 coefficient set is used for the reported Eq. (6-19) result.",
+                ],
+            },
+        }
+        if verification:
+            output["verification"] = verification
+        return output
+
+
+class SizeFactorSolver:
+    """Implements Shigley Chapter 6 Example 6-4 style Marin size-factor calculations."""
+
+    solve_path = "size_factor"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    def _resolve_strengths(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        sut_mpa = coalesce(
+            inputs.get("sut_MPa"),
+            inputs.get("ultimate_tensile_strength_MPa"),
+            inputs.get("mean_ultimate_tensile_strength_MPa"),
+        )
+        sut_kpsi = coalesce(
+            inputs.get("sut_kpsi"),
+            inputs.get("ultimate_tensile_strength_kpsi"),
+            inputs.get("mean_ultimate_tensile_strength_kpsi"),
+        )
+        if sut_mpa is None and sut_kpsi is None:
+            return {"sut_MPa": None, "sut_kpsi": None, "source": "not_provided"}
+        if sut_mpa is not None and sut_kpsi is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": float(sut_kpsi), "source": "user_input_both_units"}
+        if sut_mpa is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": mpa_to_kpsi(float(sut_mpa)), "source": "user_input_MPa"}
+        return {"sut_MPa": kpsi_to_mpa(float(sut_kpsi)), "sut_kpsi": float(sut_kpsi), "source": "user_input_kpsi"}
+
+    def _resolve_size_factor_from_diameter_mm(self, diameter_mm: float, loading_type: str) -> dict[str, Any]:
+        d_mm = ensure_positive("diameter_mm", diameter_mm)
+        load = str(loading_type).strip().lower()
+
+        if load == "axial":
+            return {
+                "kb": 1.0,
+                "equation": "eq_6_21",
+                "diameter_mm_used": d_mm,
+                "diameter_in_used": mm_to_in(d_mm),
+                "branch": "axial_no_size_effect",
+            }
+
+        if load not in {"bending", "torsion"}:
+            raise ValidationError("loading_type must be one of: bending, torsion, axial.")
+
+        if 2.79 <= d_mm <= 51.0:
+            kb = (d_mm / 7.62) ** (-0.107)
+            return {
+                "kb": kb,
+                "equation": "eq_6_20",
+                "diameter_mm_used": d_mm,
+                "diameter_in_used": mm_to_in(d_mm),
+                "branch": "metric_small_diameter_branch",
+                "expression": "k_b = (d/7.62)^(-0.107)",
+            }
+
+        if 51.0 < d_mm <= 254.0:
+            kb = 1.51 * (d_mm ** (-0.157))
+            return {
+                "kb": kb,
+                "equation": "eq_6_20",
+                "diameter_mm_used": d_mm,
+                "diameter_in_used": mm_to_in(d_mm),
+                "branch": "metric_large_diameter_branch",
+                "expression": "k_b = 1.51*d^(-0.157)",
+            }
+
+        raise RangeError(
+            "Eq. (6-20) metric diameter range is 2.79 <= d <= 254 mm for bending/torsion. "
+            f"Got d = {d_mm} mm."
+        )
+
+    def _evaluate_table_6_3_effective_diameter_mm(self, shape: str, parameters_mm: dict[str, Any], axis: str | None) -> dict[str, Any]:
+        entry = self.repository.table_6_3_entry(shape)
+        normalized_shape = normalize_shape_name(shape)
+        params = {key: float(value) for key, value in (parameters_mm or {}).items()}
+
+        if "expressions" in entry and "d_e" in entry["expressions"]:
+            de_mm = safe_eval_expression(entry["expressions"]["d_e"], params)
+            area = None
+            if "A_0.95sigma" in entry["expressions"]:
+                area = safe_eval_expression(entry["expressions"]["A_0.95sigma"], params)
+            return {
+                "shape": normalized_shape,
+                "display_name": entry.get("display_name"),
+                "axis": None,
+                "parameters_mm": params,
+                "A_0.95sigma_mm2": area,
+                "effective_diameter_mm": de_mm,
+                "source": "table_6_3_expression",
+                "condition": entry.get("condition"),
+            }
+
+        axis_key = normalize_axis_name(axis)
+        if axis_key is None:
+            raise ValidationError(
+                f"Table 6-3 shape {shape!r} requires an axis selection such as axis_1_1 or axis_2_2."
+            )
+
+        expressions_by_axis = entry.get("expressions_by_axis") or {}
+        axis_entry = expressions_by_axis.get(axis_key)
+        if axis_entry is None:
+            raise ValidationError(
+                f"Axis {axis!r} is not valid for shape {shape!r}. Available axes: {list(expressions_by_axis)}"
+            )
+
+        area = safe_eval_expression(axis_entry["A_0.95sigma"], params)
+        de_mm = math.sqrt(area / 0.01046)
+        return {
+            "shape": normalized_shape,
+            "display_name": entry.get("display_name"),
+            "axis": axis_key,
+            "parameters_mm": params,
+            "A_0.95sigma_mm2": area,
+            "effective_diameter_mm": de_mm,
+            "source": "table_6_3_area_equivalence",
+            "condition": entry.get("condition"),
+            "back_calculation": "d_e = sqrt(A_0.95sigma / 0.01046)",
+        }
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"SizeFactorSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        loading_type = str(coalesce(inputs.get("loading_type"), "bending")).strip().lower()
+        strengths = self._resolve_strengths(inputs)
+
+        cases = inputs.get("cases")
+        if not cases:
+            default_d = coalesce(
+                inputs.get("diameter_mm"),
+                inputs.get("shaft_diameter_mm"),
+                inputs.get("small_diameter_mm"),
+            )
+            if default_d is None:
+                raise ValidationError(
+                    "solve_path='size_factor' requires 'cases', or a default diameter such as diameter_mm/shaft_diameter_mm."
+                )
+            cases = [{"name": "size_factor", "mode": "rotating", "diameter_mm": default_d}]
+
+        results = []
+        lookup_cases = []
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        expected_case_results = expected_ref.get("case_results", {})
+        verification = {}
+
+        for case in cases:
+            name = case.get("name") or "size_factor_case"
+            mode = str(coalesce(case.get("mode"), case.get("rotation_mode"), "rotating")).strip().lower()
+            if mode not in {"rotating", "nonrotating"}:
+                raise ValidationError(f"Case {name!r} has unsupported mode={mode!r}. Use 'rotating' or 'nonrotating'.")
+
+            if mode == "rotating":
+                d_mm = coalesce(
+                    case.get("diameter_mm"),
+                    case.get("shaft_diameter_mm"),
+                    inputs.get("diameter_mm"),
+                    inputs.get("shaft_diameter_mm"),
+                    inputs.get("small_diameter_mm"),
+                    inputs.get("shaft_small_diameter_mm"),
+                )
+                d_mm = ensure_positive(f"cases[{name}].diameter_mm", d_mm)
+                resolved = self._resolve_size_factor_from_diameter_mm(d_mm, loading_type=loading_type)
+                lookup_cases.append(
+                    {
+                        "name": name,
+                        "mode": mode,
+                        "table_6_3": None,
+                    }
+                )
+                result_item = {
+                    "name": name,
+                    "mode": mode,
+                    "loading_type": loading_type,
+                    "diameter_mm_used": safe_round(resolved["diameter_mm_used"]),
+                    "diameter_in_used": safe_round(resolved["diameter_in_used"]),
+                    "effective_diameter_mm": safe_round(resolved["diameter_mm_used"]),
+                    "effective_diameter_in": safe_round(resolved["diameter_in_used"]),
+                    "kb": safe_round(resolved["kb"]),
+                    "equation": resolved["equation"],
+                    "eq_6_20_branch": resolved.get("branch"),
+                    "expression": resolved.get("expression"),
+                }
+            else:
+                shape = coalesce(case.get("shape"), inputs.get("shape"), "solid_round")
+                axis = coalesce(case.get("axis"), inputs.get("axis"))
+                params_mm = case.get("shape_parameters_mm") or case.get("shape_parameters") or {}
+                if not params_mm:
+                    d_mm = coalesce(
+                        case.get("diameter_mm"),
+                        case.get("shaft_diameter_mm"),
+                        inputs.get("diameter_mm"),
+                        inputs.get("shaft_diameter_mm"),
+                        inputs.get("small_diameter_mm"),
+                        inputs.get("shaft_small_diameter_mm"),
+                    )
+                    if normalize_shape_name(shape) == "solid_round" and d_mm is not None:
+                        params_mm = {"d": float(d_mm)}
+                    else:
+                        raise ValidationError(
+                            f"Case {name!r} requires shape_parameters_mm for nonrotating Table 6-3 evaluation."
+                        )
+
+                table_eval = self._evaluate_table_6_3_effective_diameter_mm(shape=shape, parameters_mm=params_mm, axis=axis)
+                resolved = self._resolve_size_factor_from_diameter_mm(table_eval["effective_diameter_mm"], loading_type=loading_type)
+
+                lookup_cases.append(
+                    {
+                        "name": name,
+                        "mode": mode,
+                        "table_6_3": {
+                            "shape": table_eval["shape"],
+                            "display_name": table_eval["display_name"],
+                            "axis": table_eval["axis"],
+                            "parameters_mm": table_eval["parameters_mm"],
+                            "A_0.95sigma_mm2": safe_round(table_eval["A_0.95sigma_mm2"]),
+                            "effective_diameter_mm": safe_round(table_eval["effective_diameter_mm"]),
+                            "source": table_eval["source"],
+                            "condition": table_eval.get("condition"),
+                            "back_calculation": table_eval.get("back_calculation"),
+                        },
+                    }
+                )
+
+                result_item = {
+                    "name": name,
+                    "mode": mode,
+                    "loading_type": loading_type,
+                    "diameter_mm_used": None,
+                    "diameter_in_used": None,
+                    "effective_diameter_mm": safe_round(table_eval["effective_diameter_mm"]),
+                    "effective_diameter_in": safe_round(mm_to_in(table_eval["effective_diameter_mm"])),
+                    "kb": safe_round(resolved["kb"]),
+                    "equation": resolved["equation"],
+                    "eq_6_20_branch": resolved.get("branch"),
+                    "expression": resolved.get("expression"),
+                }
+
+            results.append(result_item)
+
+            if name in expected_case_results:
+                verification[f"case::{name}"] = {
+                    "actual": result_item["kb"],
+                    "reference": float(expected_case_results[name]),
+                    "relative_error_percent": safe_round(
+                        relative_error_percent(result_item["kb"], float(expected_case_results[name]))
+                    ),
+                }
+
+        output = {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Size factor analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_6_3": {
+                    "table": self.repository.table_6_3_payload.get("table"),
+                    "title": self.repository.table_6_3_payload.get("title"),
+                    "cases": lookup_cases,
+                }
+            },
+            "derived": {
+                "sut_MPa": safe_round(strengths.get("sut_MPa")),
+                "sut_kpsi": safe_round(strengths.get("sut_kpsi")),
+                "loading_type": loading_type,
+                "equation_6_20_metric_small_diameter": "k_b = (d/7.62)^(-0.107) for 2.79 <= d <= 51 mm",
+                "equation_6_20_metric_large_diameter": "k_b = 1.51*d^(-0.157) for 51 < d <= 254 mm",
+                "equation_6_21_axial": "k_b = 1 for axial loading",
+                "note_on_strength": "Ultimate strength is part of the problem statement but is not used directly in Eqs. (6-20) and (6-21).",
+            },
+            "results": {
+                "cases": results,
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-20", "6-21", "6-22", "6-23", "6-24", "6-25"],
+                "notes": [
+                    "This solver targets Example 6-4 style Marin size-factor calculations.",
+                    "For rotating round sections, Eq. (6-20) is applied directly with the actual diameter.",
+                    "For nonrotating sections, the solver fetches the Table 6-3 geometry relation, computes the equivalent diameter d_e, and then applies Eq. (6-20).",
+                    "For axial loading, Eq. (6-21) gives k_b = 1.",
                 ],
             },
         }

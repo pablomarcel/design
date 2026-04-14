@@ -23,6 +23,7 @@ class RangeError(FatigueFailureError):
 
 
 _KPSI_TO_MPA = 6.894757293168361
+_IN_TO_MM = 25.4
 
 
 def package_root() -> Path:
@@ -70,6 +71,41 @@ def normalize_surface_finish(value: str | None) -> str | None:
         "hot-rolled": "hot-rolled",
         "as forged": "as-forged",
         "as-forged": "as-forged",
+    }
+    return aliases.get(text, text)
+
+
+def normalize_shape_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "solid_round": "solid_round",
+        "round": "solid_round",
+        "solidround": "solid_round",
+        "rectangle": "rectangle",
+        "rectangular": "rectangle",
+        "i_shape": "i_shape",
+        "ishape": "i_shape",
+        "i_beam": "i_shape",
+        "channel": "channel",
+    }
+    return aliases.get(text, text)
+
+
+def normalize_axis_name(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower().replace("-", "_").replace(" ", "_")
+    aliases = {
+        "1_1": "axis_1_1",
+        "axis_1_1": "axis_1_1",
+        "axis1_1": "axis_1_1",
+        "axis11": "axis_1_1",
+        "2_2": "axis_2_2",
+        "axis_2_2": "axis_2_2",
+        "axis2_2": "axis_2_2",
+        "axis22": "axis_2_2",
     }
     return aliases.get(text, text)
 
@@ -184,3 +220,22 @@ def kpsi_to_mpa(value: float) -> float:
 
 def mpa_to_kpsi(value: float) -> float:
     return float(value) / _KPSI_TO_MPA
+
+
+def mm_to_in(value: float) -> float:
+    return float(value) / _IN_TO_MM
+
+
+def in_to_mm(value: float) -> float:
+    return float(value) * _IN_TO_MM
+
+
+def safe_eval_expression(expression: str, variables: dict[str, float]) -> float:
+    allowed = {"sqrt": math.sqrt, "pi": math.pi, "abs": abs}
+    allowed.update({k: float(v) for k, v in variables.items()})
+    try:
+        return float(eval(expression, {"__builtins__": {}}, allowed))
+    except NameError as exc:
+        raise ValidationError(f"Missing parameter while evaluating expression {expression!r}: {exc}") from exc
+    except Exception as exc:
+        raise ValidationError(f"Unable to evaluate expression {expression!r}: {exc}") from exc
