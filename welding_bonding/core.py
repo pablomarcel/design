@@ -724,15 +724,37 @@ class WeldedJointBendingStaticLoadingSolver:
 
 
 class MarinSurfaceFinishRepository:
+    _ALIASES = {
+        'ground': 'ground',
+        'machined': 'machined or cold-drawn',
+        'machined or cold drawn': 'machined or cold-drawn',
+        'machined or cold-drawn': 'machined or cold-drawn',
+        'cold drawn': 'machined or cold-drawn',
+        'cold-drawn': 'machined or cold-drawn',
+        'hot rolled': 'hot-rolled',
+        'hot-rolled': 'hot-rolled',
+        'hr': 'hot-rolled',
+        'as forged': 'as-forged',
+        'as-forged': 'as-forged',
+        'forged': 'as-forged',
+    }
+
     def __init__(self) -> None:
         self.rows = load_csv_rows(find_data_file('table_6_2.csv'))
 
+    def _canonical_key(self, surface_finish: str) -> str:
+        key = surface_finish.strip().lower().replace('_', ' ').replace('  ', ' ')
+        return self._ALIASES.get(key, key)
+
     def get(self, surface_finish: str) -> Dict[str, Any]:
-        key = surface_finish.strip().lower()
+        key = self._canonical_key(surface_finish)
         for row in self.rows:
-            if row['surface_finish'].strip().lower() == key:
+            row_key = self._canonical_key(row['surface_finish'])
+            if row_key == key:
                 return {
                     'surface_finish': row['surface_finish'],
+                    'surface_finish_input': surface_finish,
+                    'canonical_surface_finish': key,
                     'a_factor_kpsi': float(row['a_factor_kpsi']),
                     'a_factor_MPa': float(row['a_factor_MPa']),
                     'b_exponent': float(row['b_exponent']),
@@ -762,31 +784,70 @@ class FatigueCriteriaRepository:
 
     def gerber_factor_of_safety(self, shear_ultimate_strength_kpsi: float, corrected_endurance_limit_kpsi: float,
                                 alternating_shear_kpsi: float, mean_shear_kpsi: float) -> float:
-        if mean_shear_kpsi <= 0:
+        sigma_a = float(alternating_shear_kpsi)
+        sigma_m = float(mean_shear_kpsi)
+        if sigma_a < 0:
+            raise ValidationError('Alternating stress must be nonnegative')
+        if sigma_a == 0.0:
+            return float('inf')
+        if sigma_m <= 0:
             raise ValidationError('Gerber fatigue-factor equation requires positive mean stress')
         return evaluate_expression(
             self.fos_equation,
             {
                 'Sut': float(shear_ultimate_strength_kpsi),
                 'Se': float(corrected_endurance_limit_kpsi),
-                'sigma_a': float(alternating_shear_kpsi),
-                'sigma_m': float(mean_shear_kpsi),
+                'sigma_a': sigma_a,
+                'sigma_m': sigma_m,
             },
         )
 
 
 class MarinFactorEngine:
+    _PROCESSING_TO_SURFACE = {
+        'HR': 'hot-rolled',
+        'HOT-ROLLED': 'hot-rolled',
+        'CD': 'machined or cold-drawn',
+        'COLD-DRAWN': 'machined or cold-drawn',
+        'MACHINED': 'machined or cold-drawn',
+        'GROUND': 'ground',
+        'FORGED': 'as-forged',
+        'AS-FORGED': 'as-forged',
+    }
+
     def __init__(self) -> None:
         self.surface_repo = MarinSurfaceFinishRepository()
 
-    def surface_factor_ka(self, surface_finish: str, tensile_strength_kpsi: float) -> Dict[str, Any]:
+    def surface_factor_ka(self, surface_finish: str, tensile_strength_kpsi: float, material_processing: str | None = None) -> Dict[str, Any]:
         row = self.surface_repo.get(surface_finish)
         ka = row['a_factor_kpsi'] * (float(tensile_strength_kpsi) ** row['b_exponent'])
+        inferred = None
+        consistency = None
+        note = None
+        if material_processing:
+            inferred = self._PROCESSING_TO_SURFACE.get(str(material_processing).strip().upper())
+            if inferred is None:
+                consistency = None
+                note = 'Material processing was provided, but no default Marin surface-finish mapping is defined for it.'
+            else:
+                consistency = inferred == row['canonical_surface_finish']
+                if consistency:
+                    note = 'Selected Marin surface-finish row is consistent with the material processing label.'
+                else:
+                    note = ('Selected Marin surface-finish row differs from the material processing label. '
+                            'This is allowed and the solver honors the explicit surface_finish input, '
+                            'which is useful when matching a textbook example or a known weld-surface condition.')
         return {
             'surface_finish': row['surface_finish'],
+            'surface_finish_input': row['surface_finish_input'],
+            'canonical_surface_finish': row['canonical_surface_finish'],
             'a_factor_kpsi': row['a_factor_kpsi'],
             'b_exponent': row['b_exponent'],
             'ka': ka,
+            'material_processing_input': material_processing,
+            'processing_inferred_surface_finish': inferred,
+            'processing_surface_finish_consistent': consistency,
+            'selection_note': note,
         }
 
     def size_factor_kb(self, mode: str, **kwargs: Any) -> Dict[str, Any]:
@@ -846,7 +907,11 @@ class WeldFatigueFactorOfSafetySolver:
             float(inputs['weld_size_in']),
         )
 
-        ka_data = self.marin.surface_factor_ka(inputs['surface_finish'], material['tensile_strength_kpsi'])
+        ka_data = self.marin.surface_factor_ka(
+            inputs['surface_finish'],
+            material['tensile_strength_kpsi'],
+            material_processing=material.get('processing'),
+        )
         kb_data = self.marin.size_factor_kb(
             inputs.get('size_factor_mode', 'uniform_shear_on_throat'),
             kb_override=inputs.get('kb_override'),
@@ -859,14 +924,17 @@ class WeldFatigueFactorOfSafetySolver:
         corrected_se = ka_data['ka'] * kb_data['kb'] * kc_data['kc'] * kd * ke * kf_misc * se_prime_data['S_e_prime_kpsi']
 
         A = geometry_eval['area_in2']
+        if A <= 0.0:
+            raise ValidationError('Computed weld throat area must be positive')
         Fa_lbf = float(inputs['force_amplitude_lbf'])
         Fm_lbf = float(inputs.get('force_mean_lbf', 0.0))
         Kfs = kfs_row['K_fs']
         tau_a_kpsi = Kfs * Fa_lbf / A / 1000.0
         tau_m_kpsi = Kfs * Fm_lbf / A / 1000.0
+        stress_ratio_R = (-Fa_lbf + Fm_lbf) / (Fa_lbf + Fm_lbf) if abs(Fa_lbf + Fm_lbf) > 1e-12 else None
 
         if abs(tau_m_kpsi) <= 1e-12:
-            nf = corrected_se / tau_a_kpsi
+            nf = float('inf') if abs(tau_a_kpsi) <= 1e-12 else corrected_se / tau_a_kpsi
             criterion_used = 'zero_mean_simple_ratio'
             criterion_note = "In the absence of a midrange component, n_f = S_se / tau_a'"
         else:
@@ -882,6 +950,8 @@ class WeldFatigueFactorOfSafetySolver:
                 'table_9_5': kfs_row,
                 'table_6_2': {
                     'surface_finish': ka_data['surface_finish'],
+                    'surface_finish_input': ka_data['surface_finish_input'],
+                    'canonical_surface_finish': ka_data['canonical_surface_finish'],
                     'a_factor_kpsi': ka_data['a_factor_kpsi'],
                     'b_exponent': ka_data['b_exponent'],
                 },
@@ -904,6 +974,15 @@ class WeldFatigueFactorOfSafetySolver:
                     'electrode_tensile_strength_kpsi': electrode['tensile_strength_kpsi'],
                     'electrode_yield_strength_kpsi': electrode['yield_strength_kpsi'],
                 },
+                'surface_finish_selection': {
+                    'surface_finish_input': ka_data['surface_finish_input'],
+                    'surface_finish_used': ka_data['surface_finish'],
+                    'canonical_surface_finish': ka_data['canonical_surface_finish'],
+                    'material_processing_input': ka_data['material_processing_input'],
+                    'processing_inferred_surface_finish': ka_data['processing_inferred_surface_finish'],
+                    'processing_surface_finish_consistent': ka_data['processing_surface_finish_consistent'],
+                    'selection_note': ka_data['selection_note'],
+                },
                 'marin_factors': {
                     'ka': ka_data['ka'],
                     'kb': kb_data['kb'],
@@ -921,6 +1000,7 @@ class WeldFatigueFactorOfSafetySolver:
                     'K_fs': Kfs,
                     'force_amplitude_lbf': Fa_lbf,
                     'force_mean_lbf': Fm_lbf,
+                    'stress_ratio_R': stress_ratio_R,
                     'alternating_shear_stress_kpsi': tau_a_kpsi,
                     'mean_shear_stress_kpsi': tau_m_kpsi,
                 },
@@ -963,7 +1043,11 @@ class WeldFatigueStrengthSolver:
             float(inputs['weld_size_in']),
         )
 
-        ka_data = self.marin.surface_factor_ka(inputs['surface_finish'], material['tensile_strength_kpsi'])
+        ka_data = self.marin.surface_factor_ka(
+            inputs['surface_finish'],
+            material['tensile_strength_kpsi'],
+            material_processing=material.get('processing'),
+        )
         kb_data = self.marin.size_factor_kb(
             inputs.get('size_factor_mode', 'uniform_shear_on_throat'),
             kb_override=inputs.get('kb_override'),
@@ -976,19 +1060,29 @@ class WeldFatigueStrengthSolver:
         corrected_se = ka_data['ka'] * kb_data['kb'] * kc_data['kc'] * kd * ke * kf_misc * se_prime_data['S_e_prime_kpsi']
 
         A = geometry_eval['area_in2']
+        if A <= 0.0:
+            raise ValidationError('Computed weld throat area must be positive')
         Fa_lbf = float(inputs['force_amplitude_lbf'])
         Fm_lbf = float(inputs['force_mean_lbf'])
         Kfs = kfs_row['K_fs']
         tau_a_kpsi = Kfs * Fa_lbf / A / 1000.0
         tau_m_kpsi = Kfs * Fm_lbf / A / 1000.0
+        stress_ratio_R = (Fm_lbf - Fa_lbf) / (Fm_lbf + Fa_lbf) if abs(Fm_lbf + Fa_lbf) > 1e-12 else None
 
         shear_ultimate_strength_kpsi = 0.67 * material['tensile_strength_kpsi']
-        nf = self.criteria.gerber_factor_of_safety(
-            shear_ultimate_strength_kpsi=shear_ultimate_strength_kpsi,
-            corrected_endurance_limit_kpsi=corrected_se,
-            alternating_shear_kpsi=tau_a_kpsi,
-            mean_shear_kpsi=tau_m_kpsi,
-        )
+        if abs(tau_m_kpsi) <= 1e-12:
+            nf = float('inf') if abs(tau_a_kpsi) <= 1e-12 else corrected_se / tau_a_kpsi
+            criterion_used = 'zero_mean_simple_ratio'
+            criterion_note = "Midrange component is zero, so the Gerber relation collapses to n_f = S_se / tau_a'."
+        else:
+            nf = self.criteria.gerber_factor_of_safety(
+                shear_ultimate_strength_kpsi=shear_ultimate_strength_kpsi,
+                corrected_endurance_limit_kpsi=corrected_se,
+                alternating_shear_kpsi=tau_a_kpsi,
+                mean_shear_kpsi=tau_m_kpsi,
+            )
+            criterion_used = 'gerber_in_shear'
+            criterion_note = 'Gerber fatigue factor of safety evaluated in shear using Table 6-7.'
 
         return {
             'problem': self.solve_path,
@@ -999,11 +1093,13 @@ class WeldFatigueStrengthSolver:
                 'table_9_5': kfs_row,
                 'table_6_2': {
                     'surface_finish': ka_data['surface_finish'],
+                    'surface_finish_input': ka_data['surface_finish_input'],
+                    'canonical_surface_finish': ka_data['canonical_surface_finish'],
                     'a_factor_kpsi': ka_data['a_factor_kpsi'],
                     'b_exponent': ka_data['b_exponent'],
                 },
                 'table_6_7': {
-                    'criterion': 'gerber',
+                    'criterion': 'gerber' if criterion_used == 'gerber_in_shear' else 'not needed because mean stress is zero',
                     'fatigue_factor_of_safety_equation': self.criteria.fos_equation,
                 },
                 'table_9_2': {
@@ -1022,6 +1118,15 @@ class WeldFatigueStrengthSolver:
                     'shear_ultimate_strength_kpsi': shear_ultimate_strength_kpsi,
                     'shear_ultimate_strength_rule': 'S_su = 0.67*S_ut',
                 },
+                'surface_finish_selection': {
+                    'surface_finish_input': ka_data['surface_finish_input'],
+                    'surface_finish_used': ka_data['surface_finish'],
+                    'canonical_surface_finish': ka_data['canonical_surface_finish'],
+                    'material_processing_input': ka_data['material_processing_input'],
+                    'processing_inferred_surface_finish': ka_data['processing_inferred_surface_finish'],
+                    'processing_surface_finish_consistent': ka_data['processing_surface_finish_consistent'],
+                    'selection_note': ka_data['selection_note'],
+                },
                 'marin_factors': {
                     'ka': ka_data['ka'],
                     'kb': kb_data['kb'],
@@ -1039,11 +1144,13 @@ class WeldFatigueStrengthSolver:
                     'K_fs': Kfs,
                     'force_amplitude_lbf': Fa_lbf,
                     'force_mean_lbf': Fm_lbf,
+                    'stress_ratio_R': stress_ratio_R,
                     'alternating_shear_stress_kpsi': tau_a_kpsi,
                     'mean_shear_stress_kpsi': tau_m_kpsi,
                 },
                 'fatigue_factor_of_safety': {
-                    'criterion_used': 'gerber_in_shear',
+                    'criterion_used': criterion_used,
+                    'criterion_note': criterion_note,
                     'n_f': nf,
                     'is_satisfactory_for_infinite_life': nf >= 1.0,
                 },
