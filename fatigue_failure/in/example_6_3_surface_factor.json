@@ -1,0 +1,17 @@
+{
+  "problem": "surface_factor",
+  "title": "Example 6-3 surface factor for machined steel",
+  "inputs": {
+    "solve_path": "surface_factor",
+    "surface_finish": "Machined or cold-drawn",
+    "sut_MPa": 520.0,
+    "strength_unit": "MPa",
+    "expected_textbook_reference_values": {
+      "ka": 0.86
+    },
+    "notes": [
+      "This file follows Example 6-3 on p296.",
+      "The solver fetches the Table 6-2 coefficients from table_6_2.csv."
+    ]
+  }
+}

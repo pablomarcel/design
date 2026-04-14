@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import sys
-from pathlib import Path
 from typing import Any
 
 try:
@@ -50,6 +49,20 @@ class FatigueFailureCLI:
         fs_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         fs_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+        sf_parser = subparsers.add_parser(
+            "surface_factor",
+            help="Direct CLI entry point for Example 6-3 style Marin surface-factor calculations.",
+        )
+        sf_parser.add_argument("--title", default="Surface factor analysis from CLI flags")
+        sf_parser.add_argument("--surface-finish", required=True, help="Surface finish from Table 6-2, e.g. 'Machined or cold-drawn'.")
+        sf_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
+        sf_parser.add_argument("--sut-mpa", type=float, help="Ultimate tensile strength in MPa.")
+        sf_parser.add_argument("--strength-unit", choices=["kpsi", "MPa"], help="Preferred unit form for Eq. (6-19).")
+        sf_parser.add_argument("--expected-ka", type=float, help="Optional reference ka value for verification.")
+        sf_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        sf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        sf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -86,6 +99,22 @@ class FatigueFailureCLI:
             },
         }
 
+    def _payload_from_surface_factor_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        inputs: dict[str, Any] = {
+            "solve_path": "surface_factor",
+            "surface_finish": args.surface_finish,
+            "sut_kpsi": args.sut_kpsi,
+            "sut_MPa": args.sut_mpa,
+            "strength_unit": args.strength_unit,
+        }
+        if args.expected_ka is not None:
+            inputs["expected_textbook_reference_values"] = {"ka": args.expected_ka}
+        return {
+            "problem": "surface_factor",
+            "title": args.title,
+            "inputs": inputs,
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -109,6 +138,16 @@ class FatigueFailureCLI:
 
             if args.command == "fatigue_strength":
                 payload = self._payload_from_fatigue_strength_args(args)
+                result = self.app.solve_payload(payload, outfile=args.outfile, pretty=args.pretty)
+                if args.show or not args.outfile:
+                    print(json_text(result, pretty=args.pretty or True))
+                else:
+                    resolved = self.app.io.resolve_output_path(args.outfile)
+                    print(f"Wrote {resolved}")
+                return 0
+
+            if args.command == "surface_factor":
+                payload = self._payload_from_surface_factor_args(args)
                 result = self.app.solve_payload(payload, outfile=args.outfile, pretty=args.pretty)
                 if args.show or not args.outfile:
                     print(json_text(result, pretty=args.pretty or True))

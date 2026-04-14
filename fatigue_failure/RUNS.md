@@ -42,3 +42,24 @@ python -m cli fatigue_strength \
   --show \
   --pretty
 ```
+
+## Example 6-3 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_3_surface_factor.json \
+  --outfile example_6_3_surface_factor_out.json \
+  --pretty \
+  --show
+```
+
+## Example 6-3 from CLI flags
+
+```bash
+python -m cli surface_factor \
+  --surface-finish "Machined or cold-drawn" \
+  --sut-mpa 520 \
+  --strength-unit MPa \
+  --pretty \
+  --show
+```

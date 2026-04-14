@@ -22,10 +22,11 @@ class RangeError(FatigueFailureError):
     """Raised when a numeric value is outside an allowed range."""
 
 
+_KPSI_TO_MPA = 6.894757293168361
+
 
 def package_root() -> Path:
     return Path(__file__).resolve().parent
-
 
 
 def coalesce(*values: Any) -> Any:
@@ -35,12 +36,10 @@ def coalesce(*values: Any) -> Any:
     return None
 
 
-
 def normalize_processing(value: str | None) -> str | None:
     if value is None:
         return None
     return str(value).strip().upper()
-
 
 
 def normalize_steel_name(value: str | int | None) -> str | None:
@@ -54,11 +53,30 @@ def normalize_steel_name(value: str | int | None) -> str | None:
     return text
 
 
+def normalize_surface_finish(value: str | None) -> str | None:
+    if value is None:
+        return None
+    text = str(value).strip().lower().replace("_", " ").replace("-", " ")
+    text = " ".join(text.split())
+    aliases = {
+        "ground": "ground",
+        "machined": "machined or cold-drawn",
+        "machined or cold drawn": "machined or cold-drawn",
+        "machined or cold-drawn": "machined or cold-drawn",
+        "cold drawn": "machined or cold-drawn",
+        "cold-drawn": "machined or cold-drawn",
+        "machined cold drawn": "machined or cold-drawn",
+        "hot rolled": "hot-rolled",
+        "hot-rolled": "hot-rolled",
+        "as forged": "as-forged",
+        "as-forged": "as-forged",
+    }
+    return aliases.get(text, text)
+
 
 def load_json(path: str | Path) -> Any:
     with Path(path).open("r", encoding="utf-8") as handle:
         return json.load(handle)
-
 
 
 def dump_json(data: Any, path: str | Path, pretty: bool = True) -> None:
@@ -72,19 +90,16 @@ def dump_json(data: Any, path: str | Path, pretty: bool = True) -> None:
             json.dump(data, handle, separators=(",", ":"), ensure_ascii=False)
 
 
-
 def json_text(data: Any, pretty: bool = True) -> str:
     if pretty:
         return json.dumps(data, indent=2, ensure_ascii=False)
     return json.dumps(data, separators=(",", ":"), ensure_ascii=False)
 
 
-
 def log10(value: float) -> float:
     if value <= 0:
         raise RangeError(f"log10 is undefined for non-positive value {value!r}.")
     return math.log10(value)
-
 
 
 def ensure_positive(name: str, value: float | None) -> float:
@@ -95,13 +110,11 @@ def ensure_positive(name: str, value: float | None) -> float:
     return float(value)
 
 
-
 def ensure_at_least(name: str, value: float | None, minimum: float) -> float:
     numeric = ensure_positive(name, value)
     if numeric < minimum:
         raise ValidationError(f"'{name}' must be at least {minimum}. Got {numeric!r}.")
     return numeric
-
 
 
 def sorted_pairs(xs: Sequence[float], ys: Sequence[float]) -> List[Tuple[float, float]]:
@@ -117,7 +130,6 @@ def sorted_pairs(xs: Sequence[float], ys: Sequence[float]) -> List[Tuple[float, 
         else:
             unique_pairs.append((x, y))
     return unique_pairs
-
 
 
 def linear_interpolate(x: float, xs: Sequence[float], ys: Sequence[float]) -> float:
@@ -137,19 +149,16 @@ def linear_interpolate(x: float, xs: Sequence[float], ys: Sequence[float]) -> fl
     raise RangeError(f"Unable to interpolate value {x}.")
 
 
-
 def relative_error_percent(actual: float, reference: float) -> float | None:
     if reference == 0:
         return None
     return 100.0 * (actual - reference) / reference
 
 
-
 def safe_round(value: float | None, digits: int = 6) -> float | None:
     if value is None:
         return None
     return round(float(value), digits)
-
 
 
 def summarize_matches(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -167,3 +176,11 @@ def summarize_matches(rows: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
     for row in rows:
         result.append({key: row.get(key) for key in keys if key in row})
     return result
+
+
+def kpsi_to_mpa(value: float) -> float:
+    return float(value) * _KPSI_TO_MPA
+
+
+def mpa_to_kpsi(value: float) -> float:
+    return float(value) / _KPSI_TO_MPA
