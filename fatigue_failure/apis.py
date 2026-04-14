@@ -8,6 +8,7 @@ try:
         FatigueStrengthSolver,
         SurfaceFactorSolver,
         SizeFactorSolver,
+        TemperatureFactorSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -16,6 +17,7 @@ except ImportError:  # pragma: no cover
         FatigueStrengthSolver,
         SurfaceFactorSolver,
         SizeFactorSolver,
+        TemperatureFactorSolver,
     )
     from utils import ValidationError
 
@@ -28,10 +30,12 @@ class SolverAPI:
         fatigue_strength_solver = FatigueStrengthSolver(repository=repository)
         surface_factor_solver = SurfaceFactorSolver(repository=repository)
         size_factor_solver = SizeFactorSolver(repository=repository)
+        temperature_factor_solver = TemperatureFactorSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
             size_factor_solver.solve_path: size_factor_solver,
+            temperature_factor_solver.solve_path: temperature_factor_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

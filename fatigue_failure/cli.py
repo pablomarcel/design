@@ -79,6 +79,19 @@ class FatigueFailureCLI:
         size_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         size_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+        tf_parser = subparsers.add_parser(
+            "temperature_factor",
+            help="Direct CLI entry point for Example 6-5 style Marin temperature-factor calculations.",
+        )
+        tf_parser.add_argument("--title", default="Temperature factor analysis from CLI flags")
+        tf_parser.add_argument("--service-temperature-f", type=float, required=True, help="Service temperature in °F.")
+        tf_parser.add_argument("--sut-room-temperature-kpsi", type=float, required=True, help="Room-temperature tensile strength in kpsi.")
+        tf_parser.add_argument("--se-prime-room-temperature-kpsi", type=float, help="Known room-temperature endurance limit in kpsi for the tested-material route.")
+        tf_parser.add_argument("--temperature-factor-method", choices=["polynomial", "table_interpolation"], default="polynomial")
+        tf_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        tf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        tf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -157,6 +170,35 @@ class FatigueFailureCLI:
             "inputs": inputs,
         }
 
+    def _payload_from_temperature_factor_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        cases = []
+        if args.se_prime_room_temperature_kpsi is not None:
+            cases.append(
+                {
+                    "name": "known_room_temperature_endurance_limit",
+                    "case_type": "known_room_temperature_endurance_limit",
+                    "temperature_factor_method": args.temperature_factor_method,
+                    "se_prime_room_temperature_kpsi": args.se_prime_room_temperature_kpsi,
+                }
+            )
+        cases.append(
+            {
+                "name": "only_room_temperature_tensile_strength_known",
+                "case_type": "only_room_temperature_tensile_strength_known",
+                "temperature_factor_method": "table_interpolation",
+            }
+        )
+        return {
+            "problem": "temperature_factor",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "temperature_factor",
+                "service_temperature_F": args.service_temperature_f,
+                "sut_room_temperature_kpsi": args.sut_room_temperature_kpsi,
+                "cases": cases,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -184,6 +226,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_surface_factor_args(args)
             elif args.command == "size_factor":
                 payload = self._payload_from_size_factor_args(args)
+            elif args.command == "temperature_factor":
+                payload = self._payload_from_temperature_factor_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

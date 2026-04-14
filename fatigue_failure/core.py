@@ -136,6 +136,7 @@ class DigitizedDataRepository:
         self._figure_6_18_rows: list[dict[str, float]] | None = None
         self._surface_finish_rows: list[SurfaceFinishRecord] | None = None
         self._table_6_3_payload: dict[str, Any] | None = None
+        self._table_6_4_rows: list[dict[str, float]] | None = None
 
     def _read_csv(self, filename: str) -> list[dict[str, str]]:
         path = self.data_dir / filename
@@ -183,6 +184,105 @@ class DigitizedDataRepository:
         if self._table_6_3_payload is None:
             self._table_6_3_payload = self._read_json("table_6_3.json")
         return self._table_6_3_payload
+
+    @staticmethod
+    def _clean_csv_value(value: Any) -> str:
+        if value is None:
+            return ""
+        return str(value).strip()
+
+    @staticmethod
+    def _first_present_value(row: dict[str, Any], keys: list[str]) -> str:
+        for key in keys:
+            if key in row:
+                value = DigitizedDataRepository._clean_csv_value(row.get(key))
+                if value != "":
+                    return value
+        return ""
+
+    @property
+    def table_6_4_rows(self) -> list[dict[str, float]]:
+        if self._table_6_4_rows is None:
+            raw_rows = self._read_csv("table_6_4.csv")
+            rows: list[dict[str, float]] = []
+
+            for row in raw_rows:
+                temperature_f_text = self._first_present_value(
+                    row,
+                    [
+                        "temperature_F",
+                        "temperature_f",
+                        "Temperature_F",
+                        "Temperature_f",
+                        "temperature_imperial_F",
+                    ],
+                )
+                ratio_f_text = self._first_present_value(
+                    row,
+                    [
+                        "ST_over_SRT_imperial",
+                        "st_over_srt_imperial",
+                        "ST_over_SRT_F",
+                        "st_over_srt_f",
+                        "st_over_srt",
+                    ],
+                )
+
+                if temperature_f_text and ratio_f_text:
+                    rows.append(
+                        {
+                            "temperature_f": float(temperature_f_text),
+                            "st_over_srt": float(ratio_f_text),
+                        }
+                    )
+                    continue
+
+                temperature_c_text = self._first_present_value(
+                    row,
+                    [
+                        "temperature_C",
+                        "temperature_c",
+                        "Temperature_C",
+                        "Temperature_c",
+                    ],
+                )
+                ratio_c_text = self._first_present_value(
+                    row,
+                    [
+                        "ST_over_SRT_metric",
+                        "st_over_srt_metric",
+                        "ST_over_SRT_C",
+                        "st_over_srt_c",
+                    ],
+                )
+
+                if temperature_c_text and ratio_c_text:
+                    temperature_f = float(temperature_c_text) * 9.0 / 5.0 + 32.0
+                    rows.append(
+                        {
+                            "temperature_f": temperature_f,
+                            "st_over_srt": float(ratio_c_text),
+                        }
+                    )
+
+            deduped: dict[float, float] = {}
+            for row in rows:
+                deduped[float(row["temperature_f"])] = float(row["st_over_srt"])
+
+            normalized_rows = [
+                {"temperature_f": temp_f, "st_over_srt": ratio}
+                for temp_f, ratio in sorted(deduped.items(), key=lambda item: item[0])
+            ]
+
+            if len(normalized_rows) < 2:
+                raise DataLookupError(
+                    "table_6_4.csv could not be parsed into at least two usable Fahrenheit data points. "
+                    "Expected columns like temperature_F/ST_over_SRT_imperial or temperature_C/ST_over_SRT_metric."
+                )
+
+            self._table_6_4_rows = normalized_rows
+
+        return self._table_6_4_rows
 
     def find_steel_record(self, sae_aisi_no: str | int, processing: str | None = None) -> SteelRecord:
         target_grade = normalize_steel_name(sae_aisi_no)
@@ -252,6 +352,17 @@ class DigitizedDataRepository:
                 return entry
         available = [entry.get("shape") for entry in entries]
         raise DataLookupError(f"No Table 6-3 entry was found for shape={shape!r}. Available shapes: {available}")
+
+    def table_6_4_ratio_from_f(self, temperature_f: float) -> dict[str, Any]:
+        rows = self.table_6_4_rows
+        xs = [row["temperature_f"] for row in rows]
+        ys = [row["st_over_srt"] for row in rows]
+        ratio = linear_interpolate(float(temperature_f), xs, ys)
+        return {
+            "temperature_f": float(temperature_f),
+            "st_over_srt": ratio,
+            "source": "table_6_4_interpolated",
+        }
 
 
 class FatigueStrengthSolver:
@@ -929,6 +1040,247 @@ class SizeFactorSolver:
                     "For rotating round sections, Eq. (6-20) is applied directly with the actual diameter.",
                     "For nonrotating sections, the solver fetches the Table 6-3 geometry relation, computes the equivalent diameter d_e, and then applies Eq. (6-20).",
                     "For axial loading, Eq. (6-21) gives k_b = 1.",
+                ],
+            },
+        }
+        if verification:
+            output["verification"] = verification
+        return output
+
+
+class TemperatureFactorSolver:
+    """Implements Shigley Chapter 6 Example 6-5 temperature-factor calculations."""
+
+    solve_path = "temperature_factor"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _to_fahrenheit(temperature: float, unit: str) -> float:
+        unit_norm = str(unit).strip().upper()
+        if unit_norm in {"F", "°F", "DEGF"}:
+            return float(temperature)
+        if unit_norm in {"C", "°C", "DEGC"}:
+            return float(temperature) * 9.0 / 5.0 + 32.0
+        raise ValidationError("temperature_unit must be either 'F' or 'C'.")
+
+    @staticmethod
+    def _kd_polynomial(temperature_f: float) -> float:
+        tf = float(temperature_f)
+        return (
+            0.975
+            + 0.432e-3 * tf
+            - 0.115e-5 * tf**2
+            + 0.104e-8 * tf**3
+            - 0.595e-12 * tf**4
+        )
+
+    @staticmethod
+    def _se_from_sut_eq_6_8(sut_kpsi: float) -> tuple[float, str]:
+        if sut_kpsi <= 200.0:
+            return 0.5 * sut_kpsi, "eq_6_8_low_strength_branch"
+        return 100.0, "eq_6_8_high_strength_branch"
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"TemperatureFactorSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        temperature_value = coalesce(
+            inputs.get("service_temperature"),
+            inputs.get("service_temperature_F"),
+            inputs.get("service_temperature_C"),
+        )
+        if temperature_value is None:
+            raise ValidationError("service_temperature is required for solve_path='temperature_factor'.")
+
+        if inputs.get("service_temperature_F") is not None:
+            service_temperature_f = float(inputs["service_temperature_F"])
+        elif inputs.get("service_temperature_C") is not None:
+            service_temperature_f = self._to_fahrenheit(float(inputs["service_temperature_C"]), "C")
+        else:
+            temperature_unit = coalesce(inputs.get("temperature_unit"), "F")
+            service_temperature_f = self._to_fahrenheit(float(temperature_value), str(temperature_unit))
+
+        if not (70.0 <= service_temperature_f <= 1000.0):
+            raise RangeError("Eq. (6-27) and Table 6-4 are intended for 70 <= T_F <= 1000 °F.")
+
+        sut_rt_kpsi = coalesce(
+            inputs.get("sut_room_temperature_kpsi"),
+            inputs.get("sut_kpsi"),
+            inputs.get("ultimate_tensile_strength_room_temperature_kpsi"),
+        )
+        sut_rt_mpa = coalesce(
+            inputs.get("sut_room_temperature_MPa"),
+            inputs.get("sut_MPa"),
+            inputs.get("ultimate_tensile_strength_room_temperature_MPa"),
+        )
+
+        if sut_rt_kpsi is None and sut_rt_mpa is None:
+            raise ValidationError(
+                "Room-temperature tensile strength is required. Provide sut_room_temperature_kpsi or sut_room_temperature_MPa."
+            )
+
+        if sut_rt_kpsi is None:
+            sut_rt_kpsi = mpa_to_kpsi(float(sut_rt_mpa))
+        else:
+            sut_rt_kpsi = float(sut_rt_kpsi)
+
+        if sut_rt_mpa is None:
+            sut_rt_mpa = kpsi_to_mpa(float(sut_rt_kpsi))
+        else:
+            sut_rt_mpa = float(sut_rt_mpa)
+
+        kd_poly = self._kd_polynomial(service_temperature_f)
+        table_ratio = self.repository.table_6_4_ratio_from_f(service_temperature_f)
+        kd_table = table_ratio["st_over_srt"]
+
+        cases = inputs.get("cases") or []
+        if not cases:
+            cases = [
+                {
+                    "name": "known_room_temperature_endurance_limit",
+                    "case_type": "known_room_temperature_endurance_limit",
+                    "temperature_factor_method": "polynomial",
+                    "se_prime_room_temperature_kpsi": inputs.get("se_prime_room_temperature_kpsi"),
+                },
+                {
+                    "name": "only_room_temperature_tensile_strength_known",
+                    "case_type": "only_room_temperature_tensile_strength_known",
+                    "temperature_factor_method": "table_interpolation",
+                },
+            ]
+
+        results: list[dict[str, Any]] = []
+        verification: dict[str, Any] = {}
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        expected_case_results = expected_ref.get("case_results", {})
+
+        for case in cases:
+            name = case.get("name") or "temperature_factor_case"
+            case_type = str(coalesce(case.get("case_type"), case.get("mode"))).strip().lower()
+            method = str(coalesce(case.get("temperature_factor_method"), "table_interpolation")).strip().lower()
+
+            if method not in {"polynomial", "table_interpolation"}:
+                raise ValidationError(
+                    f"Case {name!r} has unsupported temperature_factor_method={method!r}. "
+                    "Use 'polynomial' or 'table_interpolation'."
+                )
+
+            kd_used = kd_poly if method == "polynomial" else kd_table
+            kd_source = "eq_6_27" if method == "polynomial" else "table_6_4_interpolated"
+
+            if case_type == "known_room_temperature_endurance_limit":
+                se_rt = coalesce(
+                    case.get("se_prime_room_temperature_kpsi"),
+                    inputs.get("se_prime_room_temperature_kpsi"),
+                    inputs.get("se_room_temperature_kpsi"),
+                )
+                se_rt = ensure_positive(f"cases[{name}].se_prime_room_temperature_kpsi", se_rt)
+                se_service = kd_used * se_rt
+                result_item = {
+                    "name": name,
+                    "case_type": case_type,
+                    "temperature_factor_method": method,
+                    "k_d": safe_round(kd_used),
+                    "k_d_source": kd_source,
+                    "se_prime_room_temperature_kpsi": safe_round(se_rt),
+                    "se_prime_room_temperature_MPa": safe_round(kpsi_to_mpa(se_rt)),
+                    "se_at_service_temperature_kpsi": safe_round(se_service),
+                    "se_at_service_temperature_MPa": safe_round(kpsi_to_mpa(se_service)),
+                    "equation": "eq_6_28",
+                }
+
+            elif case_type == "only_room_temperature_tensile_strength_known":
+                sut_service = kd_used * sut_rt_kpsi
+                se_service, se_rule = self._se_from_sut_eq_6_8(sut_service)
+                result_item = {
+                    "name": name,
+                    "case_type": case_type,
+                    "temperature_factor_method": method,
+                    "k_d": safe_round(kd_used),
+                    "k_d_source": kd_source,
+                    "sut_room_temperature_kpsi": safe_round(sut_rt_kpsi),
+                    "sut_room_temperature_MPa": safe_round(sut_rt_mpa),
+                    "sut_at_service_temperature_kpsi": safe_round(sut_service),
+                    "sut_at_service_temperature_MPa": safe_round(kpsi_to_mpa(sut_service)),
+                    "se_at_service_temperature_kpsi": safe_round(se_service),
+                    "se_at_service_temperature_MPa": safe_round(kpsi_to_mpa(se_service)),
+                    "equation": se_rule,
+                }
+            else:
+                raise ValidationError(
+                    f"Case {name!r} has unsupported case_type={case_type!r}. "
+                    "Use 'known_room_temperature_endurance_limit' or 'only_room_temperature_tensile_strength_known'."
+                )
+
+            results.append(result_item)
+
+            if name in expected_case_results:
+                ref = expected_case_results[name]
+                if "k_d" in ref:
+                    verification[f"case::{name}::k_d"] = {
+                        "actual": result_item["k_d"],
+                        "reference": float(ref["k_d"]),
+                        "relative_error_percent": safe_round(relative_error_percent(result_item["k_d"], float(ref["k_d"]))),
+                    }
+                if "se_at_service_temperature_kpsi" in ref:
+                    verification[f"case::{name}::se_at_service_temperature_kpsi"] = {
+                        "actual": result_item["se_at_service_temperature_kpsi"],
+                        "reference": float(ref["se_at_service_temperature_kpsi"]),
+                        "relative_error_percent": safe_round(
+                            relative_error_percent(
+                                result_item["se_at_service_temperature_kpsi"],
+                                float(ref["se_at_service_temperature_kpsi"]),
+                            )
+                        ),
+                    }
+                if "sut_at_service_temperature_kpsi" in ref and "sut_at_service_temperature_kpsi" in result_item:
+                    verification[f"case::{name}::sut_at_service_temperature_kpsi"] = {
+                        "actual": result_item["sut_at_service_temperature_kpsi"],
+                        "reference": float(ref["sut_at_service_temperature_kpsi"]),
+                        "relative_error_percent": safe_round(
+                            relative_error_percent(
+                                result_item["sut_at_service_temperature_kpsi"],
+                                float(ref["sut_at_service_temperature_kpsi"]),
+                            )
+                        ),
+                    }
+
+        output = {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Temperature factor analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_6_4": {
+                    "temperature_f": safe_round(service_temperature_f),
+                    "st_over_srt": safe_round(kd_table),
+                    "source": table_ratio["source"],
+                }
+            },
+            "derived": {
+                "service_temperature_f": safe_round(service_temperature_f),
+                "service_temperature_c": safe_round((service_temperature_f - 32.0) * 5.0 / 9.0),
+                "sut_room_temperature_kpsi": safe_round(sut_rt_kpsi),
+                "sut_room_temperature_MPa": safe_round(sut_rt_mpa),
+                "k_d_from_eq_6_27": safe_round(kd_poly),
+                "k_d_from_table_6_4": safe_round(kd_table),
+                "eq_6_27": "k_d = 0.975 + 0.432e-3*T_F - 0.115e-5*T_F^2 + 0.104e-8*T_F^3 - 0.595e-12*T_F^4",
+                "eq_6_28": "k_d = S_T / S_RT",
+            },
+            "results": {
+                "cases": results,
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-8", "6-27", "6-28"],
+                "notes": [
+                    "This solver targets Example 6-5 style Marin temperature-factor calculations.",
+                    "When the room-temperature endurance limit is known by test, compute k_d from Eq. (6-27) or Table 6-4 and multiply by the known room-temperature endurance limit.",
+                    "When only room-temperature tensile strength is known, first estimate the temperature-corrected tensile strength using Table 6-4 or Eq. (6-27), then estimate endurance limit using Eq. (6-8), and use k_d = 1 thereafter as in the textbook discussion.",
                 ],
             },
         }

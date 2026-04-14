@@ -1,0 +1,40 @@
+{
+  "problem": "temperature_factor",
+  "title": "Example 6-5 temperature factor for 1035 steel at 450 F",
+  "inputs": {
+    "solve_path": "temperature_factor",
+    "service_temperature_F": 450.0,
+    "sut_room_temperature_kpsi": 70.0,
+    "cases": [
+      {
+        "name": "part_a_known_room_temperature_endurance_limit",
+        "case_type": "known_room_temperature_endurance_limit",
+        "temperature_factor_method": "polynomial",
+        "se_prime_room_temperature_kpsi": 39.0
+      },
+      {
+        "name": "part_b_only_room_temperature_tensile_strength_known",
+        "case_type": "only_room_temperature_tensile_strength_known",
+        "temperature_factor_method": "table_interpolation"
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "case_results": {
+        "part_a_known_room_temperature_endurance_limit": {
+          "k_d": 1.007,
+          "se_at_service_temperature_kpsi": 39.3
+        },
+        "part_b_only_room_temperature_tensile_strength_known": {
+          "k_d": 1.007,
+          "sut_at_service_temperature_kpsi": 70.5,
+          "se_at_service_temperature_kpsi": 35.2
+        }
+      }
+    },
+    "notes": [
+      "This file follows Example 6-5 on p299-p300.",
+      "Part (a) uses Eq. (6-27) to estimate k_d and then applies Eq. (6-28) to the known room-temperature endurance limit.",
+      "Part (b) uses Table 6-4 interpolation to estimate the temperature-corrected tensile strength, then applies Eq. (6-8)."
+    ]
+  }
+}

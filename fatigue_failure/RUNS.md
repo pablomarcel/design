@@ -96,3 +96,23 @@ python -m cli size_factor \
   --pretty \
   --show
 ```
+
+## Example 6-5 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_5_temperature_factor.json \
+  --outfile example_6_5_temperature_factor_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli temperature_factor \
+  --service-temperature-f 450 \
+  --sut-room-temperature-kpsi 70 \
+  --se-prime-room-temperature-kpsi 39 \
+  --temperature-factor-method polynomial \
+  --pretty \
+  --show
+```
