@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import math
 from typing import Any, Dict, Mapping, Tuple
 
 try:
@@ -1158,5 +1159,203 @@ class WeldFatigueStrengthSolver:
             'summary': {
                 'fatigue_factor_of_safety': nf,
                 'is_satisfactory_for_infinite_life': nf >= 1.0,
+            },
+        }
+
+
+class AdhesivePerformanceRepository:
+    def __init__(self) -> None:
+        self.rows = load_csv_rows(find_data_file('table_9_7.csv'))
+
+    def get(self, adhesive_chemistry_or_type: str) -> Dict[str, Any]:
+        key = adhesive_chemistry_or_type.strip().lower()
+        for row in self.rows:
+            if row['adhesive_chemistry_or_type'].strip().lower() == key:
+                return {
+                    'adhesive_chemistry_or_type': row['adhesive_chemistry_or_type'],
+                    'lap_shear_strength_MPa_min': float(row['lap_shear_strength_MPa_min']),
+                    'lap_shear_strength_MPa_max': float(row['lap_shear_strength_MPa_max']),
+                    'lap_shear_strength_psi_min': float(row['lap_shear_strength_psi_min']),
+                    'lap_shear_strength_psi_max': float(row['lap_shear_strength_psi_max']),
+                    'peel_strength_kN_per_m_min': float(row['peel_strength_kN_per_m_min']),
+                    'peel_strength_kN_per_m_max': float(row['peel_strength_kN_per_m_max']),
+                    'peel_strength_lbf_per_in_min': float(row['peel_strength_lbf_per_in_min']),
+                    'peel_strength_lbf_per_in_max': float(row['peel_strength_lbf_per_in_max']),
+                }
+        raise ValidationError(f"Adhesive type {adhesive_chemistry_or_type!r} not found in table_9_7.csv")
+
+
+class AdhesiveDoubleLapJointSolver:
+    solve_path = 'adhesive_double_lap_joint'
+
+    def __init__(self) -> None:
+        self.adhesives = AdhesivePerformanceRepository()
+
+    def solve(self, inputs: Mapping[str, Any]) -> Dict[str, Any]:
+        if inputs.get('solve_path') != self.solve_path:
+            raise ValidationError(f"solve_path must be '{self.solve_path}'")
+
+        P = float(inputs['load_lbf'])
+        b = float(inputs['width_b_in'])
+        l = float(inputs['bond_length_l_in'])
+        service_temp_F = float(inputs['service_temperature_F'])
+        stress_free_temp_F = float(inputs['stress_free_temperature_F'])
+        cure_temp_F = float(inputs.get('cure_temperature_F', stress_free_temp_F))
+        delta_T = service_temp_F - stress_free_temp_F
+
+        adhesive = inputs['adhesive']
+        outer = inputs['outer_adherend']
+        inner = inputs['inner_adherend']
+
+        G = float(adhesive['G_psi'])
+        h = float(adhesive['thickness_in'])
+        alpha_adh = float(adhesive.get('alpha_per_F', 0.0))
+        Eo = float(outer['E_psi'])
+        to = float(outer['thickness_in'])
+        alpha_o = float(outer['alpha_per_F'])
+        Ei = float(inner['E_psi'])
+        ti = float(inner['thickness_in'])
+        alpha_i = float(inner['alpha_per_F'])
+
+        if h <= 0.0 or b <= 0.0 or l <= 0.0:
+            raise ValidationError('Bond width, bond length, and adhesive thickness must all be positive.')
+
+        compliance_sum = (1.0 / (Eo * to)) + (2.0 / (Ei * ti))
+        omega = math.sqrt((G / h) * compliance_sum)
+        half_length = l / 2.0
+
+        sinh_half = math.sinh(omega * half_length)
+        cosh_half = math.cosh(omega * half_length)
+        if abs(sinh_half) <= 1e-15 or abs(cosh_half) <= 1e-15:
+            raise ValidationError('Degenerate hyperbolic-term denominator encountered.')
+
+        load_cosh_coeff = P * omega / (4.0 * b * sinh_half)
+        load_sinh_coeff = (
+            P * omega / (4.0 * b * cosh_half)
+            * ((2.0 * Eo * to - Ei * ti) / (2.0 * Eo * to + Ei * ti))
+        )
+        thermal_sinh_coeff = ((alpha_i - alpha_o) * delta_T * omega) / (compliance_sum * cosh_half)
+
+        sample_points = inputs.get('sample_points_x_in', [-half_length, 0.0, half_length])
+        sample_points = [float(x) for x in sample_points]
+
+        def tau_thermal(x: float) -> float:
+            return thermal_sinh_coeff * math.sinh(omega * x)
+
+        def tau_load(x: float) -> float:
+            return load_cosh_coeff * math.cosh(omega * x) + load_sinh_coeff * math.sinh(omega * x)
+
+        def tau_total(x: float) -> float:
+            return tau_thermal(x) + tau_load(x)
+
+        sample_table = []
+        for x in sample_points:
+            sample_table.append({
+                'x_in': x,
+                'thermal_psi': tau_thermal(x),
+                'load_induced_psi': tau_load(x),
+                'combined_psi': tau_total(x),
+            })
+
+        grid_count = int(inputs.get('grid_point_count', 501))
+        grid_count = max(5, grid_count)
+        xs = [(-half_length + i * l / (grid_count - 1)) for i in range(grid_count)]
+        thermal_series = [tau_thermal(x) for x in xs]
+        load_series = [tau_load(x) for x in xs]
+        combined_series = [tau_total(x) for x in xs]
+
+        abs_idx = max(range(len(xs)), key=lambda i: abs(combined_series[i]))
+        pos_idx = max(range(len(xs)), key=lambda i: combined_series[i])
+        neg_idx = min(range(len(xs)), key=lambda i: combined_series[i])
+
+        balance_ratio = (Eo * to) / (Ei * ti)
+        is_balanced = abs(2.0 * Eo * to - Ei * ti) <= 1e-9 * max(abs(2.0 * Eo * to), abs(Ei * ti), 1.0)
+        average_shear_psi = P / (2.0 * b * l)
+
+        adhesive_lookup = None
+        adhesive_assessment = None
+        adhesive_type = inputs.get('adhesive_chemistry_or_type')
+        if adhesive_type:
+            adhesive_lookup = self.adhesives.get(str(adhesive_type))
+            max_abs_combined = abs(combined_series[abs_idx])
+            adhesive_assessment = {
+                'adhesive_chemistry_or_type': adhesive_lookup['adhesive_chemistry_or_type'],
+                'lap_shear_strength_psi_range': {
+                    'min': adhesive_lookup['lap_shear_strength_psi_min'],
+                    'max': adhesive_lookup['lap_shear_strength_psi_max'],
+                },
+                'max_absolute_combined_shear_psi': max_abs_combined,
+                'is_within_reported_lap_shear_range_max': max_abs_combined <= adhesive_lookup['lap_shear_strength_psi_max'],
+                'note': 'This is only a rough screening comparison against tabulated apparent lap-shear strength. The Volkersen peak shear prediction is not a substitute for a full adhesive design methodology.',
+            }
+
+        return {
+            'problem': self.solve_path,
+            'title': inputs.get('title', 'Adhesive double-lap joint shear-lag analysis'),
+            'inputs': dict(inputs),
+            'lookups': {
+                'equations': {
+                    'omega_equation': "omega = sqrt((G/h) * (1/(Eo*to) + 2/(Ei*ti)))",
+                    'shear_stress_equation_9_7': "tau(x) = load_term(x) + thermal_term(x), where load_term(x) = A*cosh(omega*x) + B*sinh(omega*x) and thermal_term(x) = C*sinh(omega*x)",
+                },
+                'table_9_7': adhesive_lookup,
+            },
+            'derived': {
+                'joint_parameters': {
+                    'delta_T_F': delta_T,
+                    'cure_temperature_F': cure_temp_F,
+                    'stress_free_temperature_F': stress_free_temp_F,
+                    'service_temperature_F': service_temp_F,
+                    'average_shear_stress_psi': average_shear_psi,
+                },
+                'material_inputs': {
+                    'adhesive': {
+                        'G_psi': G,
+                        'alpha_per_F': alpha_adh,
+                        'thickness_in': h,
+                    },
+                    'outer_adherend': {
+                        'E_psi': Eo,
+                        'alpha_per_F': alpha_o,
+                        'thickness_in': to,
+                    },
+                    'inner_adherend': {
+                        'E_psi': Ei,
+                        'alpha_per_F': alpha_i,
+                        'thickness_in': ti,
+                    },
+                },
+                'shear_lag_parameters': {
+                    'compliance_sum_1_per_psi': compliance_sum,
+                    'omega_1_per_in': omega,
+                    'half_bond_length_in': half_length,
+                    'load_balance_ratio_Eo_to_over_Ei_ti': balance_ratio,
+                    'is_balanced_joint_for_load_term': is_balanced,
+                    'load_cosh_coefficient_psi': load_cosh_coeff,
+                    'load_sinh_coefficient_psi': load_sinh_coeff,
+                    'thermal_sinh_coefficient_psi': thermal_sinh_coeff,
+                },
+                'sample_stresses_psi': sample_table,
+                'maximums': {
+                    'maximum_absolute_combined_shear_psi': abs(combined_series[abs_idx]),
+                    'x_at_maximum_absolute_combined_shear_in': xs[abs_idx],
+                    'maximum_combined_shear_psi': combined_series[pos_idx],
+                    'x_at_maximum_combined_shear_in': xs[pos_idx],
+                    'minimum_combined_shear_psi': combined_series[neg_idx],
+                    'x_at_minimum_combined_shear_in': xs[neg_idx],
+                    'note': 'For this example, the largest shear stress occurs at a bond end, consistent with the textbook discussion.',
+                },
+                'plot_series': {
+                    'x_in': xs,
+                    'thermal_psi': thermal_series,
+                    'load_induced_psi': load_series,
+                    'combined_psi': combined_series,
+                },
+                'adhesive_screening': adhesive_assessment,
+            },
+            'summary': {
+                'maximum_absolute_combined_shear_psi': abs(combined_series[abs_idx]),
+                'x_at_maximum_absolute_combined_shear_in': xs[abs_idx],
+                'average_shear_stress_psi': average_shear_psi,
             },
         }

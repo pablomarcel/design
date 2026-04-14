@@ -1,0 +1,58 @@
+{
+  "problem": "adhesive_double_lap_joint",
+  "title": "Example 9-7 adhesive bonding double-lap joint",
+  "solve_path": "adhesive_double_lap_joint",
+  "load_lbf": 2000.0,
+  "width_b_in": 1.0,
+  "bond_length_l_in": 1.0,
+  "cure_temperature_F": 250.0,
+  "stress_free_temperature_F": 200.0,
+  "service_temperature_F": 70.0,
+  "adhesive": {
+    "G_psi": 200000.0,
+    "alpha_per_F": 5.5e-05,
+    "thickness_in": 0.02
+  },
+  "outer_adherend": {
+    "material": "aluminum",
+    "E_psi": 10000000.0,
+    "alpha_per_F": 1.33e-05,
+    "thickness_in": 0.15
+  },
+  "inner_adherend": {
+    "material": "steel",
+    "E_psi": 30000000.0,
+    "alpha_per_F": 6e-06,
+    "thickness_in": 0.1
+  },
+  "sample_points_x_in": [
+    -0.5,
+    0.0,
+    0.5
+  ],
+  "grid_point_count": 501,
+  "expected_textbook_reference_values": {
+    "omega_1_per_in": 3.65,
+    "thermal_sinh_coefficient_psi": 816.4,
+    "load_cosh_coefficient_psi": 604.1,
+    "sample_stresses_psi": {
+      "-0.5": {
+        "thermal": -2466.0,
+        "load": 1922.0,
+        "combined": -544.0
+      },
+      "0.0": {
+        "thermal": 0.0,
+        "load": 604.0,
+        "combined": 604.0
+      },
+      "0.5": {
+        "thermal": 2466.0,
+        "load": 1922.0,
+        "combined": 4388.0
+      }
+    },
+    "average_shear_stress_psi": 1000.0,
+    "location_of_maximum_shear": "bond end"
+  }
+}

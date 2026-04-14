@@ -11,6 +11,7 @@ try:
         WeldFatigueStrengthSolver,
         WeldGroupTorsionSolver,
         WeldedJointBendingStaticLoadingSolver,
+        AdhesiveDoubleLapJointSolver,
     )
 except ImportError:  # pragma: no cover
     from core import (
@@ -20,6 +21,7 @@ except ImportError:  # pragma: no cover
         WeldFatigueStrengthSolver,
         WeldGroupTorsionSolver,
         WeldedJointBendingStaticLoadingSolver,
+        AdhesiveDoubleLapJointSolver,
     )
 
 
@@ -32,6 +34,7 @@ class SolverAPI:
             WeldedJointBendingStaticLoadingSolver(),
             WeldFatigueFactorOfSafetySolver(),
             WeldFatigueStrengthSolver(),
+            AdhesiveDoubleLapJointSolver(),
         ]
         self._solvers = {solver.solve_path: solver for solver in solvers}
 

@@ -87,3 +87,13 @@ python -m cli run \
   --pretty \
   --show
 ```
+
+## Example 9-7
+
+```bash
+python -m cli run \
+  --infile example_9_7_adhesive_double_lap_joint.json \
+  --outfile example_9_7_adhesive_double_lap_joint_out.json \
+  --pretty \
+  --show
+```
