@@ -1,0 +1,96 @@
+{
+  "table_id": "6-8",
+  "title": "Amplitude and Steady Coordinates of Strength and Important Intersections in First Quadrant for ASME-Elliptic and Langer Failure Criteria",
+  "variables": {
+    "Sa": "alternating strength coordinate",
+    "Sm": "steady or midrange strength coordinate",
+    "Se": "endurance limit (corrected)",
+    "Sy": "yield strength",
+    "r": "load-line slope, defined as Sa/Sm",
+    "sigma_a": "alternating stress",
+    "sigma_m": "midrange stress",
+    "nf": "fatigue factor of safety"
+  },
+  "rows": [
+    {
+      "row_type": "fatigue_criterion",
+      "criterion": "asme_elliptic",
+      "intersecting_equations": [
+        {
+          "name": "asme_elliptic_line",
+          "equation": "(Sa/Se)^2 + (Sm/Sy)^2 = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "sqrt((r^2*Se^2*Sy^2) / (Se^2 + r^2*Sy^2))",
+        "Sm": "Sa / r"
+      }
+    },
+    {
+      "row_type": "static_langer_criterion",
+      "criterion": "langer",
+      "intersecting_equations": [
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "r*Sy / (1 + r)",
+        "Sm": "Sy / (1 + r)"
+      }
+    },
+    {
+      "row_type": "intersection_static_and_fatigue",
+      "criterion_pair": [
+        "asme_elliptic",
+        "langer"
+      ],
+      "intersecting_equations": [
+        {
+          "name": "asme_elliptic_line",
+          "equation": "(Sa/Se)^2 + (Sm/Sy)^2 = 1"
+        },
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        }
+      ],
+      "intersection_coordinates": {
+        "solutions": [
+          {
+            "solution_type": "trivial_endpoint",
+            "Sa": "0",
+            "Sm": "Sy",
+            "r_crit": "0",
+            "notes": "Endpoint intersection at the x-axis intercept of the Langer line in (Sm, Sa) space."
+          },
+          {
+            "solution_type": "practical_crossover",
+            "Sa": "2*Sy*Se^2 / (Se^2 + Sy^2)",
+            "Sm": "Sy - Sa",
+            "r_crit": "Sa / Sm",
+            "is_practical_crossover": true,
+            "notes": "Interior intersection that governs the crossover between ASME-elliptic and Langer criteria."
+          }
+        ]
+      },
+      "notes": [
+        "The source table prints the Sa field for this row as two values.",
+        "For programmatic use, the two intersections are separated explicitly into solution objects."
+      ]
+    }
+  ],
+  "fatigue_factor_of_safety": {
+    "criterion": "asme_elliptic",
+    "equation": "nf = sqrt(1 / ((sigma_a/Se)^2 + (sigma_m/Sy)^2))"
+  }
+}

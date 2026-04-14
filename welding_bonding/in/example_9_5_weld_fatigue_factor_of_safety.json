@@ -1,0 +1,31 @@
+{
+  "problem": "weld_fatigue_factor_of_safety",
+  "title": "Example 9-5 factor of safety of welding under fatigue loading",
+  "solve_path": "weld_fatigue_factor_of_safety",
+  "force_amplitude_lbf": 1000.0,
+  "force_mean_lbf": 0.0,
+  "weld_size_in": 0.375,
+  "weld_type": 2,
+  "geometry": {
+    "b": 0.5,
+    "d": 2.0
+  },
+  "electrode_class": "E60XX",
+  "fatigue_stress_concentration_type": "End of parallel fillet weld",
+  "attachment_material_sae_aisi_no": "1018",
+  "attachment_material_processing": "HR",
+  "surface_finish": "As-forged",
+  "size_factor_mode": "uniform_shear_on_throat",
+  "loading_factor_mode": "torsion_shear",
+  "temperature_factor_kd": 1.0,
+  "reliability_factor_ke": 1.0,
+  "misc_factor_kf": 1.0,
+  "expected_textbook_reference_values": {
+    "throat_area_in2": 1.061,
+    "ka": 0.702,
+    "corrected_endurance_limit_kpsi": 12.0,
+    "K_fs": 2.7,
+    "alternating_shear_stress_kpsi": 2.545,
+    "factor_of_safety": 4.72
+  }
+}

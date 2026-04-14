@@ -1,0 +1,5 @@
+surface_finish,a_factor_kpsi,a_factor_MPa,b_exponent
+Ground,1.34,1.58,-0.085
+Machined or cold-drawn,2.70,4.51,-0.265
+Hot-rolled,14.4,57.7,-0.718
+As-forged,39.9,272.0,-0.995

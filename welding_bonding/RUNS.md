@@ -67,3 +67,23 @@ python -m cli run \
   --pretty \
   --show
 ```
+
+## Example 9-5
+
+```bash
+python -m cli run \
+  --infile example_9_5_weld_fatigue_factor_of_safety.json \
+  --outfile example_9_5_weld_fatigue_factor_of_safety_out.json \
+  --pretty \
+  --show
+```
+
+## Example 9-6
+
+```bash
+python -m cli run \
+  --infile example_9_6_weld_fatigue_strength.json \
+  --outfile example_9_6_weld_fatigue_strength_out.json \
+  --pretty \
+  --show
+```

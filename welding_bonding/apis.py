@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from typing import Any, Dict, Mapping
@@ -6,6 +7,8 @@ try:
     from .core import (
         DesignWeldStaticLoadingSolver,
         ParallelWeldStaticLoadingSolver,
+        WeldFatigueFactorOfSafetySolver,
+        WeldFatigueStrengthSolver,
         WeldGroupTorsionSolver,
         WeldedJointBendingStaticLoadingSolver,
     )
@@ -13,6 +16,8 @@ except ImportError:  # pragma: no cover
     from core import (
         DesignWeldStaticLoadingSolver,
         ParallelWeldStaticLoadingSolver,
+        WeldFatigueFactorOfSafetySolver,
+        WeldFatigueStrengthSolver,
         WeldGroupTorsionSolver,
         WeldedJointBendingStaticLoadingSolver,
     )
@@ -25,6 +30,8 @@ class SolverAPI:
             ParallelWeldStaticLoadingSolver(),
             DesignWeldStaticLoadingSolver(),
             WeldedJointBendingStaticLoadingSolver(),
+            WeldFatigueFactorOfSafetySolver(),
+            WeldFatigueStrengthSolver(),
         ]
         self._solvers = {solver.solve_path: solver for solver in solvers}
 

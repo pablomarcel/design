@@ -720,3 +720,336 @@ class WeldedJointBendingStaticLoadingSolver:
                 'weld_metal_code_factor_of_safety': n_weld_code,
             },
         }
+
+
+
+class MarinSurfaceFinishRepository:
+    def __init__(self) -> None:
+        self.rows = load_csv_rows(find_data_file('table_6_2.csv'))
+
+    def get(self, surface_finish: str) -> Dict[str, Any]:
+        key = surface_finish.strip().lower()
+        for row in self.rows:
+            if row['surface_finish'].strip().lower() == key:
+                return {
+                    'surface_finish': row['surface_finish'],
+                    'a_factor_kpsi': float(row['a_factor_kpsi']),
+                    'a_factor_MPa': float(row['a_factor_MPa']),
+                    'b_exponent': float(row['b_exponent']),
+                }
+        raise ValidationError(f"Surface finish {surface_finish!r} not found in table_6_2.csv")
+
+
+class FatigueStressConcentrationRepository:
+    def __init__(self) -> None:
+        self.rows = load_csv_rows(find_data_file('table_9_5.csv'))
+
+    def get(self, type_of_weld: str) -> Dict[str, Any]:
+        key = type_of_weld.strip().lower()
+        for row in self.rows:
+            if row['type_of_weld'].strip().lower() == key:
+                return {
+                    'type_of_weld': row['type_of_weld'],
+                    'K_fs': float(row['K_fs']),
+                }
+        raise ValidationError(f"Type of weld {type_of_weld!r} not found in table_9_5.csv")
+
+
+class FatigueCriteriaRepository:
+    def __init__(self) -> None:
+        self.payload = load_json(find_data_file('table_6_7.json'))
+        self.fos_equation = self.payload['fatigue_factor_of_safety']['equation']
+
+    def gerber_factor_of_safety(self, shear_ultimate_strength_kpsi: float, corrected_endurance_limit_kpsi: float,
+                                alternating_shear_kpsi: float, mean_shear_kpsi: float) -> float:
+        if mean_shear_kpsi <= 0:
+            raise ValidationError('Gerber fatigue-factor equation requires positive mean stress')
+        return evaluate_expression(
+            self.fos_equation,
+            {
+                'Sut': float(shear_ultimate_strength_kpsi),
+                'Se': float(corrected_endurance_limit_kpsi),
+                'sigma_a': float(alternating_shear_kpsi),
+                'sigma_m': float(mean_shear_kpsi),
+            },
+        )
+
+
+class MarinFactorEngine:
+    def __init__(self) -> None:
+        self.surface_repo = MarinSurfaceFinishRepository()
+
+    def surface_factor_ka(self, surface_finish: str, tensile_strength_kpsi: float) -> Dict[str, Any]:
+        row = self.surface_repo.get(surface_finish)
+        ka = row['a_factor_kpsi'] * (float(tensile_strength_kpsi) ** row['b_exponent'])
+        return {
+            'surface_finish': row['surface_finish'],
+            'a_factor_kpsi': row['a_factor_kpsi'],
+            'b_exponent': row['b_exponent'],
+            'ka': ka,
+        }
+
+    def size_factor_kb(self, mode: str, **kwargs: Any) -> Dict[str, Any]:
+        key = str(mode).strip().lower()
+        if key == 'uniform_shear_on_throat':
+            return {'mode': mode, 'kb': 1.0, 'note': 'For uniform shear stress on the throat, kb = 1.'}
+        if key == 'override':
+            kb = float(kwargs['kb_override'])
+            return {'mode': mode, 'kb': kb, 'note': 'User override'}
+        raise ValidationError(f'Unsupported size_factor_mode: {mode!r}')
+
+    def load_factor_kc(self, mode: str) -> Dict[str, Any]:
+        key = str(mode).strip().lower()
+        mapping = {
+            'bending': 1.0,
+            'axial': 0.85,
+            'torsion_shear': 0.59,
+        }
+        if key not in mapping:
+            raise ValidationError(f'Unsupported loading_factor_mode: {mode!r}')
+        return {'mode': mode, 'kc': mapping[key]}
+
+    def prime_endurance_limit_kpsi(self, tensile_strength_kpsi: float) -> Dict[str, Any]:
+        Sut = float(tensile_strength_kpsi)
+        if Sut <= 200.0:
+            Se_prime = 0.5 * Sut
+            rule = "S'e = 0.5*Sut"
+        else:
+            Se_prime = 100.0
+            rule = "S'e = 100 kpsi cap"
+        return {'S_e_prime_kpsi': Se_prime, 'rule': rule}
+
+
+class WeldFatigueFactorOfSafetySolver:
+    solve_path = 'weld_fatigue_factor_of_safety'
+
+    def __init__(self) -> None:
+        self.materials = SteelMaterialRepository()
+        self.weld_props = WeldPropertiesRepository()
+        self.kfs_repo = FatigueStressConcentrationRepository()
+        self.bending_patterns = WeldBendingGeometryEngine()
+        self.marin = MarinFactorEngine()
+
+    def solve(self, inputs: Mapping[str, Any]) -> Dict[str, Any]:
+        if inputs.get('solve_path') != self.solve_path:
+            raise ValidationError(f"solve_path must be '{self.solve_path}'")
+
+        material = self.materials.get(
+            sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'),
+            processing=inputs.get('attachment_material_processing'),
+        )
+        electrode = self.weld_props.get_by_electrode(inputs['electrode_class'])
+        kfs_row = self.kfs_repo.get(inputs['fatigue_stress_concentration_type'])
+        geometry_eval = self.bending_patterns.evaluate_pattern(
+            int(inputs['weld_type']),
+            {k: float(v) for k, v in inputs['geometry'].items()},
+            float(inputs['weld_size_in']),
+        )
+
+        ka_data = self.marin.surface_factor_ka(inputs['surface_finish'], material['tensile_strength_kpsi'])
+        kb_data = self.marin.size_factor_kb(
+            inputs.get('size_factor_mode', 'uniform_shear_on_throat'),
+            kb_override=inputs.get('kb_override'),
+        )
+        kc_data = self.marin.load_factor_kc(inputs.get('loading_factor_mode', 'torsion_shear'))
+        kd = float(inputs.get('temperature_factor_kd', 1.0))
+        ke = float(inputs.get('reliability_factor_ke', 1.0))
+        kf_misc = float(inputs.get('misc_factor_kf', 1.0))
+        se_prime_data = self.marin.prime_endurance_limit_kpsi(material['tensile_strength_kpsi'])
+        corrected_se = ka_data['ka'] * kb_data['kb'] * kc_data['kc'] * kd * ke * kf_misc * se_prime_data['S_e_prime_kpsi']
+
+        A = geometry_eval['area_in2']
+        Fa_lbf = float(inputs['force_amplitude_lbf'])
+        Fm_lbf = float(inputs.get('force_mean_lbf', 0.0))
+        Kfs = kfs_row['K_fs']
+        tau_a_kpsi = Kfs * Fa_lbf / A / 1000.0
+        tau_m_kpsi = Kfs * Fm_lbf / A / 1000.0
+
+        if abs(tau_m_kpsi) <= 1e-12:
+            nf = corrected_se / tau_a_kpsi
+            criterion_used = 'zero_mean_simple_ratio'
+            criterion_note = "In the absence of a midrange component, n_f = S_se / tau_a'"
+        else:
+            raise ValidationError('This solve path is intended for the zero-mean Example 9-5 style case. Use weld_fatigue_strength for repeated loading with nonzero mean stress.')
+
+        return {
+            'problem': self.solve_path,
+            'title': inputs.get('title', 'Factor of safety of welding under fatigue loading'),
+            'inputs': dict(inputs),
+            'lookups': {
+                'table_a_20': material,
+                'table_9_3': electrode,
+                'table_9_5': kfs_row,
+                'table_6_2': {
+                    'surface_finish': ka_data['surface_finish'],
+                    'a_factor_kpsi': ka_data['a_factor_kpsi'],
+                    'b_exponent': ka_data['b_exponent'],
+                },
+                'table_6_7': {
+                    'criterion': 'not needed because mean stress is zero',
+                },
+                'table_9_2': {
+                    'weld_type': int(inputs['weld_type']),
+                    'description': geometry_eval['pattern'].description,
+                    'throat_area_formula': geometry_eval['pattern'].throat_area_formula,
+                },
+            },
+            'derived': {
+                'weld_geometry': {
+                    'throat_area_in2': A,
+                },
+                'strengths': {
+                    'base_metal_tensile_strength_kpsi': material['tensile_strength_kpsi'],
+                    'base_metal_yield_strength_kpsi': material['yield_strength_kpsi'],
+                    'electrode_tensile_strength_kpsi': electrode['tensile_strength_kpsi'],
+                    'electrode_yield_strength_kpsi': electrode['yield_strength_kpsi'],
+                },
+                'marin_factors': {
+                    'ka': ka_data['ka'],
+                    'kb': kb_data['kb'],
+                    'kc': kc_data['kc'],
+                    'kd': kd,
+                    'ke': ke,
+                    'kf_misc': kf_misc,
+                },
+                'endurance_limit': {
+                    'prime_endurance_limit_kpsi': se_prime_data['S_e_prime_kpsi'],
+                    'prime_endurance_limit_rule': se_prime_data['rule'],
+                    'corrected_endurance_limit_kpsi': corrected_se,
+                },
+                'fatigue_loading': {
+                    'K_fs': Kfs,
+                    'force_amplitude_lbf': Fa_lbf,
+                    'force_mean_lbf': Fm_lbf,
+                    'alternating_shear_stress_kpsi': tau_a_kpsi,
+                    'mean_shear_stress_kpsi': tau_m_kpsi,
+                },
+                'fatigue_factor_of_safety': {
+                    'criterion_used': criterion_used,
+                    'criterion_note': criterion_note,
+                    'n_f': nf,
+                    'is_satisfactory_for_infinite_life': nf >= 1.0,
+                },
+            },
+            'summary': {
+                'fatigue_factor_of_safety': nf,
+                'is_satisfactory_for_infinite_life': nf >= 1.0,
+            },
+        }
+
+
+class WeldFatigueStrengthSolver:
+    solve_path = 'weld_fatigue_strength'
+
+    def __init__(self) -> None:
+        self.materials = SteelMaterialRepository()
+        self.kfs_repo = FatigueStressConcentrationRepository()
+        self.bending_patterns = WeldBendingGeometryEngine()
+        self.marin = MarinFactorEngine()
+        self.criteria = FatigueCriteriaRepository()
+
+    def solve(self, inputs: Mapping[str, Any]) -> Dict[str, Any]:
+        if inputs.get('solve_path') != self.solve_path:
+            raise ValidationError(f"solve_path must be '{self.solve_path}'")
+
+        material = self.materials.get(
+            sae_aisi_no=inputs.get('attachment_material_sae_aisi_no'),
+            processing=inputs.get('attachment_material_processing'),
+        )
+        kfs_row = self.kfs_repo.get(inputs['fatigue_stress_concentration_type'])
+        geometry_eval = self.bending_patterns.evaluate_pattern(
+            int(inputs['weld_type']),
+            {k: float(v) for k, v in inputs['geometry'].items()},
+            float(inputs['weld_size_in']),
+        )
+
+        ka_data = self.marin.surface_factor_ka(inputs['surface_finish'], material['tensile_strength_kpsi'])
+        kb_data = self.marin.size_factor_kb(
+            inputs.get('size_factor_mode', 'uniform_shear_on_throat'),
+            kb_override=inputs.get('kb_override'),
+        )
+        kc_data = self.marin.load_factor_kc(inputs.get('loading_factor_mode', 'torsion_shear'))
+        kd = float(inputs.get('temperature_factor_kd', 1.0))
+        ke = float(inputs.get('reliability_factor_ke', 1.0))
+        kf_misc = float(inputs.get('misc_factor_kf', 1.0))
+        se_prime_data = self.marin.prime_endurance_limit_kpsi(material['tensile_strength_kpsi'])
+        corrected_se = ka_data['ka'] * kb_data['kb'] * kc_data['kc'] * kd * ke * kf_misc * se_prime_data['S_e_prime_kpsi']
+
+        A = geometry_eval['area_in2']
+        Fa_lbf = float(inputs['force_amplitude_lbf'])
+        Fm_lbf = float(inputs['force_mean_lbf'])
+        Kfs = kfs_row['K_fs']
+        tau_a_kpsi = Kfs * Fa_lbf / A / 1000.0
+        tau_m_kpsi = Kfs * Fm_lbf / A / 1000.0
+
+        shear_ultimate_strength_kpsi = 0.67 * material['tensile_strength_kpsi']
+        nf = self.criteria.gerber_factor_of_safety(
+            shear_ultimate_strength_kpsi=shear_ultimate_strength_kpsi,
+            corrected_endurance_limit_kpsi=corrected_se,
+            alternating_shear_kpsi=tau_a_kpsi,
+            mean_shear_kpsi=tau_m_kpsi,
+        )
+
+        return {
+            'problem': self.solve_path,
+            'title': inputs.get('title', 'Fatigue strength of welding under fatigue loading'),
+            'inputs': dict(inputs),
+            'lookups': {
+                'table_a_20': material,
+                'table_9_5': kfs_row,
+                'table_6_2': {
+                    'surface_finish': ka_data['surface_finish'],
+                    'a_factor_kpsi': ka_data['a_factor_kpsi'],
+                    'b_exponent': ka_data['b_exponent'],
+                },
+                'table_6_7': {
+                    'criterion': 'gerber',
+                    'fatigue_factor_of_safety_equation': self.criteria.fos_equation,
+                },
+                'table_9_2': {
+                    'weld_type': int(inputs['weld_type']),
+                    'description': geometry_eval['pattern'].description,
+                    'throat_area_formula': geometry_eval['pattern'].throat_area_formula,
+                },
+            },
+            'derived': {
+                'weld_geometry': {
+                    'throat_area_in2': A,
+                },
+                'strengths': {
+                    'base_metal_tensile_strength_kpsi': material['tensile_strength_kpsi'],
+                    'base_metal_yield_strength_kpsi': material['yield_strength_kpsi'],
+                    'shear_ultimate_strength_kpsi': shear_ultimate_strength_kpsi,
+                    'shear_ultimate_strength_rule': 'S_su = 0.67*S_ut',
+                },
+                'marin_factors': {
+                    'ka': ka_data['ka'],
+                    'kb': kb_data['kb'],
+                    'kc': kc_data['kc'],
+                    'kd': kd,
+                    'ke': ke,
+                    'kf_misc': kf_misc,
+                },
+                'endurance_limit': {
+                    'prime_endurance_limit_kpsi': se_prime_data['S_e_prime_kpsi'],
+                    'prime_endurance_limit_rule': se_prime_data['rule'],
+                    'corrected_endurance_limit_kpsi': corrected_se,
+                },
+                'fatigue_loading': {
+                    'K_fs': Kfs,
+                    'force_amplitude_lbf': Fa_lbf,
+                    'force_mean_lbf': Fm_lbf,
+                    'alternating_shear_stress_kpsi': tau_a_kpsi,
+                    'mean_shear_stress_kpsi': tau_m_kpsi,
+                },
+                'fatigue_factor_of_safety': {
+                    'criterion_used': 'gerber_in_shear',
+                    'n_f': nf,
+                    'is_satisfactory_for_infinite_life': nf >= 1.0,
+                },
+            },
+            'summary': {
+                'fatigue_factor_of_safety': nf,
+                'is_satisfactory_for_infinite_life': nf >= 1.0,
+            },
+        }
