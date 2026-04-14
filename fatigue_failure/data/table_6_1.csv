@@ -1,0 +1,4 @@
+material,c_m_per_cycle_per_MPa_sqrt_m_pow_m,c_in_per_cycle_per_kpsi_sqrt_in_pow_m,m
+Ferritic-pearlitic steels,6.89e-12,3.60e-10,3.00
+Martensitic steels,1.36e-10,6.60e-9,2.25
+Austenitic stainless steels,5.61e-12,3.00e-10,3.25

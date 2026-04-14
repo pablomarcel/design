@@ -1,0 +1,80 @@
+{
+  "table_id": "6-7",
+  "title": "Amplitude and Steady Coordinates of Strength and Important Intersections in First Quadrant for Gerber and Langer Failure Criteria",
+  "variables": {
+    "Sa": "alternating strength coordinate",
+    "Sm": "steady or midrange strength coordinate",
+    "Se": "endurance limit (corrected)",
+    "Sut": "ultimate tensile strength",
+    "Sy": "yield strength",
+    "r": "load-line slope, defined as Sa/Sm",
+    "sigma_a": "alternating stress",
+    "sigma_m": "midrange stress",
+    "nf": "fatigue factor of safety"
+  },
+  "rows": [
+    {
+      "row_type": "fatigue_criterion",
+      "criterion": "gerber",
+      "intersecting_equations": [
+        {
+          "name": "gerber_line",
+          "equation": "Sa/Se + (Sm/Sut)^2 = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "(r^2*Sut^2/(2*Se)) * (-1 + sqrt(1 + (2*Se/(r*Sut))^2))",
+        "Sm": "Sa / r"
+      }
+    },
+    {
+      "row_type": "static_langer_criterion",
+      "criterion": "langer",
+      "intersecting_equations": [
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "r*Sy / (1 + r)",
+        "Sm": "Sy / (1 + r)"
+      }
+    },
+    {
+      "row_type": "intersection_static_and_fatigue",
+      "criterion_pair": [
+        "gerber",
+        "langer"
+      ],
+      "intersecting_equations": [
+        {
+          "name": "gerber_line",
+          "equation": "Sa/Se + (Sm/Sut)^2 = 1"
+        },
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sm": "(Sut^2/(2*Se)) * (1 - sqrt(1 + (2*Se/Sut)^2 * (1 - Sy/Se)))",
+        "Sa": "Sy - Sm",
+        "r_crit": "Sa / Sm"
+      }
+    }
+  ],
+  "fatigue_factor_of_safety": {
+    "criterion": "gerber",
+    "equation": "nf = 0.5*(Sut/sigma_m)^2 * (sigma_a/Se) * (-1 + sqrt(1 + (2*sigma_m*Se/(Sut*sigma_a))^2))",
+    "valid_when": "sigma_m > 0"
+  }
+}

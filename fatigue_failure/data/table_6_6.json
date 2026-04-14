@@ -1,0 +1,79 @@
+{
+  "table_id": "6-6",
+  "title": "Amplitude and Steady Coordinates of Strength and Important Intersections in First Quadrant for Modified Goodman and Langer Failure Criteria",
+  "variables": {
+    "Sa": "alternating strength coordinate",
+    "Sm": "steady or midrange strength coordinate",
+    "Se": "endurance limit (corrected)",
+    "Sut": "ultimate tensile strength",
+    "Sy": "yield strength",
+    "r": "load-line slope, defined as Sa/Sm",
+    "sigma_a": "alternating stress",
+    "sigma_m": "midrange stress",
+    "nf": "fatigue factor of safety"
+  },
+  "rows": [
+    {
+      "row_type": "fatigue_criterion",
+      "criterion": "modified_goodman",
+      "intersecting_equations": [
+        {
+          "name": "modified_goodman_line",
+          "equation": "Sa/Se + Sm/Sut = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "r*Se*Sut / (r*Sut + Se)",
+        "Sm": "Sa / r"
+      }
+    },
+    {
+      "row_type": "static_langer_criterion",
+      "criterion": "langer",
+      "intersecting_equations": [
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        },
+        {
+          "name": "load_line",
+          "equation": "r = Sa/Sm"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sa": "r*Sy / (1 + r)",
+        "Sm": "Sy / (1 + r)"
+      }
+    },
+    {
+      "row_type": "intersection_static_and_fatigue",
+      "criterion_pair": [
+        "modified_goodman",
+        "langer"
+      ],
+      "intersecting_equations": [
+        {
+          "name": "modified_goodman_line",
+          "equation": "Sa/Se + Sm/Sut = 1"
+        },
+        {
+          "name": "langer_line",
+          "equation": "Sa/Sy + Sm/Sy = 1"
+        }
+      ],
+      "intersection_coordinates": {
+        "Sm": "((Sy - Se)*Sut) / (Sut - Se)",
+        "Sa": "Sy - Sm",
+        "r_crit": "Sa / Sm"
+      }
+    }
+  ],
+  "fatigue_factor_of_safety": {
+    "criterion": "modified_goodman",
+    "equation": "nf = 1 / (sigma_a/Se + sigma_m/Sut)"
+  }
+}

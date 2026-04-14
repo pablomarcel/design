@@ -1,0 +1,76 @@
+{
+  "table": "6-3",
+  "title": "A_0.95\u03c3 Areas of Common Nonrotating Structural Shapes",
+  "description": "Programmatic expressions for A_0.95\u03c3 and equivalent diameter d_e for common nonrotating structural shapes shown in Table 6-3.",
+  "notes": [
+    "Symbols follow the textbook figure labels.",
+    "Expressions are stored as strings for evaluation by the CLI app.",
+    "Axis annotations are included where the table distinguishes between axis 1-1 and axis 2-2.",
+    "For the I-shape entry, the condition tf > 0.025 a applies as shown in the table."
+  ],
+  "entries": [
+    {
+      "shape": "solid_round",
+      "display_name": "Solid round",
+      "parameters": [
+        "d"
+      ],
+      "expressions": {
+        "A_0.95sigma": "0.01046*d**2",
+        "d_e": "0.370*d"
+      },
+      "units_note": "Use consistent length units."
+    },
+    {
+      "shape": "rectangle",
+      "display_name": "Rectangle",
+      "parameters": [
+        "h",
+        "b"
+      ],
+      "expressions": {
+        "A_0.95sigma": "0.05*h*b",
+        "d_e": "0.808*sqrt(h*b)"
+      },
+      "units_note": "Use consistent length units."
+    },
+    {
+      "shape": "i_shape",
+      "display_name": "I-shape",
+      "parameters": [
+        "a",
+        "b",
+        "t_f"
+      ],
+      "condition": "t_f > 0.025*a",
+      "expressions_by_axis": {
+        "axis_1_1": {
+          "A_0.95sigma": "0.10*a*t_f"
+        },
+        "axis_2_2": {
+          "A_0.95sigma": "0.05*b*a"
+        }
+      },
+      "units_note": "Use consistent length units."
+    },
+    {
+      "shape": "channel",
+      "display_name": "Channel",
+      "parameters": [
+        "a",
+        "b",
+        "t_f",
+        "x"
+      ],
+      "expressions_by_axis": {
+        "axis_1_1": {
+          "A_0.95sigma": "0.05*a*b"
+        },
+        "axis_2_2": {
+          "A_0.95sigma": "0.052*x*a + 0.1*t_f*(b - x)"
+        }
+      },
+      "units_note": "Use consistent length units."
+    }
+  ]
+}

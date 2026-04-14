@@ -1,0 +1,40 @@
+{
+  "problem": "fatigue_strength",
+  "title": "Example 6-2 fatigue strength for 1050 HR steel",
+  "inputs": {
+    "solve_path": "fatigue_strength",
+    "sae_aisi_no": "1050",
+    "processing": "HR",
+    "sn_low_cycle_anchor_cycles": 1000,
+    "endurance_limit_cycles": 1000000,
+    "stress_queries": [
+      {
+        "name": "part_b_strength_at_1e4_cycles",
+        "cycles": 10000
+      }
+    ],
+    "life_queries": [
+      {
+        "name": "part_c_life_at_55_kpsi",
+        "stress_kpsi": 55
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "sut_kpsi": 90.0,
+      "se_prime_kpsi": 45.0,
+      "fatigue_strength_fraction_f": 0.86,
+      "a_kpsi": 133.1,
+      "b": -0.0785,
+      "stress_query_results": {
+        "part_b_strength_at_1e4_cycles": 64.6
+      },
+      "life_query_results": {
+        "part_c_life_at_55_kpsi": 77500
+      }
+    },
+    "notes": [
+      "This file follows Example 6-2 on p294.",
+      "The solver will look up Sut from table_a_20.csv and f from figure_6_18.csv."
+    ]
+  }
+}
