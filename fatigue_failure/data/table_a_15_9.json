@@ -17,11 +17,11 @@
     ]
   },
   "notes": [
-    "Polished digitization from the provided figure image.",
+    "Refined digitization from the provided figure image.",
     "Values are intended for programmatic interpolation in the CLI app.",
     "Each trace corresponds to a constant D_over_d ratio.",
     "Interpolate along r_over_d within a trace, and interpolate across traces in D_over_d if needed.",
-    "This revision slightly refines the mid-range region near D_over_d \u2248 1.1 to 1.5 and r_over_d \u2248 0.08 to 0.12 to better align with the textbook example behavior."
+    "This revision further refines the mid-range region near D_over_d \u2248 1.1 to 1.5 and r_over_d \u2248 0.08 to 0.12 to better align with Example 6-9 behavior."
   ],
   "traces": [
     {
@@ -171,15 +171,15 @@
         },
         {
           "r_over_d": 0.08,
-          "K_t": 1.7
+          "K_t": 1.68
         },
         {
           "r_over_d": 0.1,
-          "K_t": 1.62
+          "K_t": 1.615
         },
         {
           "r_over_d": 0.12,
-          "K_t": 1.56
+          "K_t": 1.555
         },
         {
           "r_over_d": 0.15,
@@ -232,15 +232,15 @@
         },
         {
           "r_over_d": 0.08,
-          "K_t": 1.8
+          "K_t": 1.75
         },
         {
           "r_over_d": 0.1,
-          "K_t": 1.71
+          "K_t": 1.677
         },
         {
           "r_over_d": 0.12,
-          "K_t": 1.64
+          "K_t": 1.62
         },
         {
           "r_over_d": 0.15,

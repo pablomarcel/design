@@ -2053,3 +2053,323 @@ class EnduranceLimitAndFatigueStrengthSolver:
             **({"verification": verification} if verification else {}),
         }
 
+
+
+class LifeOfPartSolver:
+    """Implements Shigley Chapter 6 Example 6-9 style life-of-a-part calculations for a rotating shaft in reversed bending."""
+
+    solve_path = "life_of_part"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _sqrt_a_bending_in(sut_kpsi: float) -> float:
+        sut = float(sut_kpsi)
+        return 0.246 - 3.08e-3 * sut + 1.51e-5 * sut**2 - 2.67e-8 * sut**3
+
+    def _resolve_material(self, inputs: dict[str, Any]) -> SteelRecord:
+        sae_aisi_no = coalesce(inputs.get("sae_aisi_no"), inputs.get("steel_grade"))
+        processing = coalesce(inputs.get("processing"), inputs.get("material_processing"))
+        if sae_aisi_no is None:
+            raise ValidationError("sae_aisi_no is required for solve_path='life_of_part'.")
+        return self.repository.find_steel_record(sae_aisi_no=sae_aisi_no, processing=processing)
+
+    def _resolve_temperature_f(self, inputs: dict[str, Any]) -> float:
+        if inputs.get("service_temperature_F") is not None:
+            return float(inputs["service_temperature_F"])
+        if inputs.get("service_temperature_C") is not None:
+            return float(inputs["service_temperature_C"]) * 9.0 / 5.0 + 32.0
+        return 70.0
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"LifeOfPartSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        record = self._resolve_material(inputs)
+        surface_finish = coalesce(inputs.get("surface_finish"), "Machined or cold-drawn")
+        d_mm = ensure_positive("small_diameter_mm", coalesce(inputs.get("small_diameter_mm"), inputs.get("d_mm"), inputs.get("diameter_small_mm")))
+        D_mm = ensure_positive("large_diameter_mm", coalesce(inputs.get("large_diameter_mm"), inputs.get("D_mm"), inputs.get("diameter_large_mm")))
+        r_mm = ensure_positive("fillet_radius_mm", coalesce(inputs.get("fillet_radius_mm"), inputs.get("r_mm"), inputs.get("notch_radius_mm")))
+        M_B_N_m = ensure_positive("M_B_N_m", coalesce(inputs.get("M_B_N_m"), inputs.get("bending_moment_B_N_m"), inputs.get("moment_at_B_N_m")))
+        reliability_percent = float(coalesce(inputs.get("reliability_percent"), 50.0))
+        misc_factor = float(coalesce(inputs.get("miscellaneous_factor_k_f"), inputs.get("misc_factor"), 1.0))
+        size_factor_override = inputs.get("size_factor_k_b")
+        load_factor_override = inputs.get("load_factor_k_c")
+        temp_factor_override = inputs.get("temperature_factor_k_d")
+        reliability_factor_override = inputs.get("reliability_factor_k_e")
+        fatigue_strength_fraction_f_override = inputs.get("fatigue_strength_fraction_f_override")
+        stress_concentration_factor_override = inputs.get("K_t")
+        fatigue_stress_concentration_factor_override = inputs.get("K_f")
+        q_override = inputs.get("q")
+        service_temperature_f = self._resolve_temperature_f(inputs)
+
+        if D_mm <= d_mm:
+            raise ValidationError(f"large_diameter_mm must be greater than small_diameter_mm. Got D={D_mm} and d={d_mm}.")
+
+        sut_room_kpsi = record.tensile_strength_kpsi
+        sut_room_mpa = record.tensile_strength_MPa
+        sy_room_kpsi = record.yield_strength_kpsi
+        sy_room_mpa = record.yield_strength_MPa
+
+        if abs(service_temperature_f - 70.0) <= 1e-12:
+            temp_lookup = {
+                "temperature_f": 70.0,
+                "st_over_srt": 1.0,
+                "source": "room_temperature_default",
+            }
+            st_over_srt = 1.0
+        else:
+            temp_lookup = self.repository.table_6_4_ratio_from_f(service_temperature_f)
+            st_over_srt = float(temp_lookup["st_over_srt"])
+
+        sut_kpsi = st_over_srt * sut_room_kpsi
+        sut_mpa = kpsi_to_mpa(sut_kpsi)
+        sy_kpsi = st_over_srt * sy_room_kpsi
+        sy_mpa = kpsi_to_mpa(sy_kpsi)
+
+        if sut_kpsi <= 200.0:
+            se_prime_kpsi = 0.5 * sut_kpsi
+            se_prime_rule = "eq_6_8_low_strength_branch"
+        else:
+            se_prime_kpsi = 100.0
+            se_prime_rule = "eq_6_8_high_strength_branch"
+        se_prime_mpa = kpsi_to_mpa(se_prime_kpsi)
+
+        finish_record = self.repository.find_surface_finish_record(str(surface_finish))
+        ka = finish_record.a_factor_MPa * (sut_mpa ** finish_record.b_exponent)
+        ka_expression = f"k_a = {safe_round(finish_record.a_factor_MPa)} * Sut^({safe_round(finish_record.b_exponent)}) [MPa]"
+
+        if size_factor_override is not None:
+            kb = float(size_factor_override)
+            kb_source = "user_override"
+        else:
+            if 2.79 <= d_mm <= 51.0:
+                kb = (d_mm / 7.62) ** (-0.107)
+                kb_source = "eq_6_20_metric_small_diameter_branch"
+            elif 51.0 < d_mm <= 254.0:
+                kb = 1.51 * (d_mm ** (-0.157))
+                kb_source = "eq_6_20_metric_large_diameter_branch"
+            else:
+                raise RangeError(f"Diameter {d_mm} mm is outside the supported Eq. (6-20) range.")
+
+        if load_factor_override is not None:
+            kc = float(load_factor_override)
+            kc_source = "user_override"
+        else:
+            kc = 1.0
+            kc_source = "eq_6_26_bending"
+
+        if temp_factor_override is not None:
+            kd = float(temp_factor_override)
+            kd_source = "user_override"
+        else:
+            kd = 1.0
+            kd_source = "room_temperature_or_absorbed_into_sut_policy"
+
+        if reliability_factor_override is not None:
+            ke = float(reliability_factor_override)
+            ke_lookup = {
+                "reliability_percent": float(reliability_percent),
+                "reliability_factor_k_e": ke,
+                "source": "user_override",
+            }
+        else:
+            ke_lookup = self.repository.reliability_factor_from_table_6_5(reliability_percent)
+            ke = float(ke_lookup["reliability_factor_k_e"])
+
+        se_kpsi = ka * kb * kc * kd * ke * misc_factor * se_prime_kpsi
+        se_mpa = kpsi_to_mpa(se_kpsi)
+
+        D_over_d = D_mm / d_mm
+        r_over_d = r_mm / d_mm
+        r_in = mm_to_in(r_mm)
+
+        if stress_concentration_factor_override is not None:
+            kt_lookup = {
+                "D_over_d": float(D_over_d),
+                "r_over_d": float(r_over_d),
+                "K_t": float(stress_concentration_factor_override),
+                "source": "user_override",
+                "intermediate_trace_values": None,
+            }
+            K_t = float(stress_concentration_factor_override)
+        else:
+            kt_lookup = self.repository.stress_concentration_kt_shoulder_bending(D_over_d=D_over_d, r_over_d=r_over_d)
+            K_t = float(kt_lookup["K_t"])
+
+        sqrt_a_in = self._sqrt_a_bending_in(sut_kpsi)
+        sqrt_a_mm = sqrt_a_in * math.sqrt(25.4)
+
+        if q_override is not None:
+            q = float(q_override)
+            q_source = "user_override"
+        else:
+            q = 1.0 / (1.0 + sqrt_a_mm / math.sqrt(r_mm))
+            q_source = "eq_6_34_using_eq_6_35a"
+
+        if fatigue_stress_concentration_factor_override is not None:
+            K_f = float(fatigue_stress_concentration_factor_override)
+            kf_source = "user_override"
+        else:
+            K_f = 1.0 + q * (K_t - 1.0)
+            kf_source = "eq_6_33"
+
+        section_modulus_mm3 = math.pi * d_mm**3 / 32.0
+        sigma_rev_mpa = K_f * (M_B_N_m * 1000.0) / section_modulus_mm3
+        sigma_rev_kpsi = mpa_to_kpsi(sigma_rev_mpa)
+
+        if fatigue_strength_fraction_f_override is not None:
+            f_lookup = {
+                "f": float(fatigue_strength_fraction_f_override),
+                "source": "user_override",
+                "note": "User provided fatigue_strength_fraction_f_override.",
+            }
+        else:
+            f_lookup = self.repository.fatigue_strength_fraction_from_figure_6_18(sut_kpsi)
+        f_value = float(f_lookup["f"])
+
+        sf_low_kpsi = f_value * sut_kpsi
+        sf_low_mpa = kpsi_to_mpa(sf_low_kpsi)
+        n_low = 1.0e3
+        n_endurance = 1.0e6
+        a_kpsi = (sf_low_kpsi ** 2) / se_kpsi
+        a_mpa = kpsi_to_mpa(a_kpsi)
+        b = log10(se_kpsi / sf_low_kpsi) / log10(n_endurance / n_low)
+
+        if sigma_rev_kpsi <= se_kpsi:
+            life_regime = "endurance_or_infinite_life"
+            cycles_to_failure = math.inf
+            cycles_note = f"Predicted life is at least {int(n_endurance):d} cycles because sigma_rev <= Se."
+        else:
+            life_regime = "finite_life"
+            cycles_to_failure = (sigma_rev_kpsi / a_kpsi) ** (1.0 / b)
+            cycles_note = None
+
+        no_yield_on_first_cycle = sigma_rev_mpa < sy_mpa
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification: dict[str, Any] = {}
+        for key, actual in {
+            "se_prime_MPa": se_prime_mpa,
+            "ka": ka,
+            "kb": kb,
+            "kc": kc,
+            "kd": kd,
+            "ke": ke,
+            "endurance_limit_MPa": se_mpa,
+            "K_t": K_t,
+            "sqrt_a_sqrt_in": sqrt_a_in,
+            "sqrt_a_sqrt_mm": sqrt_a_mm,
+            "q": q,
+            "K_f": K_f,
+            "sigma_rev_MPa": sigma_rev_mpa,
+            "fatigue_strength_fraction_f": f_value,
+            "a_MPa": a_mpa,
+            "b": b,
+            "cycles_to_failure": None if math.isinf(cycles_to_failure) else cycles_to_failure,
+        }.items():
+            if key in expected_ref and actual is not None:
+                verification[key] = {
+                    "actual": safe_round(actual),
+                    "reference": float(expected_ref[key]),
+                    "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
+                }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Life of a part analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_a_20": record.to_dict(),
+                "table_6_4": temp_lookup,
+                "table_6_2": finish_record.to_dict(),
+                "table_6_5": ke_lookup,
+                "table_a_15_9": kt_lookup,
+                "figure_6_18": {
+                    "sut_kpsi_for_lookup": safe_round(sut_kpsi),
+                    "fatigue_strength_fraction_f": safe_round(f_value),
+                    "source": f_lookup.get("source"),
+                    "note": f_lookup.get("note"),
+                },
+            },
+            "derived": {
+                "service_temperature_f": safe_round(service_temperature_f),
+                "service_temperature_c": safe_round((service_temperature_f - 32.0) * 5.0 / 9.0),
+                "sut_room_temperature_kpsi": safe_round(sut_room_kpsi),
+                "sut_room_temperature_MPa": safe_round(sut_room_mpa),
+                "sy_room_temperature_kpsi": safe_round(sy_room_kpsi),
+                "sy_room_temperature_MPa": safe_round(sy_room_mpa),
+                "st_over_srt": safe_round(st_over_srt),
+                "sut_at_service_temperature_kpsi": safe_round(sut_kpsi),
+                "sut_at_service_temperature_MPa": safe_round(sut_mpa),
+                "sy_at_service_temperature_kpsi": safe_round(sy_kpsi),
+                "sy_at_service_temperature_MPa": safe_round(sy_mpa),
+                "se_prime_kpsi": safe_round(se_prime_kpsi),
+                "se_prime_MPa": safe_round(se_prime_mpa),
+                "se_prime_source": se_prime_rule,
+                "surface_finish_normalized": normalize_surface_finish(str(surface_finish)),
+                "small_diameter_mm": safe_round(d_mm),
+                "large_diameter_mm": safe_round(D_mm),
+                "fillet_radius_mm": safe_round(r_mm),
+                "small_diameter_in": safe_round(mm_to_in(d_mm)),
+                "large_diameter_in": safe_round(mm_to_in(D_mm)),
+                "fillet_radius_in": safe_round(r_in),
+                "D_over_d": safe_round(D_over_d),
+                "r_over_d": safe_round(r_over_d),
+                "M_B_N_m": safe_round(M_B_N_m),
+                "section_modulus_mm3": safe_round(section_modulus_mm3),
+                "section_modulus_in3": safe_round(section_modulus_mm3 / (25.4**3)),
+                "ka": safe_round(ka),
+                "ka_expression": ka_expression,
+                "kb": safe_round(kb),
+                "kb_source": kb_source,
+                "kc": safe_round(kc),
+                "kc_source": kc_source,
+                "kd": safe_round(kd),
+                "kd_source": kd_source,
+                "ke": safe_round(ke),
+                "miscellaneous_factor_k_f": safe_round(misc_factor),
+                "endurance_limit_kpsi": safe_round(se_kpsi),
+                "endurance_limit_MPa": safe_round(se_mpa),
+                "K_t": safe_round(K_t),
+                "sqrt_a_sqrt_in": safe_round(sqrt_a_in),
+                "sqrt_a_sqrt_mm": safe_round(sqrt_a_mm),
+                "q": safe_round(q),
+                "q_source": q_source,
+                "K_f": safe_round(K_f),
+                "K_f_source": kf_source,
+                "sigma_rev_kpsi": safe_round(sigma_rev_kpsi),
+                "sigma_rev_MPa": safe_round(sigma_rev_mpa),
+                "fatigue_strength_fraction_f": safe_round(f_value),
+                "sf_at_1e3_cycles_kpsi": safe_round(sf_low_kpsi),
+                "sf_at_1e3_cycles_MPa": safe_round(sf_low_mpa),
+                "a_kpsi": safe_round(a_kpsi),
+                "a_MPa": safe_round(a_mpa),
+                "b": safe_round(b),
+                "sn_equation_kpsi": f"S_f = {safe_round(a_kpsi)} * N^({safe_round(b)})",
+                "sn_equation_MPa": f"S_f = {safe_round(a_mpa)} * N^({safe_round(b)})",
+            },
+            "results": {
+                "life_regime": life_regime,
+                "cycles_to_failure": None if math.isinf(cycles_to_failure) else safe_round(cycles_to_failure),
+                "cycles_to_failure_note": cycles_note,
+                "no_yield_on_first_cycle": no_yield_on_first_cycle,
+                "yield_check_ratio_sigma_rev_over_sy": safe_round(sigma_rev_mpa / sy_mpa),
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-8", "6-18", "6-19", "6-20", "6-26", "6-33", "6-34", "6-35a", "6-13", "6-14", "6-15", "6-16"],
+                "notes": [
+                    "This solver targets Example 6-9 style life calculations for a rotating shaft under a stationary transverse load, producing fully reversed bending stress at the critical section.",
+                    "The human can analyze the beam statics separately and feed the bending moment at the critical section into the app, as requested.",
+                    "K_t is interpolated from table_a_15_9.json using D/d and r/d, then K_f is computed using Eq. (6-35a), Eq. (6-34), and Eq. (6-33) unless overridden.",
+                    "The local reversing bending stress is computed with sigma_rev = K_f * M / (I/c), where I/c = pi*d^3/32 for a round section.",
+                    "The finite-life S-N line is built using f*Sut at 10^3 cycles and the corrected endurance limit at 10^6 cycles.",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }

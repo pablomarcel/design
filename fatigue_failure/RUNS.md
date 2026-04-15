@@ -202,3 +202,26 @@ python -m cli endurance_limit_and_fatigue_strength \
   --pretty \
   --show
 ```
+
+## Example 6-9 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_9_life_of_part.json \
+  --outfile example_6_9_life_of_part_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli life_of_part \
+  --sae-aisi-no 1050 \
+  --processing CD \
+  --surface-finish "Machined or cold-drawn" \
+  --small-diameter-mm 32 \
+  --large-diameter-mm 38 \
+  --fillet-radius-mm 3 \
+  --m-b-n-m 695.5 \
+  --pretty \
+  --show
+```

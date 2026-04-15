@@ -148,6 +148,35 @@ class FatigueFailureCLI:
         e68_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
         e68_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         e68_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
+        lop_parser = subparsers.add_parser(
+            "life_of_part",
+            help="Direct CLI entry point for Example 6-9 style life-of-a-part calculations in reversed bending.",
+        )
+        lop_parser.add_argument("--title", default="Life of a part analysis from CLI flags")
+        lop_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1050.")
+        lop_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
+        lop_parser.add_argument("--surface-finish", default="Machined or cold-drawn", help="Surface finish used for k_a, e.g. 'Machined or cold-drawn'.")
+        lop_parser.add_argument("--small-diameter-mm", type=float, required=True, help="Small shaft diameter d in mm.")
+        lop_parser.add_argument("--large-diameter-mm", type=float, required=True, help="Large shaft diameter D in mm.")
+        lop_parser.add_argument("--fillet-radius-mm", type=float, required=True, help="Shoulder fillet radius r in mm.")
+        lop_parser.add_argument("--m-b-n-m", dest="M_B_N_m", type=float, required=True, help="Bending moment at the critical section B in N·m.")
+        lop_parser.add_argument("--service-temperature-f", type=float, help="Service temperature in °F. Defaults to 70°F if omitted.")
+        lop_parser.add_argument("--service-temperature-c", type=float, help="Service temperature in °C.")
+        lop_parser.add_argument("--reliability-percent", type=float, default=50.0, help="Required reliability percentage. Defaults to 50.")
+        lop_parser.add_argument("--misc-factor", type=float, default=1.0, help="Miscellaneous Marin factor k_f. Defaults to 1.0.")
+        lop_parser.add_argument("--size-factor-k-b", dest="size_factor_k_b", type=float, help="Optional direct override for size factor k_b.")
+        lop_parser.add_argument("--load-factor-k-c", dest="load_factor_k_c", type=float, help="Optional direct override for load factor k_c.")
+        lop_parser.add_argument("--temperature-factor-k-d", dest="temperature_factor_k_d", type=float, help="Optional direct override for temperature factor k_d.")
+        lop_parser.add_argument("--reliability-factor-k-e", dest="reliability_factor_k_e", type=float, help="Optional direct override for reliability factor k_e.")
+        lop_parser.add_argument("--k-t", dest="K_t", type=float, help="Optional direct override for theoretical stress concentration factor K_t.")
+        lop_parser.add_argument("--q", type=float, help="Optional direct override for notch sensitivity q.")
+        lop_parser.add_argument("--k-f", "--K-f", dest="K_f", type=float, help="Optional direct override for fatigue stress concentration factor K_f.")
+        lop_parser.add_argument("--f-override", dest="fatigue_strength_fraction_f_override", type=float, help="Override the Figure 6-18 fatigue strength fraction f.")
+        lop_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        lop_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        lop_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -312,6 +341,35 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_life_of_part_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "life_of_part",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "life_of_part",
+                "sae_aisi_no": args.sae_aisi_no,
+                "processing": args.processing,
+                "surface_finish": args.surface_finish,
+                "small_diameter_mm": args.small_diameter_mm,
+                "large_diameter_mm": args.large_diameter_mm,
+                "fillet_radius_mm": args.fillet_radius_mm,
+                "M_B_N_m": args.M_B_N_m,
+                "service_temperature_F": args.service_temperature_f,
+                "service_temperature_C": args.service_temperature_c,
+                "reliability_percent": args.reliability_percent,
+                "miscellaneous_factor_k_f": args.misc_factor,
+                "size_factor_k_b": args.size_factor_k_b,
+                "load_factor_k_c": args.load_factor_k_c,
+                "temperature_factor_k_d": args.temperature_factor_k_d,
+                "reliability_factor_k_e": args.reliability_factor_k_e,
+                "K_t": args.K_t,
+                "q": args.q,
+                "K_f": args.K_f,
+                "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -347,6 +405,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_cycles_to_failure_args(args)
             elif args.command == "endurance_limit_and_fatigue_strength":
                 payload = self._payload_from_endurance_limit_and_fatigue_strength_args(args)
+            elif args.command == "life_of_part":
+                payload = self._payload_from_life_of_part_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

@@ -1,0 +1,39 @@
+{
+  "problem": "life_of_part",
+  "title": "Example 6-9 life of a rotating shaft part under a stationary transverse load",
+  "inputs": {
+    "solve_path": "life_of_part",
+    "sae_aisi_no": "1050",
+    "processing": "CD",
+    "surface_finish": "Machined or cold-drawn",
+    "small_diameter_mm": 32.0,
+    "large_diameter_mm": 38.0,
+    "fillet_radius_mm": 3.0,
+    "M_B_N_m": 695.5,
+    "reliability_percent": 50.0,
+    "notes": [
+      "This file follows Example 6-9 on p307-p308.",
+      "The beam statics are assumed to have been done externally, so the bending moment at the critical section B is provided directly, as requested.",
+      "The shaft rotates while the transverse load is stationary, so the bending stress at the critical section is fully reversed.",
+      "K_t is fetched from table_a_15_9.json, then K_f is computed using Eqs. (6-35a), (6-34), and (6-33) unless overridden."
+    ],
+    "expected_textbook_reference_values": {
+      "se_prime_MPa": 345.0,
+      "ka": 0.798,
+      "kb": 0.858,
+      "kc": 1.0,
+      "kd": 1.0,
+      "ke": 1.0,
+      "endurance_limit_MPa": 236.0,
+      "K_t": 1.65,
+      "sqrt_a_sqrt_in": 0.0622,
+      "sqrt_a_sqrt_mm": 0.313,
+      "K_f": 1.55,
+      "sigma_rev_MPa": 335.1,
+      "fatigue_strength_fraction_f": 0.844,
+      "a_MPa": 1437.0,
+      "b": -0.1308,
+      "cycles_to_failure": 68000.0
+    }
+  }
+}
