@@ -178,3 +178,27 @@ python -m cli cycles_to_failure \
   --pretty \
   --show
 ```
+
+## Example 6-8 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_8_endurance_limit_and_fatigue_strength.json \
+  --outfile example_6_8_endurance_limit_and_fatigue_strength_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli endurance_limit_and_fatigue_strength \
+  --sae-aisi-no 1015 \
+  --processing HR \
+  --surface-finish "Machined or cold-drawn" \
+  --diameter-in 1.0 \
+  --loading-type axial \
+  --service-temperature-f 550 \
+  --reliability-percent 99 \
+  --cycles 70000 \
+  --pretty \
+  --show
+```

@@ -123,6 +123,31 @@ class FatigueFailureCLI:
         ctf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         ctf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        e68_parser = subparsers.add_parser(
+            "endurance_limit_and_fatigue_strength",
+            help="Direct CLI entry point for Example 6-8 style endurance-limit and fatigue-strength calculations.",
+        )
+        e68_parser.add_argument("--title", default="Endurance limit and fatigue strength analysis from CLI flags")
+        e68_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1015.")
+        e68_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
+        e68_parser.add_argument("--surface-finish", default="Machined or cold-drawn", help="Surface finish used for k_a, e.g. 'Machined or cold-drawn'.")
+        e68_parser.add_argument("--diameter-in", type=float, help="Bar diameter in inches.")
+        e68_parser.add_argument("--diameter-mm", type=float, help="Bar diameter in mm.")
+        e68_parser.add_argument("--loading-type", choices=["axial", "bending", "torsion"], default="axial")
+        e68_parser.add_argument("--service-temperature-f", type=float, help="Service temperature in °F.")
+        e68_parser.add_argument("--service-temperature-c", type=float, help="Service temperature in °C.")
+        e68_parser.add_argument("--reliability-percent", type=float, required=True, help="Required reliability percentage, e.g. 99.")
+        e68_parser.add_argument("--cycles", type=float, required=True, help="Target cycles to failure for fatigue-strength evaluation.")
+        e68_parser.add_argument("--misc-factor", type=float, default=1.0, help="Miscellaneous Marin factor k_f. Defaults to 1.0.")
+        e68_parser.add_argument("--size-factor-k-b", dest="size_factor_k_b", type=float, help="Optional direct override for size factor k_b.")
+        e68_parser.add_argument("--load-factor-k-c", dest="load_factor_k_c", type=float, help="Optional direct override for load factor k_c.")
+        e68_parser.add_argument("--temperature-factor-k-d", dest="temperature_factor_k_d", type=float, help="Optional direct override for temperature factor k_d.")
+        e68_parser.add_argument("--reliability-factor-k-e", dest="reliability_factor_k_e", type=float, help="Optional direct override for reliability factor k_e.")
+        e68_parser.add_argument("--f-override", dest="fatigue_strength_fraction_f_override", type=float, help="Override the Figure 6-18 fatigue strength fraction f.")
+        e68_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        e68_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        e68_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -261,6 +286,32 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_endurance_limit_and_fatigue_strength_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "endurance_limit_and_fatigue_strength",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "endurance_limit_and_fatigue_strength",
+                "sae_aisi_no": args.sae_aisi_no,
+                "processing": args.processing,
+                "surface_finish": args.surface_finish,
+                "diameter_in": args.diameter_in,
+                "diameter_mm": args.diameter_mm,
+                "loading_type": args.loading_type,
+                "service_temperature_F": args.service_temperature_f,
+                "service_temperature_C": args.service_temperature_c,
+                "reliability_percent": args.reliability_percent,
+                "cycles": args.cycles,
+                "miscellaneous_factor_k_f": args.misc_factor,
+                "size_factor_k_b": args.size_factor_k_b,
+                "load_factor_k_c": args.load_factor_k_c,
+                "temperature_factor_k_d": args.temperature_factor_k_d,
+                "reliability_factor_k_e": args.reliability_factor_k_e,
+                "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -294,6 +345,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_stress_concentration_notch_sensitivity_args(args)
             elif args.command == "cycles_to_failure":
                 payload = self._payload_from_cycles_to_failure_args(args)
+            elif args.command == "endurance_limit_and_fatigue_strength":
+                payload = self._payload_from_endurance_limit_and_fatigue_strength_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

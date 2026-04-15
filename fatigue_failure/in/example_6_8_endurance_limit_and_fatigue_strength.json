@@ -1,0 +1,22 @@
+{
+  "problem": "endurance_limit_and_fatigue_strength",
+  "title": "Example 6-8 endurance limit and fatigue strength for a machined 1015 HR steel bar in reversed axial loading",
+  "inputs": {
+    "solve_path": "endurance_limit_and_fatigue_strength",
+    "sae_aisi_no": "1015",
+    "processing": "HR",
+    "surface_finish": "Machined or cold-drawn",
+    "diameter_in": 1.0,
+    "loading_type": "axial",
+    "service_temperature_F": 550.0,
+    "reliability_percent": 99.0,
+    "cycles": 70000.0,
+    "notes": [
+      "This file follows Example 6-8 on p306.",
+      "ASTM minimum properties are fetched from Table A-20 using SAE/AISI 1015 and processing HR.",
+      "The service-temperature tensile-strength ratio is fetched from Table 6-4 and used first to modify Sut before estimating S'e with Eq. (6-8).",
+      "The Marin factors are then applied using Eqs. (6-18), (6-19), (6-21), and (6-26), with reliability factor from Table 6-5.",
+      "For Sut below 70 kpsi at service temperature, the solver uses the conservative text rule f = 0.9 from p293 for the finite-life line."
+    ]
+  }
+}
