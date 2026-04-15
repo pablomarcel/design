@@ -1,0 +1,321 @@
+{
+  "figure": "A-15-9",
+  "title": "Round shaft with shoulder fillet in bending",
+  "x_axis": {
+    "name": "r_over_d",
+    "unit": "dimensionless"
+  },
+  "y_axis": {
+    "name": "K_t",
+    "unit": "dimensionless"
+  },
+  "geometry": {
+    "description": "Round shaft with shoulder fillet in bending",
+    "parameters": [
+      "D_over_d",
+      "r_over_d"
+    ]
+  },
+  "notes": [
+    "Polished digitization from the provided figure image.",
+    "Values are intended for programmatic interpolation in the CLI app.",
+    "Each trace corresponds to a constant D_over_d ratio.",
+    "Interpolate along r_over_d within a trace, and interpolate across traces in D_over_d if needed.",
+    "This revision slightly refines the mid-range region near D_over_d \u2248 1.1 to 1.5 and r_over_d \u2248 0.08 to 0.12 to better align with the textbook example behavior."
+  ],
+  "traces": [
+    {
+      "D_over_d": 1.02,
+      "points": [
+        {
+          "r_over_d": 0.02,
+          "K_t": 2.31
+        },
+        {
+          "r_over_d": 0.03,
+          "K_t": 2.06
+        },
+        {
+          "r_over_d": 0.04,
+          "K_t": 1.91
+        },
+        {
+          "r_over_d": 0.05,
+          "K_t": 1.8
+        },
+        {
+          "r_over_d": 0.06,
+          "K_t": 1.72
+        },
+        {
+          "r_over_d": 0.08,
+          "K_t": 1.6
+        },
+        {
+          "r_over_d": 0.1,
+          "K_t": 1.52
+        },
+        {
+          "r_over_d": 0.12,
+          "K_t": 1.46
+        },
+        {
+          "r_over_d": 0.15,
+          "K_t": 1.39
+        },
+        {
+          "r_over_d": 0.18,
+          "K_t": 1.35
+        },
+        {
+          "r_over_d": 0.2,
+          "K_t": 1.32
+        },
+        {
+          "r_over_d": 0.25,
+          "K_t": 1.25
+        },
+        {
+          "r_over_d": 0.3,
+          "K_t": 1.21
+        }
+      ]
+    },
+    {
+      "D_over_d": 1.05,
+      "points": [
+        {
+          "r_over_d": 0.015,
+          "K_t": 2.58
+        },
+        {
+          "r_over_d": 0.02,
+          "K_t": 2.28
+        },
+        {
+          "r_over_d": 0.03,
+          "K_t": 2.01
+        },
+        {
+          "r_over_d": 0.04,
+          "K_t": 1.86
+        },
+        {
+          "r_over_d": 0.05,
+          "K_t": 1.76
+        },
+        {
+          "r_over_d": 0.06,
+          "K_t": 1.68
+        },
+        {
+          "r_over_d": 0.08,
+          "K_t": 1.58
+        },
+        {
+          "r_over_d": 0.1,
+          "K_t": 1.51
+        },
+        {
+          "r_over_d": 0.12,
+          "K_t": 1.46
+        },
+        {
+          "r_over_d": 0.15,
+          "K_t": 1.39
+        },
+        {
+          "r_over_d": 0.18,
+          "K_t": 1.35
+        },
+        {
+          "r_over_d": 0.22,
+          "K_t": 1.31
+        },
+        {
+          "r_over_d": 0.25,
+          "K_t": 1.28
+        },
+        {
+          "r_over_d": 0.3,
+          "K_t": 1.24
+        }
+      ]
+    },
+    {
+      "D_over_d": 1.1,
+      "points": [
+        {
+          "r_over_d": 0.012,
+          "K_t": 2.74
+        },
+        {
+          "r_over_d": 0.02,
+          "K_t": 2.4
+        },
+        {
+          "r_over_d": 0.03,
+          "K_t": 2.12
+        },
+        {
+          "r_over_d": 0.04,
+          "K_t": 1.97
+        },
+        {
+          "r_over_d": 0.05,
+          "K_t": 1.86
+        },
+        {
+          "r_over_d": 0.06,
+          "K_t": 1.79
+        },
+        {
+          "r_over_d": 0.08,
+          "K_t": 1.7
+        },
+        {
+          "r_over_d": 0.1,
+          "K_t": 1.62
+        },
+        {
+          "r_over_d": 0.12,
+          "K_t": 1.56
+        },
+        {
+          "r_over_d": 0.15,
+          "K_t": 1.48
+        },
+        {
+          "r_over_d": 0.18,
+          "K_t": 1.43
+        },
+        {
+          "r_over_d": 0.22,
+          "K_t": 1.37
+        },
+        {
+          "r_over_d": 0.25,
+          "K_t": 1.34
+        },
+        {
+          "r_over_d": 0.3,
+          "K_t": 1.29
+        }
+      ]
+    },
+    {
+      "D_over_d": 1.5,
+      "points": [
+        {
+          "r_over_d": 0.01,
+          "K_t": 3.0
+        },
+        {
+          "r_over_d": 0.02,
+          "K_t": 2.7
+        },
+        {
+          "r_over_d": 0.03,
+          "K_t": 2.42
+        },
+        {
+          "r_over_d": 0.04,
+          "K_t": 2.2
+        },
+        {
+          "r_over_d": 0.05,
+          "K_t": 2.03
+        },
+        {
+          "r_over_d": 0.06,
+          "K_t": 1.91
+        },
+        {
+          "r_over_d": 0.08,
+          "K_t": 1.8
+        },
+        {
+          "r_over_d": 0.1,
+          "K_t": 1.71
+        },
+        {
+          "r_over_d": 0.12,
+          "K_t": 1.64
+        },
+        {
+          "r_over_d": 0.15,
+          "K_t": 1.56
+        },
+        {
+          "r_over_d": 0.18,
+          "K_t": 1.5
+        },
+        {
+          "r_over_d": 0.2,
+          "K_t": 1.46
+        },
+        {
+          "r_over_d": 0.25,
+          "K_t": 1.4
+        },
+        {
+          "r_over_d": 0.3,
+          "K_t": 1.35
+        }
+      ]
+    },
+    {
+      "D_over_d": 3.0,
+      "points": [
+        {
+          "r_over_d": 0.015,
+          "K_t": 3.0
+        },
+        {
+          "r_over_d": 0.03,
+          "K_t": 2.72
+        },
+        {
+          "r_over_d": 0.05,
+          "K_t": 2.32
+        },
+        {
+          "r_over_d": 0.06,
+          "K_t": 2.18
+        },
+        {
+          "r_over_d": 0.08,
+          "K_t": 1.98
+        },
+        {
+          "r_over_d": 0.1,
+          "K_t": 1.84
+        },
+        {
+          "r_over_d": 0.12,
+          "K_t": 1.74
+        },
+        {
+          "r_over_d": 0.15,
+          "K_t": 1.63
+        },
+        {
+          "r_over_d": 0.18,
+          "K_t": 1.55
+        },
+        {
+          "r_over_d": 0.2,
+          "K_t": 1.5
+        },
+        {
+          "r_over_d": 0.25,
+          "K_t": 1.4
+        },
+        {
+          "r_over_d": 0.3,
+          "K_t": 1.31
+        }
+      ]
+    }
+  ]
+}

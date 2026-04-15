@@ -92,6 +92,21 @@ class FatigueFailureCLI:
         tf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         tf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        scns_parser = subparsers.add_parser(
+            "stress_concentration_notch_sensitivity",
+            help="Direct CLI entry point for Example 6-6 style stress concentration and notch sensitivity calculations.",
+        )
+        scns_parser.add_argument("--title", default="Stress concentration and notch sensitivity analysis from CLI flags")
+        scns_parser.add_argument("--sut-mpa", type=float, help="Ultimate tensile strength in MPa.")
+        scns_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
+        scns_parser.add_argument("--small-diameter-mm", type=float, required=True, help="Small shaft diameter d in mm.")
+        scns_parser.add_argument("--large-diameter-mm", type=float, required=True, help="Large shaft diameter D in mm.")
+        scns_parser.add_argument("--fillet-radius-mm", type=float, required=True, help="Shoulder fillet radius r in mm.")
+        scns_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        scns_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        scns_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -199,6 +214,21 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_stress_concentration_notch_sensitivity_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "stress_concentration_notch_sensitivity",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "stress_concentration_notch_sensitivity",
+                "sut_MPa": args.sut_mpa,
+                "sut_kpsi": args.sut_kpsi,
+                "small_diameter_mm": args.small_diameter_mm,
+                "large_diameter_mm": args.large_diameter_mm,
+                "fillet_radius_mm": args.fillet_radius_mm,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -228,6 +258,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_size_factor_args(args)
             elif args.command == "temperature_factor":
                 payload = self._payload_from_temperature_factor_args(args)
+            elif args.command == "stress_concentration_notch_sensitivity":
+                payload = self._payload_from_stress_concentration_notch_sensitivity_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

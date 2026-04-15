@@ -137,6 +137,8 @@ class DigitizedDataRepository:
         self._surface_finish_rows: list[SurfaceFinishRecord] | None = None
         self._table_6_3_payload: dict[str, Any] | None = None
         self._table_6_4_rows: list[dict[str, float]] | None = None
+        self._table_a_15_9_payload: dict[str, Any] | None = None
+        self._figure_6_20_payload: dict[str, Any] | None = None
 
     def _read_csv(self, filename: str) -> list[dict[str, str]]:
         path = self.data_dir / filename
@@ -362,6 +364,87 @@ class DigitizedDataRepository:
             "temperature_f": float(temperature_f),
             "st_over_srt": ratio,
             "source": "table_6_4_interpolated",
+        }
+
+
+    @property
+    def table_a_15_9_payload(self) -> dict[str, Any]:
+        if self._table_a_15_9_payload is None:
+            self._table_a_15_9_payload = self._read_json("table_a_15_9.json")
+        return self._table_a_15_9_payload
+
+    @property
+    def figure_6_20_payload(self) -> dict[str, Any]:
+        if self._figure_6_20_payload is None:
+            self._figure_6_20_payload = self._read_json("figure_6_20.json")
+        return self._figure_6_20_payload
+
+    @staticmethod
+    def _interp_from_points(x: float, points: list[dict[str, Any]], x_key: str, y_key: str) -> float:
+        xs = [float(point[x_key]) for point in points]
+        ys = [float(point[y_key]) for point in points]
+        return linear_interpolate(float(x), xs, ys)
+
+    def stress_concentration_kt_shoulder_bending(self, D_over_d: float, r_over_d: float) -> dict[str, Any]:
+        payload = self.table_a_15_9_payload
+        traces = payload.get("traces", [])
+        if len(traces) < 2:
+            raise DataLookupError("table_a_15_9.json must contain at least two traces.")
+        trace_values: list[tuple[float, float]] = []
+        for trace in traces:
+            dd = float(trace["D_over_d"])
+            kt = self._interp_from_points(
+                x=float(r_over_d),
+                points=trace["points"],
+                x_key="r_over_d",
+                y_key="K_t",
+            )
+            trace_values.append((dd, kt))
+        trace_values.sort(key=lambda item: item[0])
+        dds = [item[0] for item in trace_values]
+        kts = [item[1] for item in trace_values]
+        kt_final = linear_interpolate(float(D_over_d), dds, kts)
+        return {
+            "D_over_d": float(D_over_d),
+            "r_over_d": float(r_over_d),
+            "K_t": kt_final,
+            "source": "table_a_15_9_interpolated",
+            "intermediate_trace_values": [
+                {"D_over_d": dd, "K_t_at_requested_r_over_d": kt}
+                for dd, kt in trace_values
+            ],
+        }
+
+    def notch_sensitivity_q_bending(self, sut_kpsi: float, r_in: float) -> dict[str, Any]:
+        payload = self.figure_6_20_payload
+        traces = payload.get("traces", [])
+        steel_traces = [trace for trace in traces if str(trace.get("material", "")).lower() == "steel"]
+        if len(steel_traces) < 2:
+            raise DataLookupError("figure_6_20.json must contain at least two steel traces.")
+        trace_values: list[tuple[float, float]] = []
+        for trace in steel_traces:
+            sut_trace = float(trace["Sut_kpsi"])
+            q_val = self._interp_from_points(
+                x=float(r_in),
+                points=trace["points"],
+                x_key="r_in",
+                y_key="q",
+            )
+            trace_values.append((sut_trace, q_val))
+        trace_values.sort(key=lambda item: item[0])
+        suts = [item[0] for item in trace_values]
+        qs = [item[1] for item in trace_values]
+        q_final = linear_interpolate(float(sut_kpsi), suts, qs)
+        return {
+            "sut_kpsi": float(sut_kpsi),
+            "r_in": float(r_in),
+            "r_mm": float(in_to_mm(r_in)),
+            "q": q_final,
+            "source": "figure_6_20_interpolated",
+            "intermediate_trace_values": [
+                {"Sut_kpsi": sut_val, "q_at_requested_r_in": q_val}
+                for sut_val, q_val in trace_values
+            ],
         }
 
 
@@ -1281,6 +1364,189 @@ class TemperatureFactorSolver:
                     "This solver targets Example 6-5 style Marin temperature-factor calculations.",
                     "When the room-temperature endurance limit is known by test, compute k_d from Eq. (6-27) or Table 6-4 and multiply by the known room-temperature endurance limit.",
                     "When only room-temperature tensile strength is known, first estimate the temperature-corrected tensile strength using Table 6-4 or Eq. (6-27), then estimate endurance limit using Eq. (6-8), and use k_d = 1 thereafter as in the textbook discussion.",
+                ],
+            },
+        }
+        if verification:
+            output["verification"] = verification
+        return output
+
+class StressConcentrationNotchSensitivitySolver:
+    """Implements Shigley Chapter 6 Example 6-6 for K_t, q, and K_f in bending."""
+
+    solve_path = "stress_concentration_notch_sensitivity"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    def _resolve_strengths(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        sut_mpa = coalesce(
+            inputs.get("sut_MPa"),
+            inputs.get("ultimate_tensile_strength_MPa"),
+            inputs.get("mean_ultimate_tensile_strength_MPa"),
+        )
+        sut_kpsi = coalesce(
+            inputs.get("sut_kpsi"),
+            inputs.get("ultimate_tensile_strength_kpsi"),
+            inputs.get("mean_ultimate_tensile_strength_kpsi"),
+        )
+        if sut_mpa is None and sut_kpsi is None:
+            raise ValidationError(
+                "Ultimate tensile strength is required for solve_path='stress_concentration_notch_sensitivity'. "
+                "Provide sut_MPa or sut_kpsi."
+            )
+        if sut_mpa is not None and sut_kpsi is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": float(sut_kpsi), "source": "user_input_both_units"}
+        if sut_mpa is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": mpa_to_kpsi(float(sut_mpa)), "source": "user_input_MPa"}
+        return {"sut_MPa": kpsi_to_mpa(float(sut_kpsi)), "sut_kpsi": float(sut_kpsi), "source": "user_input_kpsi"}
+
+    @staticmethod
+    def _sqrt_a_bending_in(sut_kpsi: float) -> float:
+        sut = float(sut_kpsi)
+        return 0.246 - 3.08e-3 * sut + 1.51e-5 * sut**2 - 2.67e-8 * sut**3
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"StressConcentrationNotchSensitivitySolver received solve_path={inputs.get('solve_path')!r}; "
+                f"expected {self.solve_path!r}."
+            )
+
+        strengths = self._resolve_strengths(inputs)
+
+        d_mm = ensure_positive("small_diameter_mm", coalesce(inputs.get("small_diameter_mm"), inputs.get("d_mm"), inputs.get("diameter_small_mm")))
+        D_mm = ensure_positive("large_diameter_mm", coalesce(inputs.get("large_diameter_mm"), inputs.get("D_mm"), inputs.get("diameter_large_mm")))
+        r_mm = ensure_positive("fillet_radius_mm", coalesce(inputs.get("fillet_radius_mm"), inputs.get("r_mm"), inputs.get("notch_radius_mm")))
+
+        if D_mm <= d_mm:
+            raise ValidationError(f"large_diameter_mm must be greater than small_diameter_mm. Got D={D_mm} and d={d_mm}.")
+
+        D_over_d = D_mm / d_mm
+        r_over_d = r_mm / d_mm
+        r_in = mm_to_in(r_mm)
+
+        kt_lookup = self.repository.stress_concentration_kt_shoulder_bending(D_over_d=D_over_d, r_over_d=r_over_d)
+        K_t = float(kt_lookup["K_t"])
+
+        q_chart_lookup = self.repository.notch_sensitivity_q_bending(
+            sut_kpsi=strengths["sut_kpsi"],
+            r_in=r_in,
+        )
+        q_chart = float(q_chart_lookup["q"])
+        K_f_chart = 1.0 + q_chart * (K_t - 1.0)
+
+        sqrt_a_in = self._sqrt_a_bending_in(strengths["sut_kpsi"])
+        sqrt_a_mm = sqrt_a_in * math.sqrt(25.4)
+        q_eq = 1.0 / (1.0 + sqrt_a_mm / math.sqrt(r_mm))
+        K_f_eq = 1.0 + (K_t - 1.0) / (1.0 + sqrt_a_mm / math.sqrt(r_mm))
+
+        results_cases = [
+            {
+                "name": "part_a_from_figure_6_20",
+                "method": "figure_6_20",
+                "q": safe_round(q_chart),
+                "K_f": safe_round(K_f_chart),
+                "equations": ["6-32"],
+            },
+            {
+                "name": "part_b_from_eq_6_33_and_6_35a",
+                "method": "eq_6_33_and_6_35a",
+                "sqrt_a_sqrt_in": safe_round(sqrt_a_in),
+                "sqrt_a_sqrt_mm": safe_round(sqrt_a_mm),
+                "q": safe_round(q_eq),
+                "K_f": safe_round(K_f_eq),
+                "equations": ["6-33", "6-34", "6-35a"],
+            },
+        ]
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification: dict[str, Any] = {}
+        if "K_t" in expected_ref:
+            verification["K_t"] = {
+                "actual": safe_round(K_t),
+                "reference": float(expected_ref["K_t"]),
+                "relative_error_percent": safe_round(relative_error_percent(K_t, float(expected_ref["K_t"]))),
+            }
+        if "part_a" in expected_ref:
+            ref = expected_ref["part_a"]
+            if "q" in ref:
+                verification["part_a::q"] = {
+                    "actual": safe_round(q_chart),
+                    "reference": float(ref["q"]),
+                    "relative_error_percent": safe_round(relative_error_percent(q_chart, float(ref["q"]))),
+                }
+            if "K_f" in ref:
+                verification["part_a::K_f"] = {
+                    "actual": safe_round(K_f_chart),
+                    "reference": float(ref["K_f"]),
+                    "relative_error_percent": safe_round(relative_error_percent(K_f_chart, float(ref["K_f"]))),
+                }
+        if "part_b" in expected_ref:
+            ref = expected_ref["part_b"]
+            if "sqrt_a_sqrt_in" in ref:
+                verification["part_b::sqrt_a_sqrt_in"] = {
+                    "actual": safe_round(sqrt_a_in),
+                    "reference": float(ref["sqrt_a_sqrt_in"]),
+                    "relative_error_percent": safe_round(relative_error_percent(sqrt_a_in, float(ref["sqrt_a_sqrt_in"]))),
+                }
+            if "sqrt_a_sqrt_mm" in ref:
+                verification["part_b::sqrt_a_sqrt_mm"] = {
+                    "actual": safe_round(sqrt_a_mm),
+                    "reference": float(ref["sqrt_a_sqrt_mm"]),
+                    "relative_error_percent": safe_round(relative_error_percent(sqrt_a_mm, float(ref["sqrt_a_sqrt_mm"]))),
+                }
+            if "q" in ref:
+                verification["part_b::q"] = {
+                    "actual": safe_round(q_eq),
+                    "reference": float(ref["q"]),
+                    "relative_error_percent": safe_round(relative_error_percent(q_eq, float(ref["q"]))),
+                }
+            if "K_f" in ref:
+                verification["part_b::K_f"] = {
+                    "actual": safe_round(K_f_eq),
+                    "reference": float(ref["K_f"]),
+                    "relative_error_percent": safe_round(relative_error_percent(K_f_eq, float(ref["K_f"]))),
+                }
+
+        output = {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Stress concentration and notch sensitivity analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_a_15_9": kt_lookup,
+                "figure_6_20": q_chart_lookup,
+            },
+            "derived": {
+                "sut_MPa": safe_round(strengths["sut_MPa"]),
+                "sut_kpsi": safe_round(strengths["sut_kpsi"]),
+                "small_diameter_mm": safe_round(d_mm),
+                "large_diameter_mm": safe_round(D_mm),
+                "fillet_radius_mm": safe_round(r_mm),
+                "small_diameter_in": safe_round(mm_to_in(d_mm)),
+                "large_diameter_in": safe_round(mm_to_in(D_mm)),
+                "fillet_radius_in": safe_round(r_in),
+                "D_over_d": safe_round(D_over_d),
+                "r_over_d": safe_round(r_over_d),
+                "K_t": safe_round(K_t),
+                "sqrt_a_sqrt_in_from_eq_6_35a": safe_round(sqrt_a_in),
+                "sqrt_a_sqrt_mm_from_eq_6_35a": safe_round(sqrt_a_mm),
+                "q_from_eq_6_34_using_mm": safe_round(q_eq),
+                "K_f_from_eq_6_33_using_mm": safe_round(K_f_eq),
+            },
+            "results": {
+                "cases": results_cases,
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-32", "6-33", "6-34", "6-35a"],
+                "notes": [
+                    "This solver targets Example 6-6 style stress concentration and notch sensitivity calculations for a round shaft shoulder fillet in bending.",
+                    "K_t is interpolated from table_a_15_9.json using D/d and r/d.",
+                    "Part (a) uses Figure 6-20 to interpolate q for steels in bending/axial loading.",
+                    "Part (b) uses Eq. (6-35a) for the Neuber constant and Eq. (6-33) or Eq. (6-34).",
+                    "Eq. (6-35a) requires S_ut in kpsi.",
                 ],
             },
         }

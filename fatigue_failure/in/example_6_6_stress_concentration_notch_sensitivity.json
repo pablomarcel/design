@@ -1,0 +1,31 @@
+{
+  "problem": "stress_concentration_notch_sensitivity",
+  "title": "Example 6-6 stress concentration and notch sensitivity for a shouldered steel shaft in bending",
+  "inputs": {
+    "solve_path": "stress_concentration_notch_sensitivity",
+    "sut_MPa": 690.0,
+    "small_diameter_mm": 32.0,
+    "large_diameter_mm": 38.0,
+    "fillet_radius_mm": 3.0,
+    "expected_textbook_reference_values": {
+      "K_t": 1.65,
+      "part_a": {
+        "q": 0.84,
+        "K_f": 1.55
+      },
+      "part_b": {
+        "sqrt_a_sqrt_in": 0.0622,
+        "sqrt_a_sqrt_mm": 0.313,
+        "q": 0.84,
+        "K_f": 1.55
+      }
+    },
+    "notes": [
+      "This file follows Example 6-6 on p303-p305.",
+      "K_t is fetched from table_a_15_9.json using D/d and r/d interpolation.",
+      "Part (a) uses figure_6_20.json for q in bending.",
+      "Part (b) uses Eqs. (6-33), (6-34), and (6-35a).",
+      "Small differences from the textbook are expected because the chart files are digitized approximations."
+    ]
+  }
+}

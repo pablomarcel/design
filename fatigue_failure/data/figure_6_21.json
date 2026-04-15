@@ -1,0 +1,306 @@
+{
+  "figure": "6-21",
+  "title": "Notch-sensitivity curves for materials in reversed torsion",
+  "x_axes": {
+    "r_in": {
+      "name": "notch_radius_r_in",
+      "unit": "in"
+    },
+    "r_mm": {
+      "name": "notch_radius_r_mm",
+      "unit": "mm",
+      "conversion": "r_mm = 25.4 * r_in"
+    }
+  },
+  "y_axis": {
+    "name": "notch_sensitivity_q_shear",
+    "unit": "dimensionless"
+  },
+  "notes": [
+    "Digitized approximately from the provided chart image.",
+    "Solid traces correspond to steels at different ultimate tensile strengths Sut.",
+    "Dashed trace corresponds to aluminum alloy.",
+    "Values are intended for programmatic interpolation in a CLI app.",
+    "For larger notch radii, use the values of q_shear corresponding to r = 0.16 in (4 mm), per the figure note."
+  ],
+  "traces": [
+    {
+      "material": "steel",
+      "Sut_kpsi": 200,
+      "Sut_GPa_approx": 1.4,
+      "points": [
+        {
+          "r_in": 0.008,
+          "q_shear": 0.84
+        },
+        {
+          "r_in": 0.012,
+          "q_shear": 0.87
+        },
+        {
+          "r_in": 0.016,
+          "q_shear": 0.89
+        },
+        {
+          "r_in": 0.02,
+          "q_shear": 0.905
+        },
+        {
+          "r_in": 0.03,
+          "q_shear": 0.93
+        },
+        {
+          "r_in": 0.04,
+          "q_shear": 0.94
+        },
+        {
+          "r_in": 0.06,
+          "q_shear": 0.95
+        },
+        {
+          "r_in": 0.08,
+          "q_shear": 0.955
+        },
+        {
+          "r_in": 0.1,
+          "q_shear": 0.958
+        },
+        {
+          "r_in": 0.12,
+          "q_shear": 0.962
+        },
+        {
+          "r_in": 0.14,
+          "q_shear": 0.965
+        },
+        {
+          "r_in": 0.16,
+          "q_shear": 0.968
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 150,
+      "Sut_GPa_approx": 1.0,
+      "points": [
+        {
+          "r_in": 0.008,
+          "q_shear": 0.76
+        },
+        {
+          "r_in": 0.012,
+          "q_shear": 0.8
+        },
+        {
+          "r_in": 0.016,
+          "q_shear": 0.83
+        },
+        {
+          "r_in": 0.02,
+          "q_shear": 0.85
+        },
+        {
+          "r_in": 0.03,
+          "q_shear": 0.88
+        },
+        {
+          "r_in": 0.04,
+          "q_shear": 0.895
+        },
+        {
+          "r_in": 0.06,
+          "q_shear": 0.91
+        },
+        {
+          "r_in": 0.08,
+          "q_shear": 0.92
+        },
+        {
+          "r_in": 0.1,
+          "q_shear": 0.925
+        },
+        {
+          "r_in": 0.12,
+          "q_shear": 0.93
+        },
+        {
+          "r_in": 0.14,
+          "q_shear": 0.935
+        },
+        {
+          "r_in": 0.16,
+          "q_shear": 0.94
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 100,
+      "Sut_GPa_approx": 0.7,
+      "points": [
+        {
+          "r_in": 0.008,
+          "q_shear": 0.68
+        },
+        {
+          "r_in": 0.012,
+          "q_shear": 0.73
+        },
+        {
+          "r_in": 0.016,
+          "q_shear": 0.76
+        },
+        {
+          "r_in": 0.02,
+          "q_shear": 0.78
+        },
+        {
+          "r_in": 0.03,
+          "q_shear": 0.82
+        },
+        {
+          "r_in": 0.04,
+          "q_shear": 0.84
+        },
+        {
+          "r_in": 0.06,
+          "q_shear": 0.86
+        },
+        {
+          "r_in": 0.08,
+          "q_shear": 0.87
+        },
+        {
+          "r_in": 0.1,
+          "q_shear": 0.88
+        },
+        {
+          "r_in": 0.12,
+          "q_shear": 0.885
+        },
+        {
+          "r_in": 0.14,
+          "q_shear": 0.89
+        },
+        {
+          "r_in": 0.16,
+          "q_shear": 0.895
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 60,
+      "Sut_GPa_approx": 0.4,
+      "points": [
+        {
+          "r_in": 0.008,
+          "q_shear": 0.46
+        },
+        {
+          "r_in": 0.012,
+          "q_shear": 0.54
+        },
+        {
+          "r_in": 0.016,
+          "q_shear": 0.59
+        },
+        {
+          "r_in": 0.02,
+          "q_shear": 0.62
+        },
+        {
+          "r_in": 0.03,
+          "q_shear": 0.67
+        },
+        {
+          "r_in": 0.04,
+          "q_shear": 0.7
+        },
+        {
+          "r_in": 0.06,
+          "q_shear": 0.74
+        },
+        {
+          "r_in": 0.08,
+          "q_shear": 0.77
+        },
+        {
+          "r_in": 0.1,
+          "q_shear": 0.79
+        },
+        {
+          "r_in": 0.12,
+          "q_shear": 0.81
+        },
+        {
+          "r_in": 0.14,
+          "q_shear": 0.82
+        },
+        {
+          "r_in": 0.16,
+          "q_shear": 0.83
+        }
+      ]
+    },
+    {
+      "material": "aluminum_alloy",
+      "trace_style": "dashed",
+      "points": [
+        {
+          "r_in": 0.0,
+          "q_shear": 0.0
+        },
+        {
+          "r_in": 0.005,
+          "q_shear": 0.23
+        },
+        {
+          "r_in": 0.01,
+          "q_shear": 0.4
+        },
+        {
+          "r_in": 0.015,
+          "q_shear": 0.51
+        },
+        {
+          "r_in": 0.02,
+          "q_shear": 0.58
+        },
+        {
+          "r_in": 0.03,
+          "q_shear": 0.67
+        },
+        {
+          "r_in": 0.04,
+          "q_shear": 0.73
+        },
+        {
+          "r_in": 0.06,
+          "q_shear": 0.8
+        },
+        {
+          "r_in": 0.08,
+          "q_shear": 0.85
+        },
+        {
+          "r_in": 0.1,
+          "q_shear": 0.88
+        },
+        {
+          "r_in": 0.12,
+          "q_shear": 0.9
+        },
+        {
+          "r_in": 0.14,
+          "q_shear": 0.915
+        },
+        {
+          "r_in": 0.16,
+          "q_shear": 0.925
+        }
+      ]
+    }
+  ]
+}

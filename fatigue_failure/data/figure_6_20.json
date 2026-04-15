@@ -1,0 +1,301 @@
+{
+  "figure_source_label": "Figure 6-20",
+  "output_name": "figure_6_19.json",
+  "title": "Notch-sensitivity charts for steels and UNS A92024-T wrought aluminum alloys subjected to reversed bending or reversed axial loads",
+  "x_axes": {
+    "r_in": {
+      "name": "notch_radius_r_in",
+      "unit": "in"
+    },
+    "r_mm": {
+      "name": "notch_radius_r_mm",
+      "unit": "mm",
+      "conversion": "r_mm = 25.4 * r_in"
+    }
+  },
+  "y_axis": {
+    "name": "notch_sensitivity_q",
+    "unit": "dimensionless"
+  },
+  "notes": [
+    "Digitized approximately from the provided chart image.",
+    "Solid traces correspond to steels at different ultimate tensile strengths Sut.",
+    "Dashed trace corresponds to aluminum alloy.",
+    "Values are suitable for interpolation in a CLI app.",
+    "For larger notch radii, use the values of q corresponding to the r = 0.16 in (4 mm) ordinate, per the figure note.",
+    "The user requested the output filename figure_6_19.json, though the provided image is labeled Figure 6-20."
+  ],
+  "traces": [
+    {
+      "material": "steel",
+      "Sut_kpsi": 200,
+      "Sut_GPa_approx": 1.4,
+      "points": [
+        {
+          "r_in": 0.005,
+          "q": 0.82
+        },
+        {
+          "r_in": 0.01,
+          "q": 0.86
+        },
+        {
+          "r_in": 0.015,
+          "q": 0.89
+        },
+        {
+          "r_in": 0.02,
+          "q": 0.91
+        },
+        {
+          "r_in": 0.03,
+          "q": 0.93
+        },
+        {
+          "r_in": 0.04,
+          "q": 0.94
+        },
+        {
+          "r_in": 0.06,
+          "q": 0.945
+        },
+        {
+          "r_in": 0.08,
+          "q": 0.948
+        },
+        {
+          "r_in": 0.1,
+          "q": 0.95
+        },
+        {
+          "r_in": 0.12,
+          "q": 0.952
+        },
+        {
+          "r_in": 0.14,
+          "q": 0.956
+        },
+        {
+          "r_in": 0.16,
+          "q": 0.96
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 150,
+      "Sut_GPa_approx": 1.0,
+      "points": [
+        {
+          "r_in": 0.005,
+          "q": 0.68
+        },
+        {
+          "r_in": 0.01,
+          "q": 0.75
+        },
+        {
+          "r_in": 0.015,
+          "q": 0.79
+        },
+        {
+          "r_in": 0.02,
+          "q": 0.82
+        },
+        {
+          "r_in": 0.03,
+          "q": 0.85
+        },
+        {
+          "r_in": 0.04,
+          "q": 0.87
+        },
+        {
+          "r_in": 0.06,
+          "q": 0.89
+        },
+        {
+          "r_in": 0.08,
+          "q": 0.9
+        },
+        {
+          "r_in": 0.1,
+          "q": 0.91
+        },
+        {
+          "r_in": 0.12,
+          "q": 0.915
+        },
+        {
+          "r_in": 0.14,
+          "q": 0.922
+        },
+        {
+          "r_in": 0.16,
+          "q": 0.928
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 100,
+      "Sut_GPa_approx": 0.7,
+      "points": [
+        {
+          "r_in": 0.005,
+          "q": 0.54
+        },
+        {
+          "r_in": 0.01,
+          "q": 0.62
+        },
+        {
+          "r_in": 0.015,
+          "q": 0.67
+        },
+        {
+          "r_in": 0.02,
+          "q": 0.7
+        },
+        {
+          "r_in": 0.03,
+          "q": 0.74
+        },
+        {
+          "r_in": 0.04,
+          "q": 0.77
+        },
+        {
+          "r_in": 0.06,
+          "q": 0.8
+        },
+        {
+          "r_in": 0.08,
+          "q": 0.82
+        },
+        {
+          "r_in": 0.1,
+          "q": 0.835
+        },
+        {
+          "r_in": 0.12,
+          "q": 0.845
+        },
+        {
+          "r_in": 0.14,
+          "q": 0.852
+        },
+        {
+          "r_in": 0.16,
+          "q": 0.86
+        }
+      ]
+    },
+    {
+      "material": "steel",
+      "Sut_kpsi": 60,
+      "Sut_GPa_approx": 0.4,
+      "points": [
+        {
+          "r_in": 0.005,
+          "q": 0.36
+        },
+        {
+          "r_in": 0.01,
+          "q": 0.46
+        },
+        {
+          "r_in": 0.015,
+          "q": 0.53
+        },
+        {
+          "r_in": 0.02,
+          "q": 0.57
+        },
+        {
+          "r_in": 0.03,
+          "q": 0.62
+        },
+        {
+          "r_in": 0.04,
+          "q": 0.66
+        },
+        {
+          "r_in": 0.06,
+          "q": 0.7
+        },
+        {
+          "r_in": 0.08,
+          "q": 0.72
+        },
+        {
+          "r_in": 0.1,
+          "q": 0.76
+        },
+        {
+          "r_in": 0.12,
+          "q": 0.78
+        },
+        {
+          "r_in": 0.14,
+          "q": 0.79
+        },
+        {
+          "r_in": 0.16,
+          "q": 0.795
+        }
+      ]
+    },
+    {
+      "material": "aluminum_alloy",
+      "alloy": "UNS A92024-T wrought aluminum alloy",
+      "trace_style": "dashed",
+      "points": [
+        {
+          "r_in": 0.01,
+          "q": 0.31
+        },
+        {
+          "r_in": 0.015,
+          "q": 0.38
+        },
+        {
+          "r_in": 0.02,
+          "q": 0.43
+        },
+        {
+          "r_in": 0.03,
+          "q": 0.5
+        },
+        {
+          "r_in": 0.04,
+          "q": 0.56
+        },
+        {
+          "r_in": 0.06,
+          "q": 0.64
+        },
+        {
+          "r_in": 0.08,
+          "q": 0.7
+        },
+        {
+          "r_in": 0.1,
+          "q": 0.75
+        },
+        {
+          "r_in": 0.12,
+          "q": 0.79
+        },
+        {
+          "r_in": 0.14,
+          "q": 0.82
+        },
+        {
+          "r_in": 0.16,
+          "q": 0.84
+        }
+      ]
+    }
+  ]
+}

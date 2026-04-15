@@ -116,3 +116,34 @@ python -m cli temperature_factor \
   --pretty \
   --show
 ```
+
+## Example 6-6 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_6_stress_concentration_notch_sensitivity.json \
+  --outfile example_6_6_stress_concentration_notch_sensitivity_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli stress_concentration_notch_sensitivity \
+  --sut-mpa 690 \
+  --small-diameter-mm 32 \
+  --large-diameter-mm 38 \
+  --fillet-radius-mm 3 \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli stress_concentration_notch_sensitivity \
+  --sut-mpa 690 \
+  --small-diameter-mm 32 \
+  --large-diameter-mm 38 \
+  --fillet-radius-mm 3 \
+  --outfile example_6_6_stress_concentration_notch_sensitivity_out.json \
+  --pretty \
+  --show
+```
