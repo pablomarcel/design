@@ -92,7 +92,6 @@ class FatigueFailureCLI:
         tf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         tf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-
         scns_parser = subparsers.add_parser(
             "stress_concentration_notch_sensitivity",
             help="Direct CLI entry point for Example 6-6 style stress concentration and notch sensitivity calculations.",
@@ -107,7 +106,6 @@ class FatigueFailureCLI:
         scns_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         scns_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-
         ctf_parser = subparsers.add_parser(
             "cycles_to_failure",
             help="Direct CLI entry point for Example 6-7 style fully reversed cycles-to-failure calculations.",
@@ -119,7 +117,7 @@ class FatigueFailureCLI:
         ctf_parser.add_argument("--se-kpsi", type=float, help="Fully corrected endurance limit in kpsi.")
         ctf_parser.add_argument("--sigma-rev-nom-mpa", type=float, help="Nominal fully reversing stress in MPa.")
         ctf_parser.add_argument("--sigma-rev-nom-kpsi", type=float, help="Nominal fully reversing stress in kpsi.")
-        ctf_parser.add_argument("--K-f", dest="K_f", type=float, required=True, help="Fatigue stress concentration factor Kf.")
+        ctf_parser.add_argument("--k-f", "--K-f", dest="K_f", type=float, required=True, help="Fatigue stress concentration factor Kf.")
         ctf_parser.add_argument("--f-override", dest="fatigue_strength_fraction_f_override", type=float, help="Override Figure 6-18 fatigue strength fraction f.")
         ctf_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
         ctf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
@@ -232,7 +230,6 @@ class FatigueFailureCLI:
             },
         }
 
-
     def _payload_from_cycles_to_failure_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
             "problem": "cycles_to_failure",
@@ -249,7 +246,6 @@ class FatigueFailureCLI:
                 "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
             },
         }
-
 
     def _payload_from_stress_concentration_notch_sensitivity_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
