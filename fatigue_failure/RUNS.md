@@ -163,7 +163,7 @@ python -m cli cycles_to_failure \
   --sut-mpa 690 \
   --se-mpa 280 \
   --sigma-rev-nom-mpa 260 \
-  --k-f 1.55 \
+  --K-f 1.55 \
   --pretty \
   --show
 ```
@@ -173,7 +173,7 @@ python -m cli cycles_to_failure \
   --sut-mpa 690 \
   --se-mpa 280 \
   --sigma-rev-nom-mpa 260 \
-  --k-f 1.55 \
+  --K-f 1.55 \
   --outfile example_6_7_cycles_to_failure_out.json \
   --pretty \
   --show
