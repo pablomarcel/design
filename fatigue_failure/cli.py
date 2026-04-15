@@ -107,6 +107,24 @@ class FatigueFailureCLI:
         scns_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         scns_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        ctf_parser = subparsers.add_parser(
+            "cycles_to_failure",
+            help="Direct CLI entry point for Example 6-7 style fully reversed cycles-to-failure calculations.",
+        )
+        ctf_parser.add_argument("--title", default="Cycles to failure analysis from CLI flags")
+        ctf_parser.add_argument("--sut-mpa", type=float, help="Ultimate tensile strength in MPa.")
+        ctf_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
+        ctf_parser.add_argument("--se-mpa", type=float, help="Fully corrected endurance limit in MPa.")
+        ctf_parser.add_argument("--se-kpsi", type=float, help="Fully corrected endurance limit in kpsi.")
+        ctf_parser.add_argument("--sigma-rev-nom-mpa", type=float, help="Nominal fully reversing stress in MPa.")
+        ctf_parser.add_argument("--sigma-rev-nom-kpsi", type=float, help="Nominal fully reversing stress in kpsi.")
+        ctf_parser.add_argument("--K-f", dest="K_f", type=float, required=True, help="Fatigue stress concentration factor Kf.")
+        ctf_parser.add_argument("--f-override", dest="fatigue_strength_fraction_f_override", type=float, help="Override Figure 6-18 fatigue strength fraction f.")
+        ctf_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        ctf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        ctf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -215,6 +233,24 @@ class FatigueFailureCLI:
         }
 
 
+    def _payload_from_cycles_to_failure_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "cycles_to_failure",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "cycles_to_failure",
+                "sut_MPa": args.sut_mpa,
+                "sut_kpsi": args.sut_kpsi,
+                "Se_MPa": args.se_mpa,
+                "Se_kpsi": args.se_kpsi,
+                "sigma_rev_nom_MPa": args.sigma_rev_nom_mpa,
+                "sigma_rev_nom_kpsi": args.sigma_rev_nom_kpsi,
+                "K_f": args.K_f,
+                "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
+            },
+        }
+
+
     def _payload_from_stress_concentration_notch_sensitivity_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
             "problem": "stress_concentration_notch_sensitivity",
@@ -260,6 +296,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_temperature_factor_args(args)
             elif args.command == "stress_concentration_notch_sensitivity":
                 payload = self._payload_from_stress_concentration_notch_sensitivity_args(args)
+            elif args.command == "cycles_to_failure":
+                payload = self._payload_from_cycles_to_failure_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

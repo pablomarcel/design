@@ -10,6 +10,7 @@ try:
         SizeFactorSolver,
         TemperatureFactorSolver,
         StressConcentrationNotchSensitivitySolver,
+        CyclesToFailureSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -20,6 +21,7 @@ except ImportError:  # pragma: no cover
         SizeFactorSolver,
         TemperatureFactorSolver,
         StressConcentrationNotchSensitivitySolver,
+        CyclesToFailureSolver,
     )
     from utils import ValidationError
 
@@ -34,12 +36,14 @@ class SolverAPI:
         size_factor_solver = SizeFactorSolver(repository=repository)
         temperature_factor_solver = TemperatureFactorSolver(repository=repository)
         stress_concentration_notch_sensitivity_solver = StressConcentrationNotchSensitivitySolver(repository=repository)
+        cycles_to_failure_solver = CyclesToFailureSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
             size_factor_solver.solve_path: size_factor_solver,
             temperature_factor_solver.solve_path: temperature_factor_solver,
             stress_concentration_notch_sensitivity_solver.solve_path: stress_concentration_notch_sensitivity_solver,
+            cycles_to_failure_solver.solve_path: cycles_to_failure_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

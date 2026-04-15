@@ -1,0 +1,22 @@
+{
+  "problem": "cycles_to_failure",
+  "title": "Example 6-7 number of cycles to failure for the step-shaft of Example 6-6",
+  "inputs": {
+    "solve_path": "cycles_to_failure",
+    "sut_MPa": 690.0,
+    "Se_MPa": 280.0,
+    "sigma_rev_nom_MPa": 260.0,
+    "K_f": 1.55,
+    "expected_textbook_reference_values": {
+      "fatigue_strength_fraction_f": 0.8417,
+      "sigma_rev_local_MPa": 403.0,
+      "cycles_to_failure": 31814.448225
+    },
+    "notes": [
+      "This file follows Example 6-7 on p305.",
+      "K_f is treated as a given input from the previous example, as requested.",
+      "The solver fetches the fatigue-strength fraction f from figure_6_18.csv using Sut.",
+      "The finite-life S-N line is fit between f*Sut at 10^3 cycles and the fully corrected endurance limit Se at 10^6 cycles."
+    ]
+  }
+}

@@ -147,3 +147,34 @@ python -m cli stress_concentration_notch_sensitivity \
   --pretty \
   --show
 ```
+
+## Example 6-7 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_7_cycles_to_failure.json \
+  --outfile example_6_7_cycles_to_failure_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli cycles_to_failure \
+  --sut-mpa 690 \
+  --se-mpa 280 \
+  --sigma-rev-nom-mpa 260 \
+  --k-f 1.55 \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli cycles_to_failure \
+  --sut-mpa 690 \
+  --se-mpa 280 \
+  --sigma-rev-nom-mpa 260 \
+  --k-f 1.55 \
+  --outfile example_6_7_cycles_to_failure_out.json \
+  --pretty \
+  --show
+```

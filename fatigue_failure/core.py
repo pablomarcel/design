@@ -1371,6 +1371,202 @@ class TemperatureFactorSolver:
             output["verification"] = verification
         return output
 
+
+class CyclesToFailureSolver:
+    """Implements Shigley Chapter 6 Example 6-7 style cycles-to-failure calculations."""
+
+    solve_path = "cycles_to_failure"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    def _resolve_strengths(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        sut_mpa = coalesce(
+            inputs.get("sut_MPa"),
+            inputs.get("ultimate_tensile_strength_MPa"),
+            inputs.get("mean_ultimate_tensile_strength_MPa"),
+        )
+        sut_kpsi = coalesce(
+            inputs.get("sut_kpsi"),
+            inputs.get("ultimate_tensile_strength_kpsi"),
+            inputs.get("mean_ultimate_tensile_strength_kpsi"),
+        )
+
+        if sut_mpa is None and sut_kpsi is None:
+            raise ValidationError(
+                "Ultimate tensile strength is required for solve_path='cycles_to_failure'. "
+                "Provide sut_MPa or sut_kpsi."
+            )
+
+        if sut_mpa is not None and sut_kpsi is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": float(sut_kpsi), "source": "user_input_both_units"}
+        if sut_mpa is not None:
+            return {"sut_MPa": float(sut_mpa), "sut_kpsi": mpa_to_kpsi(float(sut_mpa)), "source": "user_input_MPa"}
+        return {"sut_MPa": kpsi_to_mpa(float(sut_kpsi)), "sut_kpsi": float(sut_kpsi), "source": "user_input_kpsi"}
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"CyclesToFailureSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        strengths = self._resolve_strengths(inputs)
+        se_mpa = coalesce(inputs.get("Se_MPa"), inputs.get("se_MPa"), inputs.get("endurance_limit_MPa"))
+        se_kpsi = coalesce(inputs.get("Se_kpsi"), inputs.get("se_kpsi"), inputs.get("endurance_limit_kpsi"))
+
+        if se_mpa is None and se_kpsi is None:
+            raise ValidationError(
+                "Fully corrected endurance limit is required for solve_path='cycles_to_failure'. "
+                "Provide Se_MPa or Se_kpsi."
+            )
+        if se_mpa is not None and se_kpsi is not None:
+            se_mpa = float(se_mpa)
+            se_kpsi = float(se_kpsi)
+        elif se_mpa is not None:
+            se_mpa = float(se_mpa)
+            se_kpsi = mpa_to_kpsi(se_mpa)
+        else:
+            se_kpsi = float(se_kpsi)
+            se_mpa = kpsi_to_mpa(se_kpsi)
+
+        sigma_nom_mpa = coalesce(
+            inputs.get("sigma_rev_nom_MPa"),
+            inputs.get("sigma_rev_nominal_MPa"),
+            inputs.get("sigma_nominal_reversing_MPa"),
+        )
+        sigma_nom_kpsi = coalesce(
+            inputs.get("sigma_rev_nom_kpsi"),
+            inputs.get("sigma_rev_nominal_kpsi"),
+            inputs.get("sigma_nominal_reversing_kpsi"),
+        )
+        if sigma_nom_mpa is None and sigma_nom_kpsi is None:
+            raise ValidationError(
+                "Nominal fully reversing stress is required. "
+                "Provide sigma_rev_nom_MPa or sigma_rev_nom_kpsi."
+            )
+        if sigma_nom_mpa is not None and sigma_nom_kpsi is not None:
+            sigma_nom_mpa = float(sigma_nom_mpa)
+            sigma_nom_kpsi = float(sigma_nom_kpsi)
+        elif sigma_nom_mpa is not None:
+            sigma_nom_mpa = float(sigma_nom_mpa)
+            sigma_nom_kpsi = mpa_to_kpsi(sigma_nom_mpa)
+        else:
+            sigma_nom_kpsi = float(sigma_nom_kpsi)
+            sigma_nom_mpa = kpsi_to_mpa(sigma_nom_kpsi)
+
+        K_f = ensure_positive("K_f", coalesce(inputs.get("K_f"), inputs.get("kf"), inputs.get("fatigue_stress_concentration_factor")))
+        n_low = ensure_at_least("sn_low_cycle_anchor_cycles", inputs.get("sn_low_cycle_anchor_cycles", 1.0e3), 1.0)
+        n_endurance = ensure_at_least("endurance_limit_cycles", inputs.get("endurance_limit_cycles", 1.0e6), n_low)
+
+        sigma_local_mpa = K_f * sigma_nom_mpa
+        sigma_local_kpsi = K_f * sigma_nom_kpsi
+
+        f_override = inputs.get("fatigue_strength_fraction_f_override")
+        if f_override is not None:
+            f_lookup = {
+                "f": float(f_override),
+                "source": "user_override",
+                "note": "User provided fatigue_strength_fraction_f_override.",
+            }
+        else:
+            f_lookup = self.repository.fatigue_strength_fraction_from_figure_6_18(strengths["sut_kpsi"])
+
+        f_value = ensure_positive("fatigue_strength_fraction_f", f_lookup["f"])
+        sf_low_kpsi = f_value * strengths["sut_kpsi"]
+        sf_low_mpa = kpsi_to_mpa(sf_low_kpsi)
+
+        if math.isclose(n_endurance, n_low, rel_tol=0.0, abs_tol=1e-12):
+            raise ValidationError("endurance_limit_cycles must be different from sn_low_cycle_anchor_cycles.")
+
+        b = log10(se_kpsi / sf_low_kpsi) / log10(n_endurance / n_low)
+        if math.isclose(b, 0.0, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("Resolved exponent b is zero, so the S-N relation would be singular.")
+        a_kpsi = sf_low_kpsi / (n_low ** b)
+        a_mpa = kpsi_to_mpa(a_kpsi)
+
+        life_regime = "finite_life"
+        if sigma_local_kpsi <= se_kpsi:
+            life_regime = "endurance_or_infinite_life"
+            cycles = math.inf
+        else:
+            cycles = (sigma_local_kpsi / a_kpsi) ** (1.0 / b)
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification: dict[str, Any] = {}
+        for key, actual in {
+            "fatigue_strength_fraction_f": f_value,
+            "a_kpsi": a_kpsi,
+            "b": b,
+            "sigma_rev_local_kpsi": sigma_local_kpsi,
+            "sigma_rev_local_MPa": sigma_local_mpa,
+            "cycles_to_failure": None if math.isinf(cycles) else cycles,
+        }.items():
+            if key in expected_ref and actual is not None:
+                verification[key] = {
+                    "actual": safe_round(actual),
+                    "reference": float(expected_ref[key]),
+                    "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
+                }
+
+        output = {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Cycles to failure analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "figure_6_18": {
+                    "sut_kpsi_for_lookup": safe_round(strengths["sut_kpsi"]),
+                    "fatigue_strength_fraction_f": safe_round(f_value),
+                    "source": f_lookup.get("source"),
+                    "note": f_lookup.get("note"),
+                }
+            },
+            "derived": {
+                "sut_MPa": safe_round(strengths["sut_MPa"]),
+                "sut_kpsi": safe_round(strengths["sut_kpsi"]),
+                "Se_MPa": safe_round(se_mpa),
+                "Se_kpsi": safe_round(se_kpsi),
+                "K_f": safe_round(K_f),
+                "sigma_rev_nom_MPa": safe_round(sigma_nom_mpa),
+                "sigma_rev_nom_kpsi": safe_round(sigma_nom_kpsi),
+                "sigma_rev_local_MPa": safe_round(sigma_local_mpa),
+                "sigma_rev_local_kpsi": safe_round(sigma_local_kpsi),
+                "fatigue_strength_fraction_f": safe_round(f_value),
+                "sf_at_1e3_cycles_kpsi": safe_round(sf_low_kpsi),
+                "sf_at_1e3_cycles_MPa": safe_round(sf_low_mpa),
+                "sn_low_cycle_anchor_cycles": safe_round(n_low),
+                "endurance_limit_cycles": safe_round(n_endurance),
+                "a_kpsi": safe_round(a_kpsi),
+                "a_MPa": safe_round(a_mpa),
+                "b": safe_round(b),
+                "sn_equation_kpsi": f"S_f = {safe_round(a_kpsi)} * N^({safe_round(b)})",
+                "sn_equation_MPa": f"S_f = {safe_round(a_mpa)} * N^({safe_round(b)})",
+            },
+            "results": {
+                "life_regime": life_regime,
+                "cycles_to_failure": None if math.isinf(cycles) else safe_round(cycles),
+                "cycles_to_failure_note": (
+                    f"Predicted life is at least {int(n_endurance):d} cycles because the local fully reversed stress does not exceed Se."
+                    if math.isinf(cycles)
+                    else None
+                ),
+                "equations": ["6-8", "6-13", "6-16"],
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-8", "6-13", "6-16"],
+                "notes": [
+                    "This solver targets Example 6-7 style fully reversed life calculations.",
+                    "The local fully reversed stress is computed from K_f times the nominal fully reversed stress.",
+                    "The finite-life S-N line is fit between f*Sut at 10^3 cycles and the fully corrected endurance limit Se at 10^6 cycles.",
+                    "If the local fully reversed stress is less than or equal to Se, the result is reported as endurance or infinite life.",
+                ],
+            },
+        }
+        if verification:
+            output["verification"] = verification
+        return output
+
 class StressConcentrationNotchSensitivitySolver:
     """Implements Shigley Chapter 6 Example 6-6 for K_t, q, and K_f in bending."""
 
