@@ -3065,3 +3065,263 @@ class GerberLangerFailureLinesSolver:
             },
             **({"verification": verification} if verification else {}),
         }
+
+
+
+def _repo_table_6_6_payload(self) -> dict[str, Any]:
+    if getattr(self, "_table_6_6_payload", None) is None:
+        self._table_6_6_payload = self._read_json("table_6_6.json")
+    return self._table_6_6_payload
+
+
+DigitizedDataRepository.table_6_6_payload = property(_repo_table_6_6_payload)
+
+
+
+class MultipleCriteriaCyclesToFailureSolver:
+    """Implements Shigley Chapter 6 Example 6-12 using multiple fatigue criteria."""
+
+    solve_path = "multiple_criteria_cycles_to_failure"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _eval_formula(expression: str, variables: dict[str, float]) -> float:
+        text = str(expression).strip()
+        if "=" in text:
+            text = text.split("=", 1)[1].strip()
+        return safe_eval_expression(text.replace("^", "**"), variables)
+
+    @staticmethod
+    def _resolve_stress_pair(inputs: dict[str, Any]) -> dict[str, float]:
+        sigma_max_kpsi = coalesce(inputs.get("sigma_max_kpsi"), inputs.get("smax_kpsi"), inputs.get("stress_max_kpsi"))
+        sigma_min_kpsi = coalesce(inputs.get("sigma_min_kpsi"), inputs.get("smin_kpsi"), inputs.get("stress_min_kpsi"))
+        sigma_max_mpa = coalesce(inputs.get("sigma_max_MPa"), inputs.get("smax_MPa"), inputs.get("stress_max_MPa"))
+        sigma_min_mpa = coalesce(inputs.get("sigma_min_MPa"), inputs.get("smin_MPa"), inputs.get("stress_min_MPa"))
+
+        if sigma_max_kpsi is not None or sigma_min_kpsi is not None:
+            if sigma_max_kpsi is None or sigma_min_kpsi is None:
+                raise ValidationError("Provide both sigma_max_kpsi and sigma_min_kpsi.")
+            sigma_max_kpsi = float(sigma_max_kpsi)
+            sigma_min_kpsi = float(sigma_min_kpsi)
+            return {
+                "sigma_max_kpsi": sigma_max_kpsi,
+                "sigma_min_kpsi": sigma_min_kpsi,
+                "sigma_max_MPa": kpsi_to_mpa(sigma_max_kpsi),
+                "sigma_min_MPa": kpsi_to_mpa(sigma_min_kpsi),
+                "source": "user_input_kpsi",
+            }
+
+        if sigma_max_mpa is not None or sigma_min_mpa is not None:
+            if sigma_max_mpa is None or sigma_min_mpa is None:
+                raise ValidationError("Provide both sigma_max_MPa and sigma_min_MPa.")
+            sigma_max_mpa = float(sigma_max_mpa)
+            sigma_min_mpa = float(sigma_min_mpa)
+            return {
+                "sigma_max_kpsi": mpa_to_kpsi(sigma_max_mpa),
+                "sigma_min_kpsi": mpa_to_kpsi(sigma_min_mpa),
+                "sigma_max_MPa": sigma_max_mpa,
+                "sigma_min_MPa": sigma_min_mpa,
+                "source": "user_input_MPa",
+            }
+
+        raise ValidationError(
+            "Provide cyclic stress limits via sigma_max_kpsi/sigma_min_kpsi or sigma_max_MPa/sigma_min_MPa."
+        )
+
+    @staticmethod
+    def _resolve_strength_pair(inputs: dict[str, Any], kpsi_key: str, mpa_key: str, label: str) -> dict[str, float]:
+        value_kpsi = inputs.get(kpsi_key)
+        value_mpa = inputs.get(mpa_key)
+        if value_kpsi is None and value_mpa is None:
+            raise ValidationError(f"{label} is required. Provide {kpsi_key} or {mpa_key}.")
+        if value_kpsi is not None and value_mpa is not None:
+            return {kpsi_key: float(value_kpsi), mpa_key: float(value_mpa)}
+        if value_kpsi is not None:
+            return {kpsi_key: float(value_kpsi), mpa_key: kpsi_to_mpa(float(value_kpsi))}
+        return {kpsi_key: mpa_to_kpsi(float(value_mpa)), mpa_key: float(value_mpa)}
+
+    @staticmethod
+    def _sn_constants(sut_kpsi: float, se_kpsi: float, f_value: float) -> dict[str, float]:
+        n_low = 1.0e3
+        n_endurance = 1.0e6
+        sf_low_kpsi = f_value * sut_kpsi
+        a_kpsi = (sf_low_kpsi ** 2) / se_kpsi
+        b = log10(se_kpsi / sf_low_kpsi) / log10(n_endurance / n_low)
+        return {
+            "n_low": n_low,
+            "n_endurance": n_endurance,
+            "sf_low_kpsi": sf_low_kpsi,
+            "a_kpsi": a_kpsi,
+            "b": b,
+        }
+
+    @staticmethod
+    def _cycles_from_sigma_rev(a_kpsi: float, b: float, sigma_rev_kpsi: float, se_kpsi: float) -> tuple[str, float | None, str | None]:
+        if sigma_rev_kpsi <= se_kpsi:
+            return (
+                "endurance_or_infinite_life",
+                None,
+                "Predicted life is at least 1e6 cycles because the equivalent completely reversed stress does not exceed Se.",
+            )
+        cycles = (sigma_rev_kpsi / a_kpsi) ** (1.0 / b)
+        return ("finite_life", cycles, None)
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"MultipleCriteriaCyclesToFailureSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        stress_info = self._resolve_stress_pair(inputs)
+        sut_info = self._resolve_strength_pair(inputs, "Sut_kpsi", "Sut_MPa", "Ultimate tensile strength")
+        sy_info = self._resolve_strength_pair(inputs, "Sy_kpsi", "Sy_MPa", "Yield strength")
+        se_info = self._resolve_strength_pair(inputs, "Se_kpsi", "Se_MPa", "Fully corrected endurance limit")
+
+        f_value = coalesce(inputs.get("f"), inputs.get("fatigue_strength_fraction_f"), inputs.get("fatigue_strength_fraction_f_override"))
+        f_value = ensure_positive("f", f_value)
+
+        sigma_max_kpsi = stress_info["sigma_max_kpsi"]
+        sigma_min_kpsi = stress_info["sigma_min_kpsi"]
+        sigma_a_kpsi = 0.5 * (sigma_max_kpsi - sigma_min_kpsi)
+        sigma_m_kpsi = 0.5 * (sigma_max_kpsi + sigma_min_kpsi)
+        sigma_a_mpa = kpsi_to_mpa(sigma_a_kpsi)
+        sigma_m_mpa = kpsi_to_mpa(sigma_m_kpsi)
+
+        if sigma_m_kpsi <= 0:
+            raise ValidationError(
+                "Example 6-12 style multi-criteria life solve path expects positive mean stress in the first quadrant."
+            )
+
+        table_6_6 = self.repository.table_6_6_payload
+        table_6_7 = self.repository.table_6_7_payload
+
+        modified_goodman_eq = table_6_6.get("fatigue_factor_of_safety", {}).get("equation")
+        gerber_eq = table_6_7.get("fatigue_factor_of_safety", {}).get("equation")
+
+        vars_common = {
+            "sigma_a": sigma_a_kpsi,
+            "sigma_m": sigma_m_kpsi,
+            "Se": se_info["Se_kpsi"],
+            "Sut": sut_info["Sut_kpsi"],
+            "Sy": sy_info["Sy_kpsi"],
+        }
+
+        nf_modified_goodman = self._eval_formula(modified_goodman_eq, vars_common)
+        nf_gerber = self._eval_formula(gerber_eq, vars_common)
+
+        sigma_rev_modified_goodman_kpsi = sigma_a_kpsi / (1.0 - sigma_m_kpsi / sut_info["Sut_kpsi"])
+        sigma_rev_gerber_kpsi = sigma_a_kpsi / (1.0 - (sigma_m_kpsi / sut_info["Sut_kpsi"]) ** 2)
+
+        sn = self._sn_constants(sut_info["Sut_kpsi"], se_info["Se_kpsi"], f_value)
+        a_kpsi = sn["a_kpsi"]
+        b = sn["b"]
+
+        mg_life_regime, mg_cycles, mg_note = self._cycles_from_sigma_rev(
+            a_kpsi=a_kpsi,
+            b=b,
+            sigma_rev_kpsi=sigma_rev_modified_goodman_kpsi,
+            se_kpsi=se_info["Se_kpsi"],
+        )
+        ge_life_regime, ge_cycles, ge_note = self._cycles_from_sigma_rev(
+            a_kpsi=a_kpsi,
+            b=b,
+            sigma_rev_kpsi=sigma_rev_gerber_kpsi,
+            se_kpsi=se_info["Se_kpsi"],
+        )
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification = {}
+        checks = {
+            "sigma_a_kpsi": sigma_a_kpsi,
+            "sigma_m_kpsi": sigma_m_kpsi,
+            "modified_goodman_nf_infinite_life": nf_modified_goodman,
+            "modified_goodman_sigma_rev_kpsi": sigma_rev_modified_goodman_kpsi,
+            "gerber_sigma_rev_kpsi": sigma_rev_gerber_kpsi,
+            "a_kpsi": a_kpsi,
+            "b": b,
+            "modified_goodman_cycles_to_failure": mg_cycles,
+            "gerber_cycles_to_failure": ge_cycles,
+        }
+        for key, actual in checks.items():
+            if key in expected_ref and actual is not None:
+                verification[key] = {
+                    "actual": safe_round(actual),
+                    "reference": float(expected_ref[key]),
+                    "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
+                }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Number of cycles to fatigue failure using multiple criteria"),
+            "inputs": inputs,
+            "lookups": {
+                "table_6_6": {
+                    "table_id": table_6_6.get("table_id"),
+                    "criterion": "modified_goodman",
+                    "fatigue_factor_of_safety_equation": modified_goodman_eq,
+                },
+                "table_6_7": {
+                    "table_id": table_6_7.get("table_id"),
+                    "criterion": "gerber",
+                    "fatigue_factor_of_safety_equation": gerber_eq,
+                },
+            },
+            "derived": {
+                "sigma_max_kpsi": safe_round(sigma_max_kpsi),
+                "sigma_min_kpsi": safe_round(sigma_min_kpsi),
+                "sigma_max_MPa": safe_round(stress_info["sigma_max_MPa"]),
+                "sigma_min_MPa": safe_round(stress_info["sigma_min_MPa"]),
+                "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                "sigma_a_MPa": safe_round(sigma_a_mpa),
+                "sigma_m_MPa": safe_round(sigma_m_mpa),
+                "Sut_kpsi": safe_round(sut_info["Sut_kpsi"]),
+                "Sut_MPa": safe_round(sut_info["Sut_MPa"]),
+                "Sy_kpsi": safe_round(sy_info["Sy_kpsi"]),
+                "Sy_MPa": safe_round(sy_info["Sy_MPa"]),
+                "Se_kpsi": safe_round(se_info["Se_kpsi"]),
+                "Se_MPa": safe_round(se_info["Se_MPa"]),
+                "fatigue_strength_fraction_f": safe_round(f_value),
+                "sf_at_1e3_cycles_kpsi": safe_round(sn["sf_low_kpsi"]),
+                "sf_at_1e3_cycles_MPa": safe_round(kpsi_to_mpa(sn["sf_low_kpsi"])),
+                "a_kpsi": safe_round(a_kpsi),
+                "a_MPa": safe_round(kpsi_to_mpa(a_kpsi)),
+                "b": safe_round(b),
+                "sn_equation_kpsi": f"S_f = {safe_round(a_kpsi)} * N^({safe_round(b)})",
+                "sn_equation_MPa": f"S_f = {safe_round(kpsi_to_mpa(a_kpsi))} * N^({safe_round(b)})",
+            },
+            "results": {
+                "modified_goodman": {
+                    "criterion": "modified_goodman",
+                    "fatigue_factor_of_safety_infinite_life_n_f": safe_round(nf_modified_goodman),
+                    "sigma_rev_equivalent_kpsi": safe_round(sigma_rev_modified_goodman_kpsi),
+                    "sigma_rev_equivalent_MPa": safe_round(kpsi_to_mpa(sigma_rev_modified_goodman_kpsi)),
+                    "life_regime": mg_life_regime,
+                    "cycles_to_failure": None if mg_cycles is None else safe_round(mg_cycles),
+                    "cycles_to_failure_note": mg_note,
+                },
+                "gerber": {
+                    "criterion": "gerber",
+                    "fatigue_factor_of_safety_infinite_life_n_f": safe_round(nf_gerber),
+                    "sigma_rev_equivalent_kpsi": safe_round(sigma_rev_gerber_kpsi),
+                    "sigma_rev_equivalent_MPa": safe_round(kpsi_to_mpa(sigma_rev_gerber_kpsi)),
+                    "life_regime": ge_life_regime,
+                    "cycles_to_failure": None if ge_cycles is None else safe_round(ge_cycles),
+                    "cycles_to_failure_note": ge_note,
+                },
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-13", "6-14", "6-15", "6-16", "6-46", "6-47"],
+                "notes": [
+                    "This solver targets Example 6-12 style life estimation for a fluctuating stress state using multiple fatigue criteria.",
+                    "First the alternating and mean stresses are formed from sigma_max and sigma_min.",
+                    "Then each fatigue criterion is used to compute an equivalent completely reversed stress sigma_rev that causes the same damage.",
+                    "Finally the finite-life S-N relation is used to estimate cycles to failure from that equivalent completely reversed stress.",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }

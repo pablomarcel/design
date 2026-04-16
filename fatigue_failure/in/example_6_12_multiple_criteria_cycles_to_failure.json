@@ -1,0 +1,30 @@
+{
+  "problem": "multiple_criteria_cycles_to_failure",
+  "title": "Example 6-12 number of cycles to a fatigue failure using multiple criteria",
+  "inputs": {
+    "solve_path": "multiple_criteria_cycles_to_failure",
+    "sigma_max_kpsi": 60.0,
+    "sigma_min_kpsi": -20.0,
+    "Sut_kpsi": 80.0,
+    "Sy_kpsi": 65.0,
+    "Se_kpsi": 40.0,
+    "f": 0.9,
+    "expected_textbook_reference_values": {
+      "sigma_a_kpsi": 40.0,
+      "sigma_m_kpsi": 20.0,
+      "modified_goodman_nf_infinite_life": 0.8,
+      "modified_goodman_sigma_rev_kpsi": 53.333333,
+      "a_kpsi": 129.6,
+      "b": -0.085094,
+      "modified_goodman_cycles_to_failure": 34000.0,
+      "gerber_sigma_rev_kpsi": 42.666667,
+      "gerber_cycles_to_failure": 460000.0
+    },
+    "notes": [
+      "This file follows Example 6-12 on p321-p322.",
+      "The problem statement uses sigma_max = 60 kpsi and sigma_min = -20 kpsi.",
+      "The finite-life S-N constants are built from Sut, Se, and f directly as in the textbook example.",
+      "The life for each criterion is estimated by converting the fluctuating stress state to an equivalent completely reversed stress."
+    ]
+  }
+}

@@ -276,3 +276,25 @@ python -m cli gerber_langer_failure_lines \
   --pretty \
   --show
 ```
+
+## Example 6-12 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_12_multiple_criteria_cycles_to_failure.json \
+  --outfile example_6_12_multiple_criteria_cycles_to_failure_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli multiple_criteria_cycles_to_failure \
+  --sigma-max-kpsi 60 \
+  --sigma-min-kpsi -20 \
+  --sut-kpsi 80 \
+  --sy-kpsi 65 \
+  --se-kpsi 40 \
+  --f 0.9 \
+  --pretty \
+  --show
+```

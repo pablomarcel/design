@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import argparse
@@ -30,10 +31,7 @@ class FatigueFailureCLI:
         run_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         run_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        fs_parser = subparsers.add_parser(
-            "fatigue_strength",
-            help="Direct CLI entry point for Example 6-2 style fatigue-strength calculations.",
-        )
+        fs_parser = subparsers.add_parser("fatigue_strength", help="Direct CLI entry point for Example 6-2 style fatigue-strength calculations.")
         fs_parser.add_argument("--title", default="Fatigue strength analysis from CLI flags")
         fs_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1050.")
         fs_parser.add_argument("--processing", help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
@@ -49,10 +47,7 @@ class FatigueFailureCLI:
         fs_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         fs_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        sf_parser = subparsers.add_parser(
-            "surface_factor",
-            help="Direct CLI entry point for Example 6-3 style Marin surface-factor calculations.",
-        )
+        sf_parser = subparsers.add_parser("surface_factor", help="Direct CLI entry point for Example 6-3 style Marin surface-factor calculations.")
         sf_parser.add_argument("--title", default="Surface factor analysis from CLI flags")
         sf_parser.add_argument("--surface-finish", required=True, help="Surface finish from Table 6-2, e.g. 'Machined or cold-drawn'.")
         sf_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
@@ -63,10 +58,7 @@ class FatigueFailureCLI:
         sf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         sf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        size_parser = subparsers.add_parser(
-            "size_factor",
-            help="Direct CLI entry point for Example 6-4 style Marin size-factor calculations.",
-        )
+        size_parser = subparsers.add_parser("size_factor", help="Direct CLI entry point for Example 6-4 style Marin size-factor calculations.")
         size_parser.add_argument("--title", default="Size factor analysis from CLI flags")
         size_parser.add_argument("--loading-type", choices=["bending", "torsion", "axial"], default="bending")
         size_parser.add_argument("--mode", choices=["rotating", "nonrotating"], default="rotating")
@@ -79,10 +71,7 @@ class FatigueFailureCLI:
         size_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         size_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        tf_parser = subparsers.add_parser(
-            "temperature_factor",
-            help="Direct CLI entry point for Example 6-5 style Marin temperature-factor calculations.",
-        )
+        tf_parser = subparsers.add_parser("temperature_factor", help="Direct CLI entry point for Example 6-5 style Marin temperature-factor calculations.")
         tf_parser.add_argument("--title", default="Temperature factor analysis from CLI flags")
         tf_parser.add_argument("--service-temperature-f", type=float, required=True, help="Service temperature in °F.")
         tf_parser.add_argument("--sut-room-temperature-kpsi", type=float, required=True, help="Room-temperature tensile strength in kpsi.")
@@ -92,10 +81,7 @@ class FatigueFailureCLI:
         tf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         tf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        scns_parser = subparsers.add_parser(
-            "stress_concentration_notch_sensitivity",
-            help="Direct CLI entry point for Example 6-6 style stress concentration and notch sensitivity calculations.",
-        )
+        scns_parser = subparsers.add_parser("stress_concentration_notch_sensitivity", help="Direct CLI entry point for Example 6-6 style stress concentration and notch sensitivity calculations.")
         scns_parser.add_argument("--title", default="Stress concentration and notch sensitivity analysis from CLI flags")
         scns_parser.add_argument("--sut-mpa", type=float, help="Ultimate tensile strength in MPa.")
         scns_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
@@ -106,10 +92,7 @@ class FatigueFailureCLI:
         scns_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         scns_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        ctf_parser = subparsers.add_parser(
-            "cycles_to_failure",
-            help="Direct CLI entry point for Example 6-7 style fully reversed cycles-to-failure calculations.",
-        )
+        ctf_parser = subparsers.add_parser("cycles_to_failure", help="Direct CLI entry point for Example 6-7 style fully reversed cycles-to-failure calculations.")
         ctf_parser.add_argument("--title", default="Cycles to failure analysis from CLI flags")
         ctf_parser.add_argument("--sut-mpa", type=float, help="Ultimate tensile strength in MPa.")
         ctf_parser.add_argument("--sut-kpsi", type=float, help="Ultimate tensile strength in kpsi.")
@@ -123,11 +106,7 @@ class FatigueFailureCLI:
         ctf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         ctf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-
-        e68_parser = subparsers.add_parser(
-            "endurance_limit_and_fatigue_strength",
-            help="Direct CLI entry point for Example 6-8 style endurance-limit and fatigue-strength calculations.",
-        )
+        e68_parser = subparsers.add_parser("endurance_limit_and_fatigue_strength", help="Direct CLI entry point for Example 6-8 style endurance-limit and fatigue-strength calculations.")
         e68_parser.add_argument("--title", default="Endurance limit and fatigue strength analysis from CLI flags")
         e68_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1015.")
         e68_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
@@ -149,10 +128,7 @@ class FatigueFailureCLI:
         e68_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         e68_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-        lop_parser = subparsers.add_parser(
-            "life_of_part",
-            help="Direct CLI entry point for Example 6-9 style life-of-a-part calculations in reversed bending.",
-        )
+        lop_parser = subparsers.add_parser("life_of_part", help="Direct CLI entry point for Example 6-9 style life-of-a-part calculations in reversed bending.")
         lop_parser.add_argument("--title", default="Life of a part analysis from CLI flags")
         lop_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1050.")
         lop_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
@@ -177,11 +153,7 @@ class FatigueFailureCLI:
         lop_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         lop_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-
-        ffs_parser = subparsers.add_parser(
-            "fatigue_factor_of_safety",
-            help="Direct CLI entry point for Example 6-10 style fatigue factor-of-safety calculations.",
-        )
+        ffs_parser = subparsers.add_parser("fatigue_factor_of_safety", help="Direct CLI entry point for Example 6-10 style fatigue factor-of-safety calculations.")
         ffs_parser.add_argument("--title", default="Fatigue factor of safety analysis from CLI flags")
         ffs_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1050.")
         ffs_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
@@ -209,11 +181,7 @@ class FatigueFailureCLI:
         ffs_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         ffs_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
-
-        glfl_parser = subparsers.add_parser(
-            "gerber_langer_failure_lines",
-            help="Direct CLI entry point for Example 6-11 style Gerber-Langer failure-line calculations.",
-        )
+        glfl_parser = subparsers.add_parser("gerber_langer_failure_lines", help="Direct CLI entry point for Example 6-11 style Gerber-Langer failure-line calculations.")
         glfl_parser.add_argument("--title", default="Gerber-Langer failure lines analysis from CLI flags")
         glfl_parser.add_argument("--length-in", type=float, required=True, help="Cantilever length in inches.")
         glfl_parser.add_argument("--width-in", type=float, required=True, help="Cantilever width in inches.")
@@ -228,9 +196,25 @@ class FatigueFailureCLI:
         glfl_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         glfl_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+        mcctf_parser = subparsers.add_parser("multiple_criteria_cycles_to_failure", help="Direct CLI entry point for Example 6-12 style cycles-to-failure calculations using multiple criteria.")
+        mcctf_parser.add_argument("--title", default="Multiple criteria cycles to failure analysis from CLI flags")
+        mcctf_parser.add_argument("--sigma-max-kpsi", type=float, help="Maximum cyclic stress in kpsi.")
+        mcctf_parser.add_argument("--sigma-min-kpsi", type=float, help="Minimum cyclic stress in kpsi.")
+        mcctf_parser.add_argument("--sigma-max-mpa", type=float, help="Maximum cyclic stress in MPa.")
+        mcctf_parser.add_argument("--sigma-min-mpa", type=float, help="Minimum cyclic stress in MPa.")
+        mcctf_parser.add_argument("--sut-kpsi", dest="Sut_kpsi", type=float, help="Ultimate tensile strength in kpsi.")
+        mcctf_parser.add_argument("--sut-mpa", dest="Sut_MPa", type=float, help="Ultimate tensile strength in MPa.")
+        mcctf_parser.add_argument("--sy-kpsi", dest="Sy_kpsi", type=float, help="Yield strength in kpsi.")
+        mcctf_parser.add_argument("--sy-mpa", dest="Sy_MPa", type=float, help="Yield strength in MPa.")
+        mcctf_parser.add_argument("--se-kpsi", dest="Se_kpsi", type=float, help="Fully corrected endurance limit in kpsi.")
+        mcctf_parser.add_argument("--se-mpa", dest="Se_MPa", type=float, help="Fully corrected endurance limit in MPa.")
+        mcctf_parser.add_argument("--f", type=float, required=True, help="Fatigue strength fraction f.")
+        mcctf_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        mcctf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        mcctf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
-
         return parser
 
     def _payload_from_fatigue_strength_args(self, args: argparse.Namespace) -> dict[str, Any]:
@@ -274,17 +258,10 @@ class FatigueFailureCLI:
         }
         if args.expected_ka is not None:
             inputs["expected_textbook_reference_values"] = {"ka": args.expected_ka}
-        return {
-            "problem": "surface_factor",
-            "title": args.title,
-            "inputs": inputs,
-        }
+        return {"problem": "surface_factor", "title": args.title, "inputs": inputs}
 
     def _payload_from_size_factor_args(self, args: argparse.Namespace) -> dict[str, Any]:
-        case: dict[str, Any] = {
-            "name": "size_factor_case",
-            "mode": args.mode,
-        }
+        case: dict[str, Any] = {"name": "size_factor_case", "mode": args.mode}
         if args.mode == "rotating":
             case["diameter_mm"] = args.diameter_mm
         else:
@@ -300,11 +277,7 @@ class FatigueFailureCLI:
         }
         if args.expected_kb is not None:
             inputs["expected_textbook_reference_values"] = {"case_results": {"size_factor_case": args.expected_kb}}
-        return {
-            "problem": "size_factor",
-            "title": args.title,
-            "inputs": inputs,
-        }
+        return {"problem": "size_factor", "title": args.title, "inputs": inputs}
 
     def _payload_from_temperature_factor_args(self, args: argparse.Namespace) -> dict[str, Any]:
         cases = []
@@ -366,7 +339,6 @@ class FatigueFailureCLI:
             },
         }
 
-
     def _payload_from_endurance_limit_and_fatigue_strength_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
             "problem": "endurance_limit_and_fatigue_strength",
@@ -391,7 +363,6 @@ class FatigueFailureCLI:
                 "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
             },
         }
-
 
     def _payload_from_life_of_part_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
@@ -420,7 +391,6 @@ class FatigueFailureCLI:
                 "fatigue_strength_fraction_f_override": args.fatigue_strength_fraction_f_override,
             },
         }
-
 
     def _payload_from_fatigue_factor_of_safety_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
@@ -453,7 +423,6 @@ class FatigueFailureCLI:
             },
         }
 
-
     def _payload_from_gerber_langer_failure_lines_args(self, args: argparse.Namespace) -> dict[str, Any]:
         return {
             "problem": "gerber_langer_failure_lines",
@@ -469,6 +438,26 @@ class FatigueFailureCLI:
                 "Sy_kpsi": args.sy_kpsi,
                 "Se_kpsi": args.se_kpsi,
                 "preload_deflections_in": args.preload_deflections_in,
+            },
+        }
+
+    def _payload_from_multiple_criteria_cycles_to_failure_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "multiple_criteria_cycles_to_failure",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "multiple_criteria_cycles_to_failure",
+                "sigma_max_kpsi": args.sigma_max_kpsi,
+                "sigma_min_kpsi": args.sigma_min_kpsi,
+                "sigma_max_MPa": args.sigma_max_mpa,
+                "sigma_min_MPa": args.sigma_min_mpa,
+                "Sut_kpsi": args.Sut_kpsi,
+                "Sut_MPa": args.Sut_MPa,
+                "Sy_kpsi": args.Sy_kpsi,
+                "Sy_MPa": args.Sy_MPa,
+                "Se_kpsi": args.Se_kpsi,
+                "Se_MPa": args.Se_MPa,
+                "f": args.f,
             },
         }
 
@@ -513,6 +502,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_fatigue_factor_of_safety_args(args)
             elif args.command == "gerber_langer_failure_lines":
                 payload = self._payload_from_gerber_langer_failure_lines_args(args)
+            elif args.command == "multiple_criteria_cycles_to_failure":
+                payload = self._payload_from_multiple_criteria_cycles_to_failure_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2
