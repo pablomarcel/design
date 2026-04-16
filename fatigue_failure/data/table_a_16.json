@@ -1,0 +1,473 @@
+{
+  "table_id": "A-16",
+  "title": "Approximate Stress-Concentration Factors for a Round Bar or Tube with a Transverse Round Hole",
+  "notes": [
+    "Digitized from the provided two-part table image.",
+    "Use d = 0 for a solid bar.",
+    "For bending, the nominal stress is based on the reduced section modulus Z_net using the tabulated A values.",
+    "For torsion, the nominal shear stress is based on the reduced second polar moment J_net using the tabulated A values.",
+    "Interpolate first along a_over_D within a fixed d_over_D trace, then across d_over_D traces if needed."
+  ],
+  "bending": {
+    "response": "K_t",
+    "geometry_parameter": "a_over_D",
+    "traces": [
+      {
+        "d_over_D": 0.9,
+        "rows": [
+          {
+            "a_over_D": 0.05,
+            "A": 0.92,
+            "K_t": 2.63
+          },
+          {
+            "a_over_D": 0.075,
+            "A": 0.89,
+            "K_t": 2.55
+          },
+          {
+            "a_over_D": 0.1,
+            "A": 0.86,
+            "K_t": 2.49
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.82,
+            "K_t": 2.41
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.79,
+            "K_t": 2.39
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.76,
+            "K_t": 2.38
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.73,
+            "K_t": 2.39
+          },
+          {
+            "a_over_D": 0.225,
+            "A": 0.69,
+            "K_t": 2.4
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.67,
+            "K_t": 2.42
+          },
+          {
+            "a_over_D": 0.275,
+            "A": 0.66,
+            "K_t": 2.48
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.64,
+            "K_t": 2.52
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.6,
+        "rows": [
+          {
+            "a_over_D": 0.05,
+            "A": 0.91,
+            "K_t": 2.55
+          },
+          {
+            "a_over_D": 0.075,
+            "A": 0.88,
+            "K_t": 2.43
+          },
+          {
+            "a_over_D": 0.1,
+            "A": 0.85,
+            "K_t": 2.36
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.82,
+            "K_t": 2.32
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.79,
+            "K_t": 2.29
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.75,
+            "K_t": 2.26
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.72,
+            "K_t": 2.23
+          },
+          {
+            "a_over_D": 0.225,
+            "A": 0.68,
+            "K_t": 2.21
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.64,
+            "K_t": 2.18
+          },
+          {
+            "a_over_D": 0.275,
+            "A": 0.61,
+            "K_t": 2.16
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.58,
+            "K_t": 2.14
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.0,
+        "rows": [
+          {
+            "a_over_D": 0.05,
+            "A": 0.88,
+            "K_t": 2.42
+          },
+          {
+            "a_over_D": 0.075,
+            "A": 0.86,
+            "K_t": 2.35
+          },
+          {
+            "a_over_D": 0.1,
+            "A": 0.83,
+            "K_t": 2.27
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.8,
+            "K_t": 2.2
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.76,
+            "K_t": 2.15
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.72,
+            "K_t": 2.1
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.68,
+            "K_t": 2.07
+          },
+          {
+            "a_over_D": 0.225,
+            "A": 0.65,
+            "K_t": 2.04
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.61,
+            "K_t": 2.0
+          },
+          {
+            "a_over_D": 0.275,
+            "A": 0.58,
+            "K_t": 1.97
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.54,
+            "K_t": 1.94
+          }
+        ]
+      }
+    ]
+  },
+  "torsion": {
+    "response": "K_ts",
+    "geometry_parameter": "a_over_D",
+    "traces": [
+      {
+        "d_over_D": 0.9,
+        "rows": [
+          {
+            "a_over_D": 0.05,
+            "A": 0.96,
+            "K_ts": 1.78
+          },
+          {
+            "a_over_D": 0.075,
+            "A": 0.95,
+            "K_ts": 1.82
+          },
+          {
+            "a_over_D": 0.1,
+            "A": 0.94,
+            "K_ts": 1.76
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.91,
+            "K_ts": 1.76
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.9,
+            "K_ts": 1.77
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.89,
+            "K_ts": 1.81
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.88,
+            "K_ts": 1.96
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.87,
+            "K_ts": 2.0
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.8,
+            "K_ts": 2.18
+          },
+          {
+            "a_over_D": 0.35,
+            "A": 0.77,
+            "K_ts": 2.41
+          },
+          {
+            "a_over_D": 0.4,
+            "A": 0.72,
+            "K_ts": 2.67
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.8,
+        "rows": [
+          {
+            "a_over_D": 0.1,
+            "A": 0.93,
+            "K_ts": 1.74
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.91,
+            "K_ts": 1.74
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.89,
+            "K_ts": 1.75
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.88,
+            "K_ts": 1.76
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.86,
+            "K_ts": 1.79
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.82,
+            "K_ts": 1.86
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.78,
+            "K_ts": 1.97
+          },
+          {
+            "a_over_D": 0.35,
+            "A": 0.75,
+            "K_ts": 2.09
+          },
+          {
+            "a_over_D": 0.4,
+            "A": 0.71,
+            "K_ts": 2.25
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.6,
+        "rows": [
+          {
+            "a_over_D": 0.1,
+            "A": 0.92,
+            "K_ts": 1.72
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.9,
+            "K_ts": 1.7
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.87,
+            "K_ts": 1.69
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.87,
+            "K_ts": 1.69
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.85,
+            "K_ts": 1.7
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.81,
+            "K_ts": 1.72
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.77,
+            "K_ts": 1.76
+          },
+          {
+            "a_over_D": 0.35,
+            "A": 0.72,
+            "K_ts": 1.81
+          },
+          {
+            "a_over_D": 0.4,
+            "A": 0.68,
+            "K_ts": 1.89
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.4,
+        "rows": [
+          {
+            "a_over_D": 0.1,
+            "A": 0.92,
+            "K_ts": 1.7
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.9,
+            "K_ts": 1.67
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.87,
+            "K_ts": 1.65
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.86,
+            "K_ts": 1.64
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.84,
+            "K_ts": 1.63
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.8,
+            "K_ts": 1.63
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.75,
+            "K_ts": 1.63
+          },
+          {
+            "a_over_D": 0.35,
+            "A": 0.69,
+            "K_ts": 1.63
+          },
+          {
+            "a_over_D": 0.4,
+            "A": 0.64,
+            "K_ts": 1.63
+          }
+        ]
+      },
+      {
+        "d_over_D": 0.0,
+        "rows": [
+          {
+            "a_over_D": 0.05,
+            "A": 0.95,
+            "K_ts": 1.77
+          },
+          {
+            "a_over_D": 0.075,
+            "A": 0.93,
+            "K_ts": 1.71
+          },
+          {
+            "a_over_D": 0.1,
+            "A": 0.92,
+            "K_ts": 1.68
+          },
+          {
+            "a_over_D": 0.125,
+            "A": 0.89,
+            "K_ts": 1.64
+          },
+          {
+            "a_over_D": 0.15,
+            "A": 0.87,
+            "K_ts": 1.62
+          },
+          {
+            "a_over_D": 0.175,
+            "A": 0.85,
+            "K_ts": 1.6
+          },
+          {
+            "a_over_D": 0.2,
+            "A": 0.83,
+            "K_ts": 1.58
+          },
+          {
+            "a_over_D": 0.25,
+            "A": 0.79,
+            "K_ts": 1.54
+          },
+          {
+            "a_over_D": 0.3,
+            "A": 0.74,
+            "K_ts": 1.51
+          },
+          {
+            "a_over_D": 0.35,
+            "A": 0.68,
+            "K_ts": 1.47
+          },
+          {
+            "a_over_D": 0.4,
+            "A": 0.63,
+            "K_ts": 1.44
+          }
+        ]
+      }
+    ]
+  }
+}

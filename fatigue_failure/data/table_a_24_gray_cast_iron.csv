@@ -1,0 +1,8 @@
+astm_number,tensile_strength_Sut_kpsi,compressive_strength_Suc_kpsi,shear_modulus_of_rupture_Ssu_kpsi,modulus_of_elasticity_tension_min_Mpsi,modulus_of_elasticity_tension_max_Mpsi,modulus_of_elasticity_torsion_min_Mpsi,modulus_of_elasticity_torsion_max_Mpsi,endurance_limit_Se_kpsi,brinell_hardness_HB,fatigue_stress_concentration_factor_Kf,notes
+20,22.0,83.0,26.0,9.6,14.0,3.9,5.6,10.0,156,1.0,Polished or machined specimens.
+25,26.0,97.0,32.0,11.5,14.8,4.6,6.0,11.5,174,1.05,Polished or machined specimens.
+30,31.0,109.0,40.0,13.0,16.4,5.2,6.6,14.0,201,1.1,Polished or machined specimens.
+35,36.5,124.0,48.5,14.5,17.2,5.8,6.9,16.0,212,1.15,Polished or machined specimens.
+40,42.5,140.0,57.0,16.0,20.0,6.4,7.8,18.5,235,1.25,Polished or machined specimens.
+50,52.5,164.0,73.0,18.8,22.8,7.2,8.0,21.5,262,1.35,Polished or machined specimens.
+60,62.5,187.5,88.5,20.4,23.5,7.8,8.5,24.5,302,1.5,Polished or machined specimens.
