@@ -28,3 +28,24 @@ python -m cli ductile_failure_fos \
   --pretty \
   --show
 ```
+
+## Example 5-2 direct CLI
+
+```bash
+python -m cli run \
+  --infile example_5_2_coulomb_mohr.json \
+  --outfile example_5_2_coulomb_mohr_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli coulomb_mohr_fos \
+  --material-lookup cast_195_t6_aluminum \
+  --stress-input-mode torsion_shaft \
+  --diameter-mm 25 \
+  --torque-N-m 230 \
+  --outfile example_5_2_coulomb_mohr_out.json \
+  --pretty \
+  --show
+```

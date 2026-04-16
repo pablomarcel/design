@@ -1,0 +1,13 @@
+{
+  "problem": "static_failure",
+  "title": "Example 5-2 Coulomb-Mohr factor of safety",
+  "inputs": {
+    "solve_path": "coulomb_mohr_fos",
+    "material_lookup": "cast_195_t6_aluminum",
+    "stress_input_mode": "torsion_shaft",
+    "diameter_mm": 25.0,
+    "torque_N_m": 230.0,
+    "label": "example_5_2",
+    "description": "25-mm solid shaft in static torsion, per Shigley Example 5-2."
+  }
+}
