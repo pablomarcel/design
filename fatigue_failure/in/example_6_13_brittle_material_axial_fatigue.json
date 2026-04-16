@@ -1,0 +1,67 @@
+{
+  "problem": "brittle_material_axial_fatigue",
+  "title": "Example 6-13 brittle material in axial fatigue for grade 30 gray cast iron",
+  "inputs": {
+    "solve_path": "brittle_material_axial_fatigue",
+    "astm_number": 30,
+    "width_in": 1.0,
+    "thickness_in": 0.375,
+    "hole_diameter_in": 0.25,
+    "brittle_notch_sensitivity_q": 0.2,
+    "axial_load_factor_k_c": 0.9,
+    "temperature_factor_k_d": 1.0,
+    "reliability_factor_k_e": 1.0,
+    "miscellaneous_factor_k_f": 1.0,
+    "cases": [
+      {
+        "name": "part_a_steady_tension",
+        "case_type": "steady",
+        "load_min_lbf": 1000.0,
+        "load_max_lbf": 1000.0
+      },
+      {
+        "name": "part_b_repeated_application",
+        "case_type": "repeated",
+        "load_min_lbf": 0.0,
+        "load_max_lbf": 1000.0
+      },
+      {
+        "name": "part_c_fluctuating_with_compression",
+        "case_type": "fluctuating",
+        "load_min_lbf": -1000.0,
+        "load_max_lbf": 300.0
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "case_results": {
+        "part_a_steady_tension": {
+          "sigma_a_kpsi": 0.0,
+          "sigma_m_kpsi": 3.56,
+          "factor_of_safety_n": 8.71
+        },
+        "part_b_repeated_application": {
+          "sigma_a_kpsi": 2.3,
+          "sigma_m_kpsi": 2.3,
+          "load_line_slope_r": 1.0,
+          "Sa_intersection_kpsi": 7.63,
+          "factor_of_safety_n": 3.32
+        },
+        "part_c_fluctuating_with_compression": {
+          "sigma_a_kpsi": 2.98,
+          "sigma_m_kpsi": -1.61,
+          "load_line_slope_r": -1.86,
+          "Sa_intersection_kpsi": 18.5,
+          "factor_of_safety_n": 6.2
+        }
+      }
+    },
+    "notes": [
+      "This file follows Example 6-13 on p323-p324.",
+      "The gray cast iron material properties are fetched from table_a_24_gray_cast_iron.csv using ASTM number 30.",
+      "K_t is fetched from table_a_15_1.csv using d/w for a bar in tension with a transverse hole.",
+      "The brittle-material notch sensitivity q = 0.20 is entered explicitly because the textbook states it directly for cast iron in the worked example.",
+      "For the steady tensile case, the textbook does not apply K_t or K_f because the load is static.",
+      "For the fluctuating cases, the Smith-Dolan brittle-material locus is used in the first quadrant, and the cast-iron second-quadrant straight-line segment is used when sigma_m is negative."
+    ]
+  }
+}

@@ -298,3 +298,29 @@ python -m cli multiple_criteria_cycles_to_failure \
   --pretty \
   --show
 ```
+
+## Example 6-13 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_13_brittle_material_axial_fatigue.json \
+  --outfile example_6_13_brittle_material_axial_fatigue_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli brittle_material_axial_fatigue \
+  --astm-number 30 \
+  --width-in 1.0 \
+  --thickness-in 0.375 \
+  --hole-diameter-in 0.25 \
+  --q-brittle 0.20 \
+  --axial-load-factor-k-c 0.9 \
+  --steady-load-lbf 1000 \
+  --repeated-max-load-lbf 1000 \
+  --fluctuating-min-load-lbf -1000 \
+  --fluctuating-max-load-lbf 300 \
+  --pretty \
+  --show
+```

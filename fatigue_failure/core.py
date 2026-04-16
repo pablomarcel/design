@@ -3325,3 +3325,290 @@ class MultipleCriteriaCyclesToFailureSolver:
             },
             **({"verification": verification} if verification else {}),
         }
+
+
+
+def _repo_table_6_6_payload(self) -> dict[str, Any]:
+    if getattr(self, "_table_6_6_payload", None) is None:
+        self._table_6_6_payload = self._read_json("table_6_6.json")
+    return self._table_6_6_payload
+
+
+def _repo_table_a_15_1_rows(self) -> list[dict[str, float]]:
+    if getattr(self, "_table_a_15_1_rows", None) is None:
+        raw_rows = self._read_csv("table_a_15_1.csv")
+        self._table_a_15_1_rows = [
+            {"d_over_w": float(row["d_over_w"]), "K_t": float(row["K_t"])}
+            for row in raw_rows
+        ]
+    return self._table_a_15_1_rows
+
+
+def _repo_table_a_24_gray_cast_iron_rows(self) -> list[dict[str, Any]]:
+    if getattr(self, "_table_a_24_gray_cast_iron_rows", None) is None:
+        raw_rows = self._read_csv("table_a_24_gray_cast_iron.csv")
+        self._table_a_24_gray_cast_iron_rows = []
+        for row in raw_rows:
+            self._table_a_24_gray_cast_iron_rows.append(
+                {
+                    "astm_number": int(float(row["astm_number"])),
+                    "tensile_strength_Sut_kpsi": float(row["tensile_strength_Sut_kpsi"]),
+                    "compressive_strength_Suc_kpsi": float(row["compressive_strength_Suc_kpsi"]),
+                    "shear_modulus_of_rupture_Ssu_kpsi": float(row["shear_modulus_of_rupture_Ssu_kpsi"]),
+                    "modulus_of_elasticity_tension_min_Mpsi": float(row["modulus_of_elasticity_tension_min_Mpsi"]),
+                    "modulus_of_elasticity_tension_max_Mpsi": float(row["modulus_of_elasticity_tension_max_Mpsi"]),
+                    "modulus_of_elasticity_torsion_min_Mpsi": float(row["modulus_of_elasticity_torsion_min_Mpsi"]),
+                    "modulus_of_elasticity_torsion_max_Mpsi": float(row["modulus_of_elasticity_torsion_max_Mpsi"]),
+                    "endurance_limit_Se_kpsi": float(row["endurance_limit_Se_kpsi"]),
+                    "brinell_hardness_HB": float(row["brinell_hardness_HB"]),
+                    "fatigue_stress_concentration_factor_Kf": float(row["fatigue_stress_concentration_factor_Kf"]),
+                    "notes": row.get("notes"),
+                }
+            )
+    return self._table_a_24_gray_cast_iron_rows
+
+
+def _repo_transverse_hole_kt_tension(self, d_over_w: float) -> dict[str, Any]:
+    rows = self.table_a_15_1_rows
+    xs = [row["d_over_w"] for row in rows]
+    ys = [row["K_t"] for row in rows]
+    kt = linear_interpolate(float(d_over_w), xs, ys)
+    return {"d_over_w": float(d_over_w), "K_t": kt, "source": "table_a_15_1_interpolated"}
+
+
+def _repo_find_gray_cast_iron_record(self, astm_number: int | float | str) -> dict[str, Any]:
+    target = int(float(astm_number))
+    for row in self.table_a_24_gray_cast_iron_rows:
+        if int(row["astm_number"]) == target:
+            return row
+    raise DataLookupError(f"No Table A-24 gray cast iron record was found for ASTM number {astm_number!r}.")
+
+
+DigitizedDataRepository.table_6_6_payload = property(_repo_table_6_6_payload)
+DigitizedDataRepository.table_a_15_1_rows = property(_repo_table_a_15_1_rows)
+DigitizedDataRepository.table_a_24_gray_cast_iron_rows = property(_repo_table_a_24_gray_cast_iron_rows)
+DigitizedDataRepository.transverse_hole_kt_tension = _repo_transverse_hole_kt_tension
+DigitizedDataRepository.find_gray_cast_iron_record = _repo_find_gray_cast_iron_record
+
+
+
+class BrittleMaterialAxialFatigueSolver:
+    """Implements Shigley Chapter 6 Example 6-13 for brittle material axial fatigue near a transverse hole."""
+
+    solve_path = "brittle_material_axial_fatigue"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _smith_dolan_first_quadrant_intersection_sa(se_kpsi: float, sut_kpsi: float, r: float) -> float:
+        if math.isclose(r, 0.0, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("Smith-Dolan first-quadrant intersection requires nonzero r.")
+        term = 1.0 + 4.0 * r * sut_kpsi * se_kpsi / ((r * sut_kpsi + se_kpsi) ** 2)
+        return ((r * sut_kpsi + se_kpsi) / 2.0) * (-1.0 + math.sqrt(term))
+
+    @staticmethod
+    def _smith_dolan_second_quadrant_intersection_sa(se_kpsi: float, sut_kpsi: float, r: float) -> float:
+        if math.isclose(r, 0.0, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("Second-quadrant brittle locus intersection requires nonzero r.")
+        denom = 1.0 - (1.0 / r) * (se_kpsi / sut_kpsi - 1.0)
+        if math.isclose(denom, 0.0, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("Second-quadrant brittle locus intersection became singular.")
+        return se_kpsi / denom
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"BrittleMaterialAxialFatigueSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        astm_number = coalesce(inputs.get("astm_number"), inputs.get("gray_cast_iron_grade_astm_number"), inputs.get("grade"))
+        if astm_number is None:
+            raise ValidationError("astm_number is required for solve_path='brittle_material_axial_fatigue'.")
+        material = self.repository.find_gray_cast_iron_record(astm_number)
+
+        width_in = ensure_positive("width_in", coalesce(inputs.get("width_in"), inputs.get("w_in")))
+        thickness_in = ensure_positive("thickness_in", coalesce(inputs.get("thickness_in"), inputs.get("t_in")))
+        hole_diameter_in = ensure_positive("hole_diameter_in", coalesce(inputs.get("hole_diameter_in"), inputs.get("d_in")))
+        if hole_diameter_in >= width_in:
+            raise ValidationError("hole_diameter_in must be smaller than width_in.")
+
+        net_area_in2 = coalesce(inputs.get("net_area_in2"), inputs.get("area_in2"))
+        if net_area_in2 is None:
+            net_area_in2 = thickness_in * (width_in - hole_diameter_in)
+            net_area_source = "t*(w-d)"
+        else:
+            net_area_in2 = ensure_positive("net_area_in2", net_area_in2)
+            net_area_source = "user_input"
+
+        d_over_w = hole_diameter_in / width_in
+
+        kt_override = inputs.get("K_t_override")
+        if kt_override is not None:
+            kt_lookup = {"d_over_w": float(d_over_w), "K_t": float(kt_override), "source": "user_override"}
+            K_t = float(kt_override)
+        else:
+            kt_lookup = self.repository.transverse_hole_kt_tension(d_over_w)
+            K_t = float(kt_lookup["K_t"])
+
+        q_brittle = ensure_positive(
+            "brittle_notch_sensitivity_q",
+            coalesce(inputs.get("brittle_notch_sensitivity_q"), inputs.get("q"), inputs.get("q_brittle")),
+        )
+        K_f = 1.0 + q_brittle * (K_t - 1.0)
+
+        kc_axial = ensure_positive("axial_load_factor_k_c", coalesce(inputs.get("axial_load_factor_k_c"), inputs.get("kc_axial"), inputs.get("k_c")))
+        kd = float(coalesce(inputs.get("temperature_factor_k_d"), inputs.get("k_d"), 1.0))
+        ke = float(coalesce(inputs.get("reliability_factor_k_e"), inputs.get("k_e"), 1.0))
+        misc_factor = float(coalesce(inputs.get("miscellaneous_factor_k_f"), inputs.get("misc_factor"), 1.0))
+
+        sut_kpsi = float(material["tensile_strength_Sut_kpsi"])
+        suc_kpsi = float(material["compressive_strength_Suc_kpsi"])
+        se_base_kpsi = float(material["endurance_limit_Se_kpsi"])
+        se_kpsi = se_base_kpsi * kc_axial * kd * ke * misc_factor
+
+        cases = inputs.get("cases")
+        if not cases:
+            cases = [
+                {"name": "part_a_steady_tension", "case_type": "steady", "load_min_lbf": 1000.0, "load_max_lbf": 1000.0},
+                {"name": "part_b_repeated_application", "case_type": "repeated", "load_min_lbf": 0.0, "load_max_lbf": 1000.0},
+                {"name": "part_c_fluctuating_with_compression", "case_type": "fluctuating", "load_min_lbf": -1000.0, "load_max_lbf": 300.0},
+            ]
+
+        results = []
+        verification = {}
+        expected = inputs.get("expected_textbook_reference_values") or {}
+        expected_case_results = expected.get("case_results", {})
+
+        for case in cases:
+            name = case.get("name") or "case"
+            case_type = str(coalesce(case.get("case_type"), "fluctuating")).strip().lower()
+            F_min_lbf = float(coalesce(case.get("load_min_lbf"), case.get("F_min_lbf"), 0.0))
+            F_max_lbf = float(coalesce(case.get("load_max_lbf"), case.get("F_max_lbf")))
+
+            F_a_lbf = 0.5 * abs(F_max_lbf - F_min_lbf)
+            F_m_lbf = 0.5 * (F_max_lbf + F_min_lbf)
+
+            if case_type == "steady":
+                sigma_a_kpsi = 0.0
+                sigma_m_kpsi = (F_m_lbf / net_area_in2) * 1.0e-3
+                if sigma_m_kpsi >= 0:
+                    governing_strength = sut_kpsi
+                    criterion = "steady_tension"
+                else:
+                    governing_strength = suc_kpsi
+                    criterion = "steady_compression"
+                n = governing_strength / abs(sigma_m_kpsi)
+                result_item = {
+                    "name": name,
+                    "case_type": case_type,
+                    "load_min_lbf": safe_round(F_min_lbf),
+                    "load_max_lbf": safe_round(F_max_lbf),
+                    "alternating_load_lbf": safe_round(F_a_lbf),
+                    "mean_load_lbf": safe_round(F_m_lbf),
+                    "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                    "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                    "sigma_a_MPa": safe_round(kpsi_to_mpa(sigma_a_kpsi)),
+                    "sigma_m_MPa": safe_round(kpsi_to_mpa(sigma_m_kpsi)),
+                    "applied_Kf_to_stress": False,
+                    "factor_of_safety_n": safe_round(n),
+                    "criterion": criterion,
+                }
+            else:
+                sigma_a_kpsi = K_f * (F_a_lbf / net_area_in2) * 1.0e-3
+                sigma_m_kpsi = K_f * (F_m_lbf / net_area_in2) * 1.0e-3
+                r = sigma_a_kpsi / sigma_m_kpsi if not math.isclose(sigma_m_kpsi, 0.0, rel_tol=0.0, abs_tol=1e-15) else math.inf
+
+                if sigma_m_kpsi >= 0:
+                    Sa_intersection = self._smith_dolan_first_quadrant_intersection_sa(se_kpsi, sut_kpsi, r)
+                    Sm_intersection = Sa_intersection / r
+                    criterion = "smith_dolan_first_quadrant"
+                    equation = "eq_6_52"
+                else:
+                    Sa_intersection = self._smith_dolan_second_quadrant_intersection_sa(se_kpsi, sut_kpsi, r)
+                    Sm_intersection = Sa_intersection / r
+                    criterion = "cast_iron_second_quadrant"
+                    equation = "eq_6_53"
+
+                n = Sa_intersection / sigma_a_kpsi
+                result_item = {
+                    "name": name,
+                    "case_type": case_type,
+                    "load_min_lbf": safe_round(F_min_lbf),
+                    "load_max_lbf": safe_round(F_max_lbf),
+                    "alternating_load_lbf": safe_round(F_a_lbf),
+                    "mean_load_lbf": safe_round(F_m_lbf),
+                    "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                    "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                    "sigma_a_MPa": safe_round(kpsi_to_mpa(sigma_a_kpsi)),
+                    "sigma_m_MPa": safe_round(kpsi_to_mpa(sigma_m_kpsi)),
+                    "load_line_slope_r": None if math.isinf(r) else safe_round(r),
+                    "Sa_intersection_kpsi": safe_round(Sa_intersection),
+                    "Sm_intersection_kpsi": safe_round(Sm_intersection),
+                    "Sa_intersection_MPa": safe_round(kpsi_to_mpa(Sa_intersection)),
+                    "Sm_intersection_MPa": safe_round(kpsi_to_mpa(Sm_intersection)),
+                    "factor_of_safety_n": safe_round(n),
+                    "criterion": criterion,
+                    "equation": equation,
+                    "applied_Kf_to_stress": True,
+                }
+
+            results.append(result_item)
+
+            ref = expected_case_results.get(name)
+            if ref:
+                for key in ["sigma_a_kpsi", "sigma_m_kpsi", "load_line_slope_r", "Sa_intersection_kpsi", "Sm_intersection_kpsi", "factor_of_safety_n"]:
+                    if key in ref and result_item.get(key) is not None:
+                        verification[f"{name}::{key}"] = {
+                            "actual": result_item[key],
+                            "reference": float(ref[key]),
+                            "relative_error_percent": safe_round(relative_error_percent(float(result_item[key]), float(ref[key]))),
+                        }
+
+        output = {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Brittle material axial fatigue analysis"),
+            "inputs": inputs,
+            "lookups": {"table_a_24_gray_cast_iron": material, "table_a_15_1": kt_lookup},
+            "derived": {
+                "astm_number": int(material["astm_number"]),
+                "width_in": safe_round(width_in),
+                "thickness_in": safe_round(thickness_in),
+                "hole_diameter_in": safe_round(hole_diameter_in),
+                "net_area_in2": safe_round(net_area_in2),
+                "net_area_source": net_area_source,
+                "d_over_w": safe_round(d_over_w),
+                "Sut_kpsi": safe_round(sut_kpsi),
+                "Sut_MPa": safe_round(kpsi_to_mpa(sut_kpsi)),
+                "Suc_kpsi": safe_round(suc_kpsi),
+                "Suc_MPa": safe_round(kpsi_to_mpa(suc_kpsi)),
+                "table_a_24_endurance_limit_kpsi": safe_round(se_base_kpsi),
+                "table_a_24_endurance_limit_MPa": safe_round(kpsi_to_mpa(se_base_kpsi)),
+                "axial_load_factor_k_c": safe_round(kc_axial),
+                "temperature_factor_k_d": safe_round(kd),
+                "reliability_factor_k_e": safe_round(ke),
+                "miscellaneous_factor_k_f": safe_round(misc_factor),
+                "corrected_endurance_limit_kpsi": safe_round(se_kpsi),
+                "corrected_endurance_limit_MPa": safe_round(kpsi_to_mpa(se_kpsi)),
+                "K_t": safe_round(K_t),
+                "brittle_notch_sensitivity_q": safe_round(q_brittle),
+                "K_f": safe_round(K_f),
+            },
+            "results": {"cases": results},
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-50", "6-51", "6-52", "6-53"],
+                "notes": [
+                    "This solver targets Example 6-13 style factor-of-safety calculations for a brittle gray cast iron link in axial loading near a transverse hole.",
+                    "The net section area is A = t(w - d), matching the figure and the textbook setup.",
+                    "K_t for the transverse hole is interpolated from table_a_15_1.csv using d/w.",
+                    "For the steady tensile case, the textbook does not apply K_t or K_f because the load is static.",
+                    "For the fluctuating cases, K_f is applied to both sigma_a and sigma_m as shown in the worked example.",
+                    "In the first quadrant, the Smith-Dolan fatigue locus uses Eq. (6-52). In the second quadrant for cast iron, the straight-line segment uses Eq. (6-53).",
+                ],
+            },
+        }
+        if verification:
+            output["verification"] = verification
+        return output
