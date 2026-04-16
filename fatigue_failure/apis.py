@@ -14,6 +14,8 @@ try:
         EnduranceLimitAndFatigueStrengthSolver,
         LifeOfPartSolver,
         FatigueFactorOfSafetySolver,
+        GerberLangerFailureLinesSolver,
+        GerberLangerFailureLinesSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -28,6 +30,7 @@ except ImportError:  # pragma: no cover
         EnduranceLimitAndFatigueStrengthSolver,
         LifeOfPartSolver,
         FatigueFactorOfSafetySolver,
+        GerberLangerFailureLinesSolver,
     )
     from utils import ValidationError
 
@@ -46,6 +49,7 @@ class SolverAPI:
         endurance_limit_and_fatigue_strength_solver = EnduranceLimitAndFatigueStrengthSolver(repository=repository)
         life_of_part_solver = LifeOfPartSolver(repository=repository)
         fatigue_factor_of_safety_solver = FatigueFactorOfSafetySolver(repository=repository)
+        gerber_langer_failure_lines_solver = GerberLangerFailureLinesSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
@@ -56,6 +60,7 @@ class SolverAPI:
             endurance_limit_and_fatigue_strength_solver.solve_path: endurance_limit_and_fatigue_strength_solver,
             life_of_part_solver.solve_path: life_of_part_solver,
             fatigue_factor_of_safety_solver.solve_path: fatigue_factor_of_safety_solver,
+            gerber_langer_failure_lines_solver.solve_path: gerber_langer_failure_lines_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

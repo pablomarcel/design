@@ -1,0 +1,46 @@
+{
+  "problem": "gerber_langer_failure_lines",
+  "title": "Example 6-11 Gerber-Langer failure lines for a preloaded flat-leaf spring follower",
+  "inputs": {
+    "solve_path": "gerber_langer_failure_lines",
+    "length_in": 32.0,
+    "width_in": 2.0,
+    "thickness_in": 0.25,
+    "elastic_modulus_psi": 30000000.0,
+    "total_motion_in": 2.0,
+    "Sut_kpsi": 150.0,
+    "Sy_kpsi": 127.0,
+    "Se_kpsi": 28.0,
+    "preload_cases": [
+      {
+        "name": "low_speed_preload_2_in",
+        "preload_deflection_in": 2.0
+      },
+      {
+        "name": "high_speed_preload_5_in",
+        "preload_deflection_in": 5.0
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "case_results": {
+        "low_speed_preload_2_in": {
+          "sigma_a_kpsi": 10.99,
+          "sigma_m_kpsi": 32.97,
+          "load_line_slope_r": 0.3333
+        },
+        "high_speed_preload_5_in": {
+          "sigma_a_kpsi": 10.99,
+          "sigma_m_kpsi": 65.94,
+          "load_line_slope_r": 0.1667
+        }
+      }
+    },
+    "notes": [
+      "This file follows Example 6-11 on p319-p321.",
+      "The spring strengths are taken directly from the problem statement as fully corrected values.",
+      "The total follower motion is fixed, so the alternating stress is fixed and the preload changes only the mean stress.",
+      "The solver uses Table 6-7 for Gerber and Langer line relations.",
+      "Preload cases correspond to 2 in for low speed and 5 in for high speed."
+    ]
+  }
+}

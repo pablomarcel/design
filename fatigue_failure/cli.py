@@ -209,6 +209,25 @@ class FatigueFailureCLI:
         ffs_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         ffs_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        glfl_parser = subparsers.add_parser(
+            "gerber_langer_failure_lines",
+            help="Direct CLI entry point for Example 6-11 style Gerber-Langer failure-line calculations.",
+        )
+        glfl_parser.add_argument("--title", default="Gerber-Langer failure lines analysis from CLI flags")
+        glfl_parser.add_argument("--length-in", type=float, required=True, help="Cantilever length in inches.")
+        glfl_parser.add_argument("--width-in", type=float, required=True, help="Cantilever width in inches.")
+        glfl_parser.add_argument("--thickness-in", type=float, required=True, help="Cantilever thickness in inches.")
+        glfl_parser.add_argument("--elastic-modulus-psi", type=float, required=True, help="Elastic modulus in psi.")
+        glfl_parser.add_argument("--total-motion-in", type=float, required=True, help="Total follower motion in inches.")
+        glfl_parser.add_argument("--sut-kpsi", type=float, required=True, help="Ultimate tensile strength in kpsi.")
+        glfl_parser.add_argument("--sy-kpsi", type=float, required=True, help="Yield strength in kpsi.")
+        glfl_parser.add_argument("--se-kpsi", type=float, required=True, help="Fully corrected endurance limit in kpsi.")
+        glfl_parser.add_argument("--preload-deflection-in", action="append", type=float, dest="preload_deflections_in", required=True, help="Preload deflection in inches. Repeat for multiple preload cases.")
+        glfl_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        glfl_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        glfl_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -434,6 +453,25 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_gerber_langer_failure_lines_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "gerber_langer_failure_lines",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "gerber_langer_failure_lines",
+                "length_in": args.length_in,
+                "width_in": args.width_in,
+                "thickness_in": args.thickness_in,
+                "elastic_modulus_psi": args.elastic_modulus_psi,
+                "total_motion_in": args.total_motion_in,
+                "Sut_kpsi": args.sut_kpsi,
+                "Sy_kpsi": args.sy_kpsi,
+                "Se_kpsi": args.se_kpsi,
+                "preload_deflections_in": args.preload_deflections_in,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -473,6 +511,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_life_of_part_args(args)
             elif args.command == "fatigue_factor_of_safety":
                 payload = self._payload_from_fatigue_factor_of_safety_args(args)
+            elif args.command == "gerber_langer_failure_lines":
+                payload = self._payload_from_gerber_langer_failure_lines_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

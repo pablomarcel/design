@@ -250,3 +250,29 @@ python -m cli fatigue_factor_of_safety \
   --pretty \
   --show
 ```
+
+## Example 6-11 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_11_gerber_langer_failure_lines.json \
+  --outfile example_6_11_gerber_langer_failure_lines_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli gerber_langer_failure_lines \
+  --length-in 32 \
+  --width-in 2 \
+  --thickness-in 0.25 \
+  --elastic-modulus-psi 30000000 \
+  --total-motion-in 2 \
+  --sut-kpsi 150 \
+  --sy-kpsi 127 \
+  --se-kpsi 28 \
+  --preload-deflection-in 2 \
+  --preload-deflection-in 5 \
+  --pretty \
+  --show
+```

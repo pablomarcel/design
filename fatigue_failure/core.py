@@ -2832,3 +2832,254 @@ class FatigueFactorOfSafetySolver:
             },
             **({"verification": verification} if verification else {}),
         }
+
+
+class GerberLangerFailureLinesSolver:
+    """Implements Shigley Chapter 6 Example 6-11 for Gerber-Langer failure lines of a preloaded spring."""
+
+    solve_path = "gerber_langer_failure_lines"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _get_row_by_criterion(payload: dict[str, Any], criterion: str) -> dict[str, Any]:
+        for row in payload.get("rows", []):
+            if row.get("criterion") == criterion and row.get("row_type") == "fatigue_criterion":
+                return row
+        raise DataLookupError(f"No fatigue_criterion row found for criterion={criterion!r}.")
+
+    @staticmethod
+    def _get_langer_row(payload: dict[str, Any]) -> dict[str, Any]:
+        for row in payload.get("rows", []):
+            if row.get("criterion") == "langer" and row.get("row_type") == "static_langer_criterion":
+                return row
+        raise DataLookupError("No static_langer_criterion row found.")
+
+    @staticmethod
+    def _get_crossover_row(payload: dict[str, Any]) -> dict[str, Any] | None:
+        for row in payload.get("rows", []):
+            if row.get("row_type") == "intersection_static_and_fatigue":
+                return row
+        return None
+
+    @staticmethod
+    def _eval_formula(expression: str, variables: dict[str, float]) -> float:
+        text = str(expression).strip()
+        if "=" in text:
+            text = text.split("=", 1)[1].strip()
+        return safe_eval_expression(text.replace("^", "**"), variables)
+
+    @staticmethod
+    def _resolve_preload_cases(inputs: dict[str, Any]) -> list[dict[str, Any]]:
+        cases = inputs.get("preload_cases")
+        if cases:
+            return cases
+        preload_values = inputs.get("preload_deflections_in")
+        if preload_values:
+            result = []
+            for value in preload_values:
+                result.append({
+                    "name": f"preload_{value}_in",
+                    "preload_deflection_in": float(value),
+                })
+            return result
+        raise ValidationError(
+            "preload_cases or preload_deflections_in is required for solve_path='gerber_langer_failure_lines'."
+        )
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"GerberLangerFailureLinesSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        length_in = ensure_positive("length_in", coalesce(inputs.get("length_in"), inputs.get("cantilever_length_in"), inputs.get("spring_length_in")))
+        width_in = ensure_positive("width_in", coalesce(inputs.get("width_in"), inputs.get("cantilever_width_in"), inputs.get("spring_width_in")))
+        thickness_in = ensure_positive("thickness_in", coalesce(inputs.get("thickness_in"), inputs.get("cantilever_thickness_in"), inputs.get("spring_thickness_in")))
+        elastic_modulus_psi = ensure_positive("elastic_modulus_psi", coalesce(inputs.get("elastic_modulus_psi"), inputs.get("E_psi"), inputs.get("modulus_psi")))
+        total_motion_in = ensure_positive("total_motion_in", coalesce(inputs.get("total_motion_in"), inputs.get("follower_total_motion_in"), inputs.get("motion_range_in")))
+
+        Sut_kpsi = ensure_positive("Sut_kpsi", coalesce(inputs.get("Sut_kpsi"), inputs.get("sut_kpsi"), inputs.get("ultimate_tensile_strength_kpsi")))
+        Sy_kpsi = ensure_positive("Sy_kpsi", coalesce(inputs.get("Sy_kpsi"), inputs.get("sy_kpsi"), inputs.get("yield_strength_kpsi")))
+        Se_kpsi = ensure_positive("Se_kpsi", coalesce(inputs.get("Se_kpsi"), inputs.get("se_kpsi"), inputs.get("endurance_limit_kpsi")))
+
+        cases = self._resolve_preload_cases(inputs)
+
+        I_in4 = width_in * thickness_in**3 / 12.0
+        c_in = thickness_in / 2.0
+        K_psi_per_in = 96.0 * elastic_modulus_psi * c_in / length_in**3
+        K_kpsi_per_in = K_psi_per_in / 1000.0
+
+        table_6_7 = self.repository.table_6_7_payload
+        gerber_row = self._get_row_by_criterion(table_6_7, "gerber")
+        langer_row = self._get_langer_row(table_6_7)
+        crossover_row = self._get_crossover_row(table_6_7)
+
+        common = {
+            "Se": Se_kpsi,
+            "Sut": Sut_kpsi,
+            "Sy": Sy_kpsi,
+        }
+
+        global_plot = {
+            "gerber_line": {
+                "equation": "Sa/Se + (Sm/Sut)^2 = 1",
+                "Sm_intercept_kpsi": safe_round(Sut_kpsi),
+                "Sa_intercept_kpsi": safe_round(Se_kpsi),
+            },
+            "langer_line": {
+                "equation": "Sa/Sy + Sm/Sy = 1",
+                "Sm_intercept_kpsi": safe_round(Sy_kpsi),
+                "Sa_intercept_kpsi": safe_round(Sy_kpsi),
+            },
+        }
+
+        if crossover_row is not None:
+            gerber_crossover_Sm = self._eval_formula(crossover_row["intersection_coordinates"]["Sm"], common)
+            gerber_crossover_Sa = self._eval_formula(crossover_row["intersection_coordinates"]["Sa"], {**common, "Sm": gerber_crossover_Sm})
+            gerber_r_crit = self._eval_formula(crossover_row["intersection_coordinates"]["r_crit"], {**common, "Sa": gerber_crossover_Sa, "Sm": gerber_crossover_Sm})
+            global_plot["gerber_langer_crossover"] = {
+                "Sa_kpsi": safe_round(gerber_crossover_Sa),
+                "Sm_kpsi": safe_round(gerber_crossover_Sm),
+                "r_crit": safe_round(gerber_r_crit),
+            }
+
+        results_cases = []
+        verification: dict[str, Any] = {}
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        expected_case_results = expected_ref.get("case_results", {})
+
+        for case in cases:
+            name = str(coalesce(case.get("name"), f"preload_{case.get('preload_deflection_in')}"))
+            preload_in = ensure_positive(f"preload_deflection_in for case {name}", coalesce(case.get("preload_deflection_in"), case.get("delta_in"), case.get("preload_in")))
+
+            y_min = preload_in
+            y_max = preload_in + total_motion_in
+
+            sigma_min_kpsi = K_kpsi_per_in * y_min
+            sigma_max_kpsi = K_kpsi_per_in * y_max
+            sigma_a_kpsi = 0.5 * (sigma_max_kpsi - sigma_min_kpsi)
+            sigma_m_kpsi = 0.5 * (sigma_max_kpsi + sigma_min_kpsi)
+            sigma_a_mpa = kpsi_to_mpa(sigma_a_kpsi)
+            sigma_m_mpa = kpsi_to_mpa(sigma_m_kpsi)
+
+            if math.isclose(sigma_m_kpsi, 0.0, rel_tol=0.0, abs_tol=1e-15):
+                raise ValidationError("Each preload case must produce nonzero mean stress so the load-line slope r = sigma_a/sigma_m is defined.")
+            r = sigma_a_kpsi / sigma_m_kpsi
+
+            vars_case = {
+                **common,
+                "r": r,
+                "sigma_a": sigma_a_kpsi,
+                "sigma_m": sigma_m_kpsi,
+            }
+
+            gerber_Sa = self._eval_formula(gerber_row["intersection_coordinates"]["Sa"], vars_case)
+            gerber_Sm = self._eval_formula(gerber_row["intersection_coordinates"]["Sm"], {**vars_case, "Sa": gerber_Sa})
+            gerber_nf = self._eval_formula(table_6_7["fatigue_factor_of_safety"]["equation"], vars_case)
+
+            langer_Sa = self._eval_formula(langer_row["intersection_coordinates"]["Sa"], vars_case)
+            langer_Sm = self._eval_formula(langer_row["intersection_coordinates"]["Sm"], vars_case)
+            n_y = Sy_kpsi / (sigma_a_kpsi + sigma_m_kpsi)
+
+            case_result = {
+                "name": name,
+                "preload_deflection_in": safe_round(preload_in),
+                "y_min_in": safe_round(y_min),
+                "y_max_in": safe_round(y_max),
+                "sigma_min_kpsi": safe_round(sigma_min_kpsi),
+                "sigma_max_kpsi": safe_round(sigma_max_kpsi),
+                "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                "sigma_a_MPa": safe_round(sigma_a_mpa),
+                "sigma_m_MPa": safe_round(sigma_m_mpa),
+                "load_line_slope_r": safe_round(r),
+                "gerber": {
+                    "Sa_kpsi": safe_round(gerber_Sa),
+                    "Sm_kpsi": safe_round(gerber_Sm),
+                    "Sa_MPa": safe_round(kpsi_to_mpa(gerber_Sa)),
+                    "Sm_MPa": safe_round(kpsi_to_mpa(gerber_Sm)),
+                    "fatigue_factor_of_safety_n_f": safe_round(gerber_nf),
+                    "governing_mode": "fatigue" if gerber_nf < n_y else "first_cycle_yield",
+                },
+                "langer": {
+                    "Sa_kpsi": safe_round(langer_Sa),
+                    "Sm_kpsi": safe_round(langer_Sm),
+                    "Sa_MPa": safe_round(kpsi_to_mpa(langer_Sa)),
+                    "Sm_MPa": safe_round(kpsi_to_mpa(langer_Sm)),
+                    "first_cycle_yield_factor_n_y": safe_round(n_y),
+                },
+            }
+            results_cases.append(case_result)
+
+            if name in expected_case_results:
+                ref = expected_case_results[name]
+                for key, actual in {
+                    "sigma_a_kpsi": sigma_a_kpsi,
+                    "sigma_m_kpsi": sigma_m_kpsi,
+                    "load_line_slope_r": r,
+                    "gerber_n_f": gerber_nf,
+                    "gerber_Sa_kpsi": gerber_Sa,
+                    "gerber_Sm_kpsi": gerber_Sm,
+                    "n_y": n_y,
+                    "langer_Sa_kpsi": langer_Sa,
+                    "langer_Sm_kpsi": langer_Sm,
+                }.items():
+                    if key in ref:
+                        verification[f"{name}::{key}"] = {
+                            "actual": safe_round(actual),
+                            "reference": float(ref[key]),
+                            "relative_error_percent": safe_round(relative_error_percent(actual, float(ref[key]))),
+                        }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Gerber-Langer failure lines analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_6_7": {
+                    "table_id": table_6_7.get("table_id"),
+                    "criterion": "gerber",
+                    "fatigue_factor_of_safety_equation": table_6_7.get("fatigue_factor_of_safety", {}).get("equation"),
+                    "fatigue_intersection_coordinates": gerber_row.get("intersection_coordinates"),
+                    "langer_intersection_coordinates": langer_row.get("intersection_coordinates"),
+                    "crossover_coordinates": crossover_row.get("intersection_coordinates") if crossover_row else None,
+                }
+            },
+            "derived": {
+                "length_in": safe_round(length_in),
+                "width_in": safe_round(width_in),
+                "thickness_in": safe_round(thickness_in),
+                "elastic_modulus_psi": safe_round(elastic_modulus_psi),
+                "elastic_modulus_MPa": safe_round(elastic_modulus_psi * 0.006894757293168361),
+                "total_motion_in": safe_round(total_motion_in),
+                "I_in4": safe_round(I_in4),
+                "c_in": safe_round(c_in),
+                "stress_per_deflection_kpsi_per_in": safe_round(K_kpsi_per_in),
+                "stress_per_deflection_psi_per_in": safe_round(K_psi_per_in),
+                "Sut_kpsi": safe_round(Sut_kpsi),
+                "Sut_MPa": safe_round(kpsi_to_mpa(Sut_kpsi)),
+                "Sy_kpsi": safe_round(Sy_kpsi),
+                "Sy_MPa": safe_round(kpsi_to_mpa(Sy_kpsi)),
+                "Se_kpsi": safe_round(Se_kpsi),
+                "Se_MPa": safe_round(kpsi_to_mpa(Se_kpsi)),
+            },
+            "results": {
+                "plot_data": global_plot,
+                "preload_cases": results_cases,
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-47", "6-49"],
+                "notes": [
+                    "This solver targets Example 6-11 style Gerber-Langer failure-line calculations for a preloaded cantilever spring.",
+                    "The spring stress is related to tip deflection by sigma = K*y, where K = 96*E*c/l^3.",
+                    "Because the total follower motion is fixed, the alternating stress is fixed and only the mean stress changes with preload.",
+                    "Gerber failure-line coordinates and fatigue factor of safety are evaluated using the digitized Table 6-7 relations.",
+                    "First-cycle yielding is checked with the Langer line using Eq. (6-49).",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }
