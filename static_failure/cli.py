@@ -36,12 +36,9 @@ def build_parser() -> argparse.ArgumentParser:
     direct_parser.add_argument(
         "--case",
         action="append",
-        nargs="+",
-        metavar="VALUE",
-        help=(
-            "Plane-stress case definition as four values: label sigma_x sigma_y tau_xy. "
-            "May be repeated."
-        ),
+        nargs=4,
+        metavar=("LABEL", "SIGMA_X", "SIGMA_Y", "TAU_XY"),
+        help="Plane-stress case definition. May be repeated.",
     )
     direct_parser.add_argument("--outfile", help="Output JSON file.")
     direct_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
@@ -84,10 +81,6 @@ def build_parser() -> argparse.ArgumentParser:
 def build_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
     for raw_case in args.case or []:
-        if len(raw_case) != 4:
-            raise ValueError(
-                "Each --case entry must contain exactly four values: label sigma_x sigma_y tau_xy"
-            )
         label, sigma_x, sigma_y, tau_xy = raw_case
         cases.append(
             {

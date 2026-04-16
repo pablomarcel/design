@@ -40,15 +40,16 @@ class DisplayUtils:
         self,
         dataframe: pd.DataFrame,
         title: str | None = None,
-        equal_width: int = 16,
+        equal_width: int | None = None,
     ) -> Table:
+        width = equal_width or self._recommended_equal_width(dataframe)
         table = Table(title=title, show_lines=False, expand=False)
         for column in dataframe.columns:
             table.add_column(
                 str(column),
                 justify="center",
-                min_width=equal_width,
-                max_width=equal_width,
+                min_width=width,
+                max_width=width,
                 overflow="fold",
                 no_wrap=False,
             )
@@ -61,18 +62,33 @@ class DisplayUtils:
         self,
         dataframe: pd.DataFrame,
         title: str | None = None,
-        equal_width: int = 16,
+        equal_width: int | None = None,
     ) -> None:
         table = self.dataframe_to_rich_table(dataframe, title=title, equal_width=equal_width)
         self.console.print(table)
 
     def print_key_value_block(self, title: str, mapping: dict[str, Any], digits: int = 6) -> None:
+        if not mapping:
+            return
+        rows = [(str(key), self._format_cell(self.normalize_float(value, digits=digits))) for key, value in mapping.items()]
+        key_width = max(24, min(40, max(len(k) for k, _ in rows) + 2))
+        val_width = 24
         table = Table(title=title, expand=False)
-        table.add_column("Field", justify="left", min_width=34, max_width=34)
-        table.add_column("Value", justify="right", min_width=20, max_width=20)
-        for key, value in mapping.items():
-            table.add_row(str(key), self._format_cell(self.normalize_float(value, digits=digits)))
+        table.add_column("Field", justify="left", min_width=key_width, max_width=key_width)
+        table.add_column("Value", justify="right", min_width=val_width, max_width=val_width)
+        for key, value in rows:
+            table.add_row(key, value)
         self.console.print(table)
+
+    @staticmethod
+    def _recommended_equal_width(dataframe: pd.DataFrame, min_width: int = 12, max_width: int = 18) -> int:
+        max_len = 0
+        for column in dataframe.columns:
+            max_len = max(max_len, len(str(column)))
+        for _, row in dataframe.iterrows():
+            for value in row.tolist():
+                max_len = max(max_len, len(DisplayUtils._format_cell(value)))
+        return max(min_width, min(max_width, max_len + 2))
 
     @staticmethod
     def _format_cell(value: Any) -> str:

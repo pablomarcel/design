@@ -313,6 +313,7 @@ class Example52CoulombMohrSolver:
             [
                 {
                     "Case": case_label,
+                    "Input": stress_state_payload.get("reported_input_mode", state.input_mode),
                     f"s1 {strength_unit}": s1,
                     f"s2 {strength_unit}": s2,
                     f"s3 {strength_unit}": s3,
@@ -327,7 +328,8 @@ class Example52CoulombMohrSolver:
         result_case = {
             "label": case_label,
             "description": stress_state_payload.get("description", ""),
-            "input_mode": state.input_mode,
+            "input_mode": stress_state_payload.get("reported_input_mode", state.input_mode),
+            "resolved_stress_representation": state.input_mode,
             "ordered_principal_stresses": {
                 "sigma_1": s1,
                 "sigma_2": s2,
@@ -336,7 +338,7 @@ class Example52CoulombMohrSolver:
             "derived": {
                 "maximum_shear_stress": max_shear,
                 "torsional_shear_yield_strength_Ssy": Ssy,
-                "coulomb_mohr_plane_case": state.coulomb_mohr_plane_case(),
+                "coulomb_mohr_plane_case": state.coulomb_mohr_plane_case() if state.input_mode == "plane_stress" else None,
             },
             "factor_of_safety": {
                 "Coulomb_Mohr": n_cm,
@@ -415,6 +417,7 @@ class Example52CoulombMohrSolver:
             stress_state = {
                 "label": inputs.get("label", "torsion_shaft"),
                 "description": inputs.get("description", "Solid circular shaft in pure torsion."),
+                "reported_input_mode": mode,
                 "sigma_x": 0.0,
                 "sigma_y": 0.0,
                 "tau_xy": tau_mpa,
@@ -425,6 +428,7 @@ class Example52CoulombMohrSolver:
                 "torque_N_m": torque_N_m,
                 "computed_tau_xy_MPa": tau_mpa,
                 "equation": "tau = 16*T/(pi*d^3)",
+                "unit_note": "Torque entered in N·m and diameter in mm; shear stress reported in MPa.",
             }
             return stress_state, geometry
 
@@ -436,6 +440,7 @@ class Example52CoulombMohrSolver:
             return {
                 "label": inputs.get("label", "plane_stress_case"),
                 "description": inputs.get("description", "Plane-stress state for Coulomb-Mohr evaluation."),
+                "reported_input_mode": mode,
                 "sigma_x": float(inputs["sigma_x"]),
                 "sigma_y": float(inputs["sigma_y"]),
                 "tau_xy": float(inputs["tau_xy"]),
@@ -450,6 +455,7 @@ class Example52CoulombMohrSolver:
             return {
                 "label": inputs.get("label", "principal_stress_case"),
                 "description": inputs.get("description", "Principal-stress state for Coulomb-Mohr evaluation."),
+                "reported_input_mode": mode,
                 "principal_stresses": [float(v) for v in principal],
             }, {
                 "stress_input_mode": mode,

@@ -52,8 +52,12 @@ class StaticFailureApp:
 
     def render_result(self, result: dict[str, Any]) -> None:
         self.display.print_banner(result.get("title", "Static Failure Result"))
+        self.display.print_key_value_block("Meta", result.get("meta", {}))
         self.display.print_key_value_block("Material", result.get("material", {}))
+        inputs = result.get("inputs", {})
+        input_preview = {k: v for k, v in inputs.items() if k not in {"stress_states"}}
+        self.display.print_key_value_block("Inputs", input_preview)
         summary_rows = result.get("results", {}).get("summary_table", [])
         if summary_rows:
             df = pd.DataFrame(summary_rows)
-            self.display.print_dataframe(df, title="Factor of Safety Summary", equal_width=12)
+            self.display.print_dataframe(df, title="Factor of Safety Summary")
