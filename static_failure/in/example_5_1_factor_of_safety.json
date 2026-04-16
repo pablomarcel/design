@@ -1,0 +1,46 @@
+{
+  "problem": "static_failure",
+  "title": "Example 5-1 static failure factor of safety",
+  "inputs": {
+    "solve_path": "ductile_failure_fos",
+    "Syt": 100.0,
+    "Syc": 100.0,
+    "ef": 0.55,
+    "strength_unit": "kpsi",
+    "stress_states": [
+      {
+        "label": "(a)",
+        "description": "Plane stress case from Example 5-1 part (a)",
+        "sigma_x": 70.0,
+        "sigma_y": 70.0,
+        "tau_xy": 0.0
+      },
+      {
+        "label": "(b)",
+        "description": "Plane stress case from Example 5-1 part (b)",
+        "sigma_x": 60.0,
+        "sigma_y": 40.0,
+        "tau_xy": -15.0
+      },
+      {
+        "label": "(c)",
+        "description": "Plane stress case from Example 5-1 part (c)",
+        "sigma_x": 0.0,
+        "sigma_y": 40.0,
+        "tau_xy": 45.0
+      },
+      {
+        "label": "(d)",
+        "description": "Plane stress case from Example 5-1 part (d)",
+        "sigma_x": -40.0,
+        "sigma_y": -60.0,
+        "tau_xy": 15.0
+      },
+      {
+        "label": "(e)",
+        "description": "Triaxial principal-stress case from Example 5-1 part (e)",
+        "principal_stresses": [30.0, 30.0, 30.0]
+      }
+    ]
+  }
+}
