@@ -26,12 +26,20 @@
         "low_speed_preload_2_in": {
           "sigma_a_kpsi": 10.99,
           "sigma_m_kpsi": 32.97,
-          "load_line_slope_r": 0.3333
+          "load_line_slope_r": 0.3333,
+          "gerber_n_f": 3.54,
+          "gerber_Sm_kpsi": 116.9,
+          "n_y": 3.52,
+          "langer_Sm_kpsi": 116.0
         },
         "high_speed_preload_5_in": {
           "sigma_a_kpsi": 10.99,
           "sigma_m_kpsi": 65.94,
-          "load_line_slope_r": 0.1667
+          "load_line_slope_r": 0.1667,
+          "gerber_n_f": 1.77,
+          "gerber_Sm_kpsi": 116.9,
+          "n_y": 1.76,
+          "langer_Sm_kpsi": 116.0
         }
       }
     },
@@ -39,8 +47,8 @@
       "This file follows Example 6-11 on p319-p321.",
       "The spring strengths are taken directly from the problem statement as fully corrected values.",
       "The total follower motion is fixed, so the alternating stress is fixed and the preload changes only the mean stress.",
-      "The solver uses Table 6-7 for Gerber and Langer line relations.",
-      "Preload cases correspond to 2 in for low speed and 5 in for high speed."
+      "For Example 6-11, the operating path is horizontal in (Sm, Sa) space because Sa is fixed by the 2 in motion.",
+      "Part (b) therefore uses allowable Sm at the fixed Sa, not an origin-based load line intersection."
     ]
   }
 }
