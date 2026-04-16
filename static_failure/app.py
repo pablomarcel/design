@@ -57,6 +57,15 @@ class StaticFailureApp:
         inputs = result.get("inputs", {})
         input_preview = {k: v for k, v in inputs.items() if k not in {"stress_states"}}
         self.display.print_key_value_block("Inputs", input_preview)
+
+        critical_section = result.get("results", {}).get("critical_section")
+        if critical_section:
+            self.display.print_nested_mapping("Critical Section", critical_section)
+
+        strength_predictions = result.get("results", {}).get("strength_predictions")
+        if strength_predictions:
+            self.display.print_nested_mapping("Strength Predictions", strength_predictions)
+
         summary_rows = result.get("results", {}).get("summary_table", [])
         if summary_rows:
             df = pd.DataFrame(summary_rows)

@@ -1,19 +1,17 @@
 {
   "problem": "static_failure",
-  "title": "Example 5-3 failure-theory strength analysis",
+  "title": "Failure-theory strength analysis",
   "inputs": {
     "solve_path": "failure_theory_strength",
     "strength_unit": "kpsi",
-    "material_lookup": "aisi_1035_steel_forged_heat_treated",
     "geometry_mode": "round_shaft_bending_torsion_linear_force",
-    "label": "example_5_3_socket_wrench_style_bar",
-    "description": "Round cantilevered bar under combined bending and torsion from an end force on the lever.",
-    "diameter_in": 1.0,
-    "bending_moment_arm_in": 14.0,
-    "torsion_arm_in": 15.0,
     "design_factor": 1.0,
     "force_unit": "lbf",
     "moment_unit": "lbf·in",
-    "section_note": "Critical section at the fixed end of the 1-in-diameter bar."
+    "label": "failure_theory_strength_case",
+    "material_lookup": "aisi_1035_steel_forged_heat_treated",
+    "diameter_in": 1.0,
+    "bending_moment_arm_in": 14.0,
+    "torsion_arm_in": 15.0
   }
 }

@@ -72,13 +72,30 @@ class DisplayUtils:
             return
         rows = [(str(key), self._format_cell(self.normalize_float(value, digits=digits))) for key, value in mapping.items()]
         key_width = max(24, min(40, max(len(k) for k, _ in rows) + 2))
-        val_width = 24
+        val_width = max(24, min(52, max(len(v) for _, v in rows) + 2))
         table = Table(title=title, expand=False)
         table.add_column("Field", justify="left", min_width=key_width, max_width=key_width)
         table.add_column("Value", justify="right", min_width=val_width, max_width=val_width)
         for key, value in rows:
             table.add_row(key, value)
         self.console.print(table)
+
+    def print_nested_mapping(self, title: str, mapping: dict[str, Any], digits: int = 6) -> None:
+        """Pretty-print a nested mapping without flattening it into JSON first."""
+        if not mapping:
+            return
+        self.console.print(f"\n[bold]{title}[/bold]")
+        self._print_nested_mapping_body(mapping, digits=digits, indent=0)
+
+    def _print_nested_mapping_body(self, mapping: dict[str, Any], digits: int, indent: int) -> None:
+        for key, value in mapping.items():
+            pad = "  " * indent
+            if isinstance(value, dict):
+                self.console.print(f"{pad}[bold]{key}[/bold]")
+                self._print_nested_mapping_body(value, digits=digits, indent=indent + 1)
+            else:
+                rendered = self._format_cell(self.normalize_float(value, digits=digits))
+                self.console.print(f"{pad}{key}: {rendered}")
 
     @staticmethod
     def _recommended_equal_width(dataframe: pd.DataFrame, min_width: int = 12, max_width: int = 18) -> int:
@@ -98,6 +115,10 @@ class DisplayUtils:
             if not isfinite(value):
                 return "∞" if value > 0 else "-∞"
             return f"{value:.6g}"
+        if isinstance(value, dict):
+            return "{" + ", ".join(f"{k}: {DisplayUtils._format_cell(v)}" for k, v in value.items()) + "}"
+        if isinstance(value, list):
+            return "[" + ", ".join(DisplayUtils._format_cell(v) for v in value) + "]"
         return str(value)
 
     @staticmethod

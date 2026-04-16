@@ -220,8 +220,6 @@ class StressState:
 
 
 class Example51FactorOfSafetySolver:
-    """Implements the first static-failure solve path for Shigley Example 5-1 style problems."""
-
     solve_path = "ductile_failure_fos"
 
     def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
@@ -284,8 +282,6 @@ class Example51FactorOfSafetySolver:
 
 
 class Example52CoulombMohrSolver:
-    """Implements the Example 5-2 style Coulomb-Mohr solve path."""
-
     solve_path = "coulomb_mohr_fos"
 
     def __init__(self, material_table: MaterialTable | None = None) -> None:
@@ -467,8 +463,6 @@ class Example52CoulombMohrSolver:
 
 
 class Example53FailureTheoryStrengthSolver:
-    """Implements Example 5-3 style strength-of-component calculations using failure theories."""
-
     solve_path = "failure_theory_strength"
 
     def __init__(self, material_table: MaterialTable | None = None) -> None:
@@ -484,7 +478,7 @@ class Example53FailureTheoryStrengthSolver:
         target = self._build_target(inputs)
 
         section = self._compute_section_response(geometry, material.strength_unit, force=1.0)
-        state = StressState(
+        normalized_state = StressState(
             {
                 "label": inputs.get("label", "failure_theory_strength_case"),
                 "description": inputs.get(
@@ -497,8 +491,10 @@ class Example53FailureTheoryStrengthSolver:
             }
         )
 
-        sigma_vm_per_force = state.von_mises_stress()
-        tau_max_per_force = state.max_shear_stress()
+        sigma_vm_per_force = normalized_state.von_mises_stress()
+        tau_max_per_force = normalized_state.max_shear_stress()
+        s1_pf, s2_pf, s3_pf = normalized_state.principal_stresses()
+        sigma_a_pf, sigma_b_pf = normalized_state.principal_pair_in_plane() or (None, None)
 
         F_de = inf if isclose(sigma_vm_per_force, 0.0, abs_tol=1e-12) else material.Syt / (target["design_factor"] * sigma_vm_per_force)
         F_mss = inf if isclose(tau_max_per_force, 0.0, abs_tol=1e-12) else (material.Syt / 2.0) / (target["design_factor"] * tau_max_per_force)
@@ -550,7 +546,20 @@ class Example53FailureTheoryStrengthSolver:
                     "normalized_failure_metrics_per_unit_force": {
                         "von_mises_per_force": sigma_vm_per_force,
                         "maximum_shear_per_force": tau_max_per_force,
-                        "principal_stresses_per_force": stress_at_de["ordered_principal_stresses"],
+                        "principal_stresses_per_force": {
+                            "sigma_1": s1_pf,
+                            "sigma_2": s2_pf,
+                            "sigma_3": s3_pf,
+                        },
+                        "in_plane_principal_stresses_per_force": {
+                            "sigma_A": sigma_a_pf,
+                            "sigma_B": sigma_b_pf,
+                        },
+                    },
+                    "normalized_loading_coefficients": {
+                        "bending_moment_per_force": geometry["bending_moment_arm_in"],
+                        "torque_per_force": geometry["torsion_arm_in"],
+                        "moment_unit_per_force": f"{geometry['moment_unit']}/{geometry['force_unit']}",
                     },
                 },
                 "strength_predictions": {
