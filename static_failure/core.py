@@ -464,3 +464,234 @@ class Example52CoulombMohrSolver:
         raise ValueError(
             "Unsupported stress_input_mode. Use one of: 'torsion_shaft', 'plane_stress', 'principal_stresses'."
         )
+
+
+class Example53FailureTheoryStrengthSolver:
+    """Implements Example 5-3 style strength-of-component calculations using failure theories."""
+
+    solve_path = "failure_theory_strength"
+
+    def __init__(self, material_table: MaterialTable | None = None) -> None:
+        self.material_table = material_table or MaterialTable()
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") != self.solve_path:
+            raise ValueError(f"Unsupported solve_path '{inputs.get('solve_path')}'. Expected '{self.solve_path}'.")
+
+        material = self._build_material(inputs)
+        geometry = self._build_geometry(inputs)
+        target = self._build_target(inputs)
+
+        section = self._compute_section_response(geometry, material.strength_unit, force=1.0)
+        state = StressState(
+            {
+                "label": inputs.get("label", "failure_theory_strength_case"),
+                "description": inputs.get(
+                    "description",
+                    "Critical section under combined bending and torsion, normalized per unit applied force.",
+                ),
+                "sigma_x": section["sigma_x_per_force"],
+                "sigma_y": 0.0,
+                "tau_xy": section["tau_xy_per_force"],
+            }
+        )
+
+        sigma_vm_per_force = state.von_mises_stress()
+        tau_max_per_force = state.max_shear_stress()
+
+        F_de = inf if isclose(sigma_vm_per_force, 0.0, abs_tol=1e-12) else material.Syt / (target["design_factor"] * sigma_vm_per_force)
+        F_mss = inf if isclose(tau_max_per_force, 0.0, abs_tol=1e-12) else (material.Syt / 2.0) / (target["design_factor"] * tau_max_per_force)
+
+        stress_at_de = self._evaluate_state_for_force(section, F_de)
+        stress_at_mss = self._evaluate_state_for_force(section, F_mss)
+
+        summary_df = pd.DataFrame(
+            [
+                {
+                    "Theory": "DE",
+                    f"Strength {geometry['force_unit']}": F_de,
+                    f"svm coeff {material.strength_unit}/{geometry['force_unit']}": sigma_vm_per_force,
+                    f"tmax coeff {material.strength_unit}/{geometry['force_unit']}": tau_max_per_force,
+                },
+                {
+                    "Theory": "MSS",
+                    f"Strength {geometry['force_unit']}": F_mss,
+                    f"svm coeff {material.strength_unit}/{geometry['force_unit']}": sigma_vm_per_force,
+                    f"tmax coeff {material.strength_unit}/{geometry['force_unit']}": tau_max_per_force,
+                },
+            ]
+        )
+
+        return {
+            "problem": payload.get("problem", "static_failure"),
+            "title": payload.get("title", "Failure-theory strength analysis"),
+            "inputs": inputs,
+            "material": material.to_dict(),
+            "meta": {
+                "solve_path": self.solve_path,
+                "applicability": "ductile components where the load causing first yield is sought",
+                "implemented_theories": ["DE", "MSS"],
+                "normalized_solution_strategy": "stresses computed per unit applied force, then inverted for force at yield",
+            },
+            "results": {
+                "critical_section": {
+                    "label": inputs.get("label", "failure_theory_strength_case"),
+                    "description": inputs.get(
+                        "description",
+                        "Critical section under combined bending and torsion.",
+                    ),
+                    "normalized_stress_state_per_unit_force": {
+                        "sigma_x_per_force": section["sigma_x_per_force"],
+                        "sigma_y_per_force": 0.0,
+                        "tau_xy_per_force": section["tau_xy_per_force"],
+                        "stress_per_force_unit": f"{material.strength_unit}/{geometry['force_unit']}",
+                    },
+                    "normalized_failure_metrics_per_unit_force": {
+                        "von_mises_per_force": sigma_vm_per_force,
+                        "maximum_shear_per_force": tau_max_per_force,
+                        "principal_stresses_per_force": stress_at_de["ordered_principal_stresses"],
+                    },
+                },
+                "strength_predictions": {
+                    "DE": {
+                        "strength_force": F_de,
+                        "force_unit": geometry["force_unit"],
+                        "design_factor": target["design_factor"],
+                        "equation_used": "F = Sy / (nd * sigma_vm_per_unit_force)",
+                        "stress_state_at_strength": stress_at_de,
+                    },
+                    "MSS": {
+                        "strength_force": F_mss,
+                        "force_unit": geometry["force_unit"],
+                        "design_factor": target["design_factor"],
+                        "equation_used": "F = (Sy/2) / (nd * tau_max_per_unit_force)",
+                        "stress_state_at_strength": stress_at_mss,
+                    },
+                },
+                "summary_table": summary_df.to_dict(orient="records"),
+            },
+        }
+
+    def _build_material(self, inputs: dict[str, Any]) -> MaterialProperties:
+        if inputs.get("material_lookup"):
+            row = self.material_table.lookup(str(inputs["material_lookup"]))
+            syt = float(inputs.get("Syt", row["Syt"]))
+            syc_raw = row.get("Syc")
+            syc = float(inputs.get("Syc", syc_raw if pd.notna(syc_raw) else syt))
+            ef = float(inputs["ef"]) if inputs.get("ef") is not None else (float(row["ef"]) if pd.notna(row.get("ef")) else None)
+            return MaterialProperties(
+                Syt=syt,
+                Syc=syc,
+                ef=ef,
+                strength_unit=str(inputs.get("strength_unit", row.get("strength_unit", "kpsi"))),
+                name=str(inputs.get("material_name", row.get("material_name", inputs["material_lookup"]))),
+                source=str(row.get("source", "material_table")),
+            )
+
+        if "Syt" not in inputs:
+            raise ValueError("Provide either 'material_lookup' or 'Syt'.")
+        syt = float(inputs["Syt"])
+        syc = float(inputs.get("Syc", syt))
+        return MaterialProperties(
+            Syt=syt,
+            Syc=syc,
+            ef=float(inputs["ef"]) if inputs.get("ef") is not None else None,
+            strength_unit=str(inputs.get("strength_unit", "kpsi")),
+            name=inputs.get("material_name"),
+            source=inputs.get("material_source"),
+        )
+
+    @staticmethod
+    def _build_target(inputs: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "design_factor": float(inputs.get("design_factor", 1.0)),
+        }
+
+    @staticmethod
+    def _build_geometry(inputs: dict[str, Any]) -> dict[str, Any]:
+        geometry_mode = str(inputs.get("geometry_mode", "round_shaft_bending_torsion_linear_force"))
+        if geometry_mode != "round_shaft_bending_torsion_linear_force":
+            raise ValueError("Unsupported geometry_mode. Use 'round_shaft_bending_torsion_linear_force'.")
+
+        required = ["diameter_in", "bending_moment_arm_in", "torsion_arm_in"]
+        missing = [key for key in required if key not in inputs]
+        if missing:
+            raise ValueError(f"Missing required geometry inputs: {', '.join(missing)}")
+
+        return {
+            "geometry_mode": geometry_mode,
+            "diameter_in": float(inputs["diameter_in"]),
+            "bending_moment_arm_in": float(inputs["bending_moment_arm_in"]),
+            "torsion_arm_in": float(inputs["torsion_arm_in"]),
+            "force_unit": str(inputs.get("force_unit", "lbf")),
+            "moment_unit": str(inputs.get("moment_unit", "lbf·in")),
+            "stress_concentration_considered": bool(inputs.get("stress_concentration_considered", False)),
+            "section_note": inputs.get("section_note"),
+        }
+
+    @staticmethod
+    def _stress_unit_scale_from_psi(strength_unit: str) -> float:
+        unit = str(strength_unit).strip().lower()
+        scales = {
+            "psi": 1.0,
+            "kpsi": 1.0 / 1000.0,
+            "ksi": 1.0 / 1000.0,
+            "mpa": 0.006894757293168361,
+            "gpa": 6.894757293168361e-06,
+        }
+        if unit not in scales:
+            raise ValueError(f"Unsupported strength_unit for Example 5-3 geometry conversion: {strength_unit}")
+        return scales[unit]
+
+    @classmethod
+    def _compute_section_response(cls, geometry: dict[str, Any], strength_unit: str, force: float) -> dict[str, float]:
+        d = geometry["diameter_in"]
+        M = geometry["bending_moment_arm_in"] * force
+        T = geometry["torsion_arm_in"] * force
+        sigma_x_psi = 32.0 * M / (pi * d**3)
+        tau_xy_psi = 16.0 * T / (pi * d**3)
+        scale = cls._stress_unit_scale_from_psi(strength_unit)
+        sigma_x = sigma_x_psi * scale
+        tau_xy = tau_xy_psi * scale
+        return {
+            "bending_moment": M,
+            "torque": T,
+            "sigma_x_per_force": sigma_x / force if not isclose(force, 0.0, abs_tol=1e-12) else 32.0 * geometry["bending_moment_arm_in"] / (pi * d**3) * scale,
+            "tau_xy_per_force": tau_xy / force if not isclose(force, 0.0, abs_tol=1e-12) else 16.0 * geometry["torsion_arm_in"] / (pi * d**3) * scale,
+        }
+
+    @staticmethod
+    def _evaluate_state_for_force(section: dict[str, float], force: float) -> dict[str, Any]:
+        sigma_x = section["sigma_x_per_force"] * force
+        tau_xy = section["tau_xy_per_force"] * force
+        state = StressState(
+            {
+                "label": "evaluated_strength_state",
+                "sigma_x": sigma_x,
+                "sigma_y": 0.0,
+                "tau_xy": tau_xy,
+            }
+        )
+        s1, s2, s3 = state.principal_stresses()
+        sigma_a, sigma_b = state.principal_pair_in_plane() or (None, None)
+        return {
+            "plane_stress_inputs": {
+                "sigma_x": sigma_x,
+                "sigma_y": 0.0,
+                "tau_xy": tau_xy,
+            },
+            "ordered_principal_stresses": {
+                "sigma_1": s1,
+                "sigma_2": s2,
+                "sigma_3": s3,
+            },
+            "derived": {
+                "von_mises_stress": state.von_mises_stress(),
+                "maximum_shear_stress": state.max_shear_stress(),
+                "in_plane_principal_stresses": {
+                    "sigma_A": sigma_a,
+                    "sigma_B": sigma_b,
+                },
+            },
+        }

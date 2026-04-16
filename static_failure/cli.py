@@ -75,6 +75,30 @@ def build_parser() -> argparse.ArgumentParser:
     cm_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     cm_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
+    ft_parser = subparsers.add_parser(
+        "failure_theory_strength",
+        help="Direct CLI solve for Example 5-3 style load-at-yield strength problems.",
+    )
+    ft_parser.add_argument("--material-lookup", help="material_id from data/static_failure_materials.csv")
+    ft_parser.add_argument("--Syt", type=float, help="Yield strength in tension.")
+    ft_parser.add_argument("--strength-unit", default="kpsi", help="Strength unit label for reporting.")
+    ft_parser.add_argument(
+        "--geometry-mode",
+        default="round_shaft_bending_torsion_linear_force",
+        choices=["round_shaft_bending_torsion_linear_force"],
+        help="Geometry/loading model used to map force to the critical stress state.",
+    )
+    ft_parser.add_argument("--diameter-in", type=float, help="Critical section diameter.")
+    ft_parser.add_argument("--bending-moment-arm-in", type=float, help="Moment arm from applied force to bending moment at the critical section.")
+    ft_parser.add_argument("--torsion-arm-in", type=float, help="Moment arm from applied force to torque at the critical section.")
+    ft_parser.add_argument("--design-factor", type=float, default=1.0, help="Target design factor. Defaults to first yield, n=1.")
+    ft_parser.add_argument("--force-unit", default="lbf", help="Force unit label for reporting.")
+    ft_parser.add_argument("--moment-unit", default="lbf·in", help="Moment unit label for reporting.")
+    ft_parser.add_argument("--label", default="failure_theory_strength_case", help="Case label for reporting.")
+    ft_parser.add_argument("--outfile", help="Output JSON file.")
+    ft_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
+    ft_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
+
     return parser
 
 
@@ -142,6 +166,34 @@ def build_coulomb_mohr_payload_from_args(args: argparse.Namespace) -> dict[str, 
     }
 
 
+def build_failure_theory_strength_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    inputs: dict[str, Any] = {
+        "solve_path": "failure_theory_strength",
+        "strength_unit": args.strength_unit,
+        "geometry_mode": args.geometry_mode,
+        "design_factor": args.design_factor,
+        "force_unit": args.force_unit,
+        "moment_unit": args.moment_unit,
+        "label": args.label,
+    }
+    if args.material_lookup:
+        inputs["material_lookup"] = args.material_lookup
+    if args.Syt is not None:
+        inputs["Syt"] = args.Syt
+    if args.diameter_in is None or args.bending_moment_arm_in is None or args.torsion_arm_in is None:
+        raise ValueError(
+            "failure_theory_strength requires --diameter-in --bending-moment-arm-in --torsion-arm-in"
+        )
+    inputs["diameter_in"] = args.diameter_in
+    inputs["bending_moment_arm_in"] = args.bending_moment_arm_in
+    inputs["torsion_arm_in"] = args.torsion_arm_in
+    return {
+        "problem": "static_failure",
+        "title": "Failure-theory strength analysis",
+        "inputs": inputs,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -170,6 +222,16 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "coulomb_mohr_fos":
             payload = build_coulomb_mohr_payload_from_args(args)
+            app.solve_payload(
+                payload,
+                outfile=args.outfile,
+                pretty=args.pretty,
+                show=args.show,
+            )
+            return 0
+
+        if args.command == "failure_theory_strength":
+            payload = build_failure_theory_strength_payload_from_args(args)
             app.solve_payload(
                 payload,
                 outfile=args.outfile,

@@ -49,3 +49,30 @@ python -m cli coulomb_mohr_fos \
   --pretty \
   --show
 ```
+
+## Example 5-3 from input JSON
+
+```bash
+python -m cli run \
+  --infile example_5_3_failure_theory_strength.json \
+  --outfile example_5_3_failure_theory_strength_out.json \
+  --pretty \
+  --show
+```
+
+## Direct CLI - Example 5-3 style
+
+```bash
+python -m cli failure_theory_strength \
+  --material-lookup aisi_1035_steel_forged_heat_treated \
+  --strength-unit kpsi \
+  --diameter-in 1.0 \
+  --bending-moment-arm-in 14.0 \
+  --torsion-arm-in 15.0 \
+  --design-factor 1.0 \
+  --force-unit lbf \
+  --moment-unit 'lbf·in' \
+  --outfile example_5_3_failure_theory_strength_out.json \
+  --pretty \
+  --show
+```

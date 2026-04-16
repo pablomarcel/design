@@ -3,9 +3,17 @@ from __future__ import annotations
 from typing import Any
 
 try:
-    from .core import Example51FactorOfSafetySolver, Example52CoulombMohrSolver
+    from .core import (
+        Example51FactorOfSafetySolver,
+        Example52CoulombMohrSolver,
+        Example53FailureTheoryStrengthSolver,
+    )
 except ImportError:  # pragma: no cover
-    from core import Example51FactorOfSafetySolver, Example52CoulombMohrSolver
+    from core import (
+        Example51FactorOfSafetySolver,
+        Example52CoulombMohrSolver,
+        Example53FailureTheoryStrengthSolver,
+    )
 
 
 class SolverAPI:
@@ -15,6 +23,7 @@ class SolverAPI:
         self._registry = {
             Example51FactorOfSafetySolver.solve_path: Example51FactorOfSafetySolver(),
             Example52CoulombMohrSolver.solve_path: Example52CoulombMohrSolver(),
+            Example53FailureTheoryStrengthSolver.solve_path: Example53FailureTheoryStrengthSolver(),
         }
 
     def available_solve_paths(self) -> list[str]:
