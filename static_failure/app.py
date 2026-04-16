@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -58,15 +59,21 @@ class StaticFailureApp:
         input_preview = {k: v for k, v in inputs.items() if k not in {"stress_states"}}
         self.display.print_key_value_block("Inputs", input_preview)
 
-        critical_section = result.get("results", {}).get("critical_section")
+        results = result.get("results", {})
+
+        critical_section = results.get("critical_section")
         if critical_section:
             self.display.print_nested_mapping("Critical Section", critical_section)
 
-        strength_predictions = result.get("results", {}).get("strength_predictions")
+        strength_predictions = results.get("strength_predictions")
         if strength_predictions:
             self.display.print_nested_mapping("Strength Predictions", strength_predictions)
 
-        summary_rows = result.get("results", {}).get("summary_table", [])
+        selected_candidate = results.get("selected_candidate")
+        if selected_candidate:
+            self.display.print_nested_mapping("Selected Candidate", selected_candidate)
+
+        summary_rows = results.get("summary_table", [])
         if summary_rows:
             df = pd.DataFrame(summary_rows)
             self.display.print_dataframe(df, title="Factor of Safety Summary")

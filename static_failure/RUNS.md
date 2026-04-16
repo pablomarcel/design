@@ -76,3 +76,30 @@ python -m cli failure_theory_strength \
   --pretty \
   --show
 ```
+
+## Example 5-4 from input JSON
+
+```bash
+python -m cli run \
+  --infile example_5_4_realized_factor_of_safety.json \
+  --outfile example_5_4_realized_factor_of_safety_out.json \
+  --pretty \
+  --show
+```
+
+## Direct CLI - Example 5-4 style
+
+```bash
+python -m cli realized_fos_stock_tube \
+  --material-lookup al_2014_specified_min_yield_276_mpa \
+  --strength-unit MPa \
+  --required-design-factor 4 \
+  --axial-force-N 9000 \
+  --bending-load-N 1750 \
+  --bending-moment-arm-mm 120 \
+  --torsion-N-m 72 \
+  --size-system mm \
+  --outfile example_5_4_realized_factor_of_safety_out.json \
+  --pretty \
+  --show
+```

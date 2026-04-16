@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import argparse
@@ -99,6 +100,25 @@ def build_parser() -> argparse.ArgumentParser:
     ft_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     ft_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
+    tube_parser = subparsers.add_parser(
+        "realized_fos_stock_tube",
+        help="Direct CLI solve for Example 5-4 style stock round-tube selection.",
+    )
+    tube_parser.add_argument("--material-lookup", help="material_id from data/static_failure_materials.csv")
+    tube_parser.add_argument("--Syt", type=float, help="Yield strength in tension.")
+    tube_parser.add_argument("--strength-unit", default="MPa", help="Strength unit label for reporting.")
+    tube_parser.add_argument("--required-design-factor", type=float, default=4.0, help="Required design factor.")
+    tube_parser.add_argument("--axial-force-N", type=float, required=True, help="Axial tensile force in N.")
+    tube_parser.add_argument("--bending-load-N", type=float, help="Transverse load in N used with --bending-moment-arm-mm.")
+    tube_parser.add_argument("--bending-moment-arm-mm", type=float, help="Moment arm in mm used with --bending-load-N.")
+    tube_parser.add_argument("--bending-moment-N-mm", type=float, help="Directly entered bending moment in N·mm.")
+    tube_parser.add_argument("--torsion-N-m", type=float, required=True, help="Applied torsion in N·m.")
+    tube_parser.add_argument("--size-system", default="mm", choices=["mm"], help="Which portion of Table A-8 to search.")
+    tube_parser.add_argument("--label", default="realized_fos_stock_tube_case", help="Case label for reporting.")
+    tube_parser.add_argument("--outfile", help="Output JSON file.")
+    tube_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
+    tube_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
+
     return parser
 
 
@@ -194,6 +214,36 @@ def build_failure_theory_strength_payload_from_args(args: argparse.Namespace) ->
     }
 
 
+def build_realized_fos_stock_tube_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    inputs: dict[str, Any] = {
+        "solve_path": "realized_fos_stock_tube",
+        "strength_unit": args.strength_unit,
+        "required_design_factor": args.required_design_factor,
+        "size_system": args.size_system,
+        "axial_force_N": args.axial_force_N,
+        "torsion_N_m": args.torsion_N_m,
+        "label": args.label,
+    }
+    if args.material_lookup:
+        inputs["material_lookup"] = args.material_lookup
+    if args.Syt is not None:
+        inputs["Syt"] = args.Syt
+    if args.bending_moment_N_mm is not None:
+        inputs["bending_moment_N_mm"] = args.bending_moment_N_mm
+    else:
+        if args.bending_load_N is None or args.bending_moment_arm_mm is None:
+            raise ValueError(
+                "realized_fos_stock_tube requires either --bending-moment-N-mm or both --bending-load-N and --bending-moment-arm-mm"
+            )
+        inputs["bending_load_N"] = args.bending_load_N
+        inputs["bending_moment_arm_mm"] = args.bending_moment_arm_mm
+    return {
+        "problem": "static_failure",
+        "title": "Realized factor-of-safety stock tube selection",
+        "inputs": inputs,
+    }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -232,6 +282,16 @@ def main(argv: list[str] | None = None) -> int:
 
         if args.command == "failure_theory_strength":
             payload = build_failure_theory_strength_payload_from_args(args)
+            app.solve_payload(
+                payload,
+                outfile=args.outfile,
+                pretty=args.pretty,
+                show=args.show,
+            )
+            return 0
+
+        if args.command == "realized_fos_stock_tube":
+            payload = build_realized_fos_stock_tube_payload_from_args(args)
             app.solve_payload(
                 payload,
                 outfile=args.outfile,

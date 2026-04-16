@@ -1,0 +1,21 @@
+{
+  "problem": "static_failure",
+  "title": "Realized factor-of-safety stock tube selection",
+  "inputs": {
+    "solve_path": "realized_fos_stock_tube",
+    "strength_unit": "MPa",
+    "material_lookup": "al_2014_specified_min_yield_276_mpa",
+    "size_system": "mm",
+    "required_design_factor": 4.0,
+    "loading_mode": "tube_axial_bending_torsion",
+    "axial_force_N": 9000.0,
+    "bending_load_N": 1750.0,
+    "bending_moment_arm_mm": 120.0,
+    "torsion_N_m": 72.0,
+    "label": "example_5_4_case",
+    "notes": [
+      "The input JSON is the source of truth for the problem-statement data.",
+      "The solver computes tube stresses from axial force, bending moment, and torsion, then iterates through Table A-8 metric stock sizes until the required design factor is met."
+    ]
+  }
+}

@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -65,6 +66,59 @@ class MaterialTable:
             raise ValueError(f"Unknown material_id '{material_id}'. Available material ids: {known}")
         row = matches.iloc[0].to_dict()
         return row
+
+
+class TableA8:
+    """CSV-backed stock round-tubing table (Table A-8)."""
+
+    def __init__(self, csv_path: str | Path | None = None) -> None:
+        self.csv_path = Path(csv_path) if csv_path is not None else Path(__file__).resolve().parent / "data" / "table_a_8.csv"
+        self._table: pd.DataFrame | None = None
+
+    def _load(self) -> pd.DataFrame:
+        if self._table is None:
+            if not self.csv_path.exists():
+                raise FileNotFoundError(f"Table A-8 not found: {self.csv_path}")
+            self._table = pd.read_csv(self.csv_path)
+        return self._table.copy()
+
+    @staticmethod
+    def _parse_size_mm(size_value: str) -> tuple[float, float]:
+        raw = str(size_value).replace("×", "x")
+        parts = [p.strip() for p in raw.split("x")]
+        if len(parts) != 2:
+            raise ValueError(f"Could not parse Table A-8 metric size '{size_value}'. Expected 'OD x t'.")
+        return float(parts[0]), float(parts[1])
+
+    def metric_candidates(self) -> list[dict[str, Any]]:
+        table = self._load()
+        df = table.loc[table["size_system"].astype(str).str.lower() == "mm"].copy()
+        if df.empty:
+            raise ValueError("No metric rows were found in table_a_8.csv.")
+        rows: list[dict[str, Any]] = []
+        for _, row in df.iterrows():
+            od_mm, thickness_mm = self._parse_size_mm(str(row["size"]))
+            area_cm2 = float(row["A"])
+            i_cm4 = float(row["I"])
+            j_cm4 = float(row["J"])
+            rows.append(
+                {
+                    "size_system": "mm",
+                    "size": str(row["size"]),
+                    "od_mm": od_mm,
+                    "thickness_mm": thickness_mm,
+                    "area_cm2": area_cm2,
+                    "I_cm4": i_cm4,
+                    "J_cm4": j_cm4,
+                    "k_cm": float(row["k"]),
+                    "Z_cm3": float(row["Z"]),
+                    "mass_kg_per_m": float(row["m_kg_per_m"]) if pd.notna(row.get("m_kg_per_m")) else None,
+                    "A_mm2": area_cm2 * 100.0,
+                    "I_mm4": i_cm4 * 1.0e4,
+                    "J_mm4": j_cm4 * 1.0e4,
+                }
+            )
+        return rows
 
 
 class StressState:
@@ -704,3 +758,208 @@ class Example53FailureTheoryStrengthSolver:
                 },
             },
         }
+
+
+class Example54RealizedFactorOfSafetySolver:
+    solve_path = "realized_fos_stock_tube"
+
+    def __init__(self, material_table: MaterialTable | None = None, tube_table: TableA8 | None = None) -> None:
+        self.material_table = material_table or MaterialTable()
+        self.tube_table = tube_table or TableA8()
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") != self.solve_path:
+            raise ValueError(f"Unsupported solve_path '{inputs.get('solve_path')}'. Expected '{self.solve_path}'.")
+
+        material = self._build_material(inputs)
+        loading = self._build_loading(inputs)
+        selection = self._build_selection(inputs)
+
+        candidates = self._evaluate_candidates(loading=loading, material=material, selection=selection)
+        selected = next((row for row in candidates if row["meets_required_design_factor"]), None)
+        if selected is None:
+            raise ValueError(
+                f"No Table A-8 metric tube met the required design factor nd={selection['required_design_factor']}."
+            )
+
+        summary_df = pd.DataFrame(
+            [
+                {
+                    "Size": row["size"],
+                    "OD mm": row["od_mm"],
+                    "t mm": row["thickness_mm"],
+                    "sigma_x MPa": row["sigma_x"],
+                    "tau MPa": row["tau_xy"],
+                    "svm MPa": row["von_mises_stress"],
+                    "n_DE": row["n_DE"],
+                    "Selected": row["selected"],
+                }
+                for row in candidates
+            ]
+        )
+
+        return {
+            "problem": payload.get("problem", "static_failure"),
+            "title": payload.get("title", "Realized factor-of-safety stock tube selection"),
+            "inputs": inputs,
+            "material": material.to_dict(),
+            "meta": {
+                "solve_path": self.solve_path,
+                "applicability": "stock round tubes under combined axial, bending, and torsion loading",
+                "implemented_theories": ["DE", "MSS"],
+                "selection_rule": "first Table A-8 metric size meeting the required design factor in table order",
+            },
+            "results": {
+                "selected_candidate": selected,
+                "all_candidates": candidates,
+                "summary_table": summary_df.to_dict(orient="records"),
+            },
+        }
+
+    def _build_material(self, inputs: dict[str, Any]) -> MaterialProperties:
+        if inputs.get("material_lookup"):
+            row = self.material_table.lookup(str(inputs["material_lookup"]))
+            syt = float(inputs.get("Syt", row["Syt"]))
+            syc_raw = row.get("Syc")
+            syc = float(inputs.get("Syc", syc_raw if pd.notna(syc_raw) else syt))
+            ef = float(inputs["ef"]) if inputs.get("ef") is not None else (float(row["ef"]) if pd.notna(row.get("ef")) else None)
+            return MaterialProperties(
+                Syt=syt,
+                Syc=syc,
+                ef=ef,
+                strength_unit=str(inputs.get("strength_unit", row.get("strength_unit", "MPa"))),
+                name=str(inputs.get("material_name", row.get("material_name", inputs["material_lookup"]))),
+                source=str(row.get("source", "material_table")),
+            )
+
+        if "Syt" not in inputs:
+            raise ValueError("Provide either 'material_lookup' or 'Syt'.")
+        syt = float(inputs["Syt"])
+        syc = float(inputs.get("Syc", syt))
+        return MaterialProperties(
+            Syt=syt,
+            Syc=syc,
+            ef=float(inputs["ef"]) if inputs.get("ef") is not None else None,
+            strength_unit=str(inputs.get("strength_unit", "MPa")),
+            name=inputs.get("material_name"),
+            source=inputs.get("material_source"),
+        )
+
+    @staticmethod
+    def _build_loading(inputs: dict[str, Any]) -> dict[str, Any]:
+        loading_mode = str(inputs.get("loading_mode", "tube_axial_bending_torsion"))
+        if loading_mode != "tube_axial_bending_torsion":
+            raise ValueError("Unsupported loading_mode. Use 'tube_axial_bending_torsion'.")
+
+        if "axial_force_N" not in inputs:
+            raise ValueError("Missing required input 'axial_force_N'.")
+        if "torsion_N_m" not in inputs:
+            raise ValueError("Missing required input 'torsion_N_m'.")
+
+        if "bending_moment_N_mm" in inputs:
+            bending_moment_n_mm = float(inputs["bending_moment_N_mm"])
+        else:
+            required = ["bending_load_N", "bending_moment_arm_mm"]
+            missing = [key for key in required if key not in inputs]
+            if missing:
+                raise ValueError(
+                    "Provide either 'bending_moment_N_mm' or both 'bending_load_N' and 'bending_moment_arm_mm'."
+                )
+            bending_moment_n_mm = float(inputs["bending_load_N"]) * float(inputs["bending_moment_arm_mm"])
+
+        return {
+            "loading_mode": loading_mode,
+            "axial_force_N": float(inputs["axial_force_N"]),
+            "bending_moment_N_mm": bending_moment_n_mm,
+            "torsion_N_mm": float(inputs["torsion_N_m"]) * 1000.0,
+            "input_trace": {
+                "axial_force_N": float(inputs["axial_force_N"]),
+                "bending_load_N": float(inputs["bending_load_N"]) if inputs.get("bending_load_N") is not None else None,
+                "bending_moment_arm_mm": float(inputs["bending_moment_arm_mm"]) if inputs.get("bending_moment_arm_mm") is not None else None,
+                "bending_moment_N_mm": bending_moment_n_mm,
+                "torsion_N_m": float(inputs["torsion_N_m"]),
+            },
+        }
+
+    @staticmethod
+    def _build_selection(inputs: dict[str, Any]) -> dict[str, Any]:
+        return {
+            "required_design_factor": float(inputs.get("required_design_factor", inputs.get("design_factor", 1.0))),
+            "size_system": str(inputs.get("size_system", "mm")).lower(),
+        }
+
+    def _evaluate_candidates(
+        self,
+        loading: dict[str, Any],
+        material: MaterialProperties,
+        selection: dict[str, Any],
+    ) -> list[dict[str, Any]]:
+        if selection["size_system"] != "mm":
+            raise ValueError("This solve path currently evaluates the metric portion of Table A-8 only (size_system='mm').")
+        candidates = self.tube_table.metric_candidates()
+        required_n = selection["required_design_factor"]
+
+        results: list[dict[str, Any]] = []
+        found = False
+        for row in candidates:
+            sigma_x = loading["axial_force_N"] / row["A_mm2"] + loading["bending_moment_N_mm"] * (row["od_mm"] / 2.0) / row["I_mm4"]
+            tau_xy = loading["torsion_N_mm"] * (row["od_mm"] / 2.0) / row["J_mm4"]
+
+            state = StressState(
+                {
+                    "label": row["size"],
+                    "description": "Tube outer-surface critical stress state from combined axial, bending, and torsion.",
+                    "sigma_x": sigma_x,
+                    "sigma_y": 0.0,
+                    "tau_xy": tau_xy,
+                }
+            )
+            s1, s2, s3 = state.principal_stresses()
+            sigma_a, sigma_b = state.principal_pair_in_plane() or (None, None)
+            n_de = state.de_factor_of_safety(material.Syt)
+            n_mss = state.mss_factor_of_safety(material.Syt)
+            meets = n_de >= required_n
+            selected_flag = (not found) and meets
+            if selected_flag:
+                found = True
+
+            results.append(
+                {
+                    "size": row["size"],
+                    "size_system": row["size_system"],
+                    "od_mm": row["od_mm"],
+                    "thickness_mm": row["thickness_mm"],
+                    "area_cm2": row["area_cm2"],
+                    "I_cm4": row["I_cm4"],
+                    "J_cm4": row["J_cm4"],
+                    "mass_kg_per_m": row["mass_kg_per_m"],
+                    "sigma_x": sigma_x,
+                    "tau_xy": tau_xy,
+                    "ordered_principal_stresses": {
+                        "sigma_1": s1,
+                        "sigma_2": s2,
+                        "sigma_3": s3,
+                    },
+                    "derived": {
+                        "von_mises_stress": state.von_mises_stress(),
+                        "maximum_shear_stress": state.max_shear_stress(),
+                        "in_plane_principal_stresses": {
+                            "sigma_A": sigma_a,
+                            "sigma_B": sigma_b,
+                        },
+                    },
+                    "factor_of_safety": {
+                        "DE": n_de,
+                        "MSS": n_mss,
+                    },
+                    "n_DE": n_de,
+                    "n_MSS": n_mss,
+                    "von_mises_stress": state.von_mises_stress(),
+                    "meets_required_design_factor": meets,
+                    "selected": selected_flag,
+                }
+            )
+            if found:
+                break
+        return results
