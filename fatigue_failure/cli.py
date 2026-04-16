@@ -277,6 +277,30 @@ class FatigueFailureCLI:
         bmaf_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         bmaf_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        clm_parser = subparsers.add_parser(
+            "combined_loading_modes",
+            help="Direct CLI entry point for Example 6-14 style combined bending and torsion fatigue calculations.",
+        )
+        clm_parser.add_argument("--title", default="Combined loading modes analysis from CLI flags")
+        clm_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1018.")
+        clm_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. CD.")
+        clm_parser.add_argument("--surface-finish", default="Machined or cold-drawn", help="Surface finish used for k_a.")
+        clm_parser.add_argument("--outer-diameter-mm", type=float, required=True, help="Tube outside diameter D in mm.")
+        clm_parser.add_argument("--wall-thickness-mm", type=float, required=True, help="Tube wall thickness in mm.")
+        clm_parser.add_argument("--transverse-hole-diameter-mm", type=float, required=True, help="Transverse round-hole diameter a in mm.")
+        clm_parser.add_argument("--notch-radius-mm", type=float, default=3.0, help="Notch radius in mm for the q lookups.")
+        clm_parser.add_argument("--reliability-percent", type=float, default=50.0, help="Required reliability percentage.")
+        clm_parser.add_argument("--misc-factor", type=float, default=1.0, help="Miscellaneous Marin factor.")
+        clm_parser.add_argument("--part-a-bending-max-nm", type=float, default=150.0, help="Part (a) maximum bending moment in N·m; minimum is taken as the negative of this value.")
+        clm_parser.add_argument("--part-a-torque-max-nm", type=float, default=120.0, help="Part (a) maximum torque in N·m; minimum is taken as the negative of this value.")
+        clm_parser.add_argument("--part-b-bending-nm", type=float, default=150.0, help="Part (b) steady bending moment in N·m.")
+        clm_parser.add_argument("--part-b-torque-min-nm", type=float, default=20.0, help="Part (b) minimum torque in N·m.")
+        clm_parser.add_argument("--part-b-torque-max-nm", type=float, default=160.0, help="Part (b) maximum torque in N·m.")
+        clm_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        clm_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        clm_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
         return parser
@@ -563,6 +587,41 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_combined_loading_modes_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "combined_loading_modes",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "combined_loading_modes",
+                "sae_aisi_no": args.sae_aisi_no,
+                "processing": args.processing,
+                "surface_finish": args.surface_finish,
+                "outer_diameter_mm": args.outer_diameter_mm,
+                "wall_thickness_mm": args.wall_thickness_mm,
+                "transverse_hole_diameter_mm": args.transverse_hole_diameter_mm,
+                "notch_radius_mm": args.notch_radius_mm,
+                "reliability_percent": args.reliability_percent,
+                "miscellaneous_factor_k_f": args.misc_factor,
+                "cases": [
+                    {
+                        "name": "part_a_reversed_bending_and_torsion",
+                        "bending_moment_min_N_m": -args.part_a_bending_max_nm,
+                        "bending_moment_max_N_m": args.part_a_bending_max_nm,
+                        "torque_min_N_m": -args.part_a_torque_max_nm,
+                        "torque_max_N_m": args.part_a_torque_max_nm,
+                    },
+                    {
+                        "name": "part_b_pulsating_torsion_and_steady_bending",
+                        "bending_moment_min_N_m": args.part_b_bending_nm,
+                        "bending_moment_max_N_m": args.part_b_bending_nm,
+                        "torque_min_N_m": args.part_b_torque_min_nm,
+                        "torque_max_N_m": args.part_b_torque_max_nm,
+                    },
+                ],
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -608,6 +667,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_multiple_criteria_cycles_to_failure_args(args)
             elif args.command == "brittle_material_axial_fatigue":
                 payload = self._payload_from_brittle_material_axial_fatigue_args(args)
+            elif args.command == "combined_loading_modes":
+                payload = self._payload_from_combined_loading_modes_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

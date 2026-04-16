@@ -17,6 +17,7 @@ try:
         GerberLangerFailureLinesSolver,
         MultipleCriteriaCyclesToFailureSolver,
         BrittleMaterialAxialFatigueSolver,
+        CombinedLoadingModesSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -34,6 +35,7 @@ except ImportError:  # pragma: no cover
         GerberLangerFailureLinesSolver,
         MultipleCriteriaCyclesToFailureSolver,
         BrittleMaterialAxialFatigueSolver,
+        CombinedLoadingModesSolver,
     )
     from utils import ValidationError
 
@@ -55,6 +57,7 @@ class SolverAPI:
         gerber_langer_failure_lines_solver = GerberLangerFailureLinesSolver(repository=repository)
         multiple_criteria_cycles_to_failure_solver = MultipleCriteriaCyclesToFailureSolver(repository=repository)
         brittle_material_axial_fatigue_solver = BrittleMaterialAxialFatigueSolver(repository=repository)
+        combined_loading_modes_solver = CombinedLoadingModesSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
@@ -68,6 +71,7 @@ class SolverAPI:
             gerber_langer_failure_lines_solver.solve_path: gerber_langer_failure_lines_solver,
             multiple_criteria_cycles_to_failure_solver.solve_path: multiple_criteria_cycles_to_failure_solver,
             brittle_material_axial_fatigue_solver.solve_path: brittle_material_axial_fatigue_solver,
+            combined_loading_modes_solver.solve_path: combined_loading_modes_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

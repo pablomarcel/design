@@ -1,0 +1,61 @@
+{
+  "problem": "combined_loading_modes",
+  "title": "Example 6-14 combinations of loading modes for 42 x 4 mm AISI 1018 CD steel tubing with 6 mm transverse hole",
+  "inputs": {
+    "solve_path": "combined_loading_modes",
+    "sae_aisi_no": "1018",
+    "processing": "CD",
+    "surface_finish": "Machined or cold-drawn",
+    "outer_diameter_mm": 42.0,
+    "wall_thickness_mm": 4.0,
+    "transverse_hole_diameter_mm": 6.0,
+    "notch_radius_mm": 3.0,
+    "reliability_percent": 50.0,
+    "miscellaneous_factor_k_f": 1.0,
+    "cases": [
+      {
+        "name": "part_a_reversed_bending_and_torsion",
+        "bending_moment_min_N_m": -150.0,
+        "bending_moment_max_N_m": 150.0,
+        "torque_min_N_m": -120.0,
+        "torque_max_N_m": 120.0
+      },
+      {
+        "name": "part_b_pulsating_torsion_and_steady_bending",
+        "bending_moment_min_N_m": 150.0,
+        "bending_moment_max_N_m": 150.0,
+        "torque_min_N_m": 20.0,
+        "torque_max_N_m": 160.0
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "case_results": {
+        "part_a_reversed_bending_and_torsion": {
+          "sigma_bending_a_MPa": 93.8,
+          "tau_torsion_a_MPa": 26.2,
+          "sigma_vm_a_MPa": 104.2,
+          "sigma_vm_m_MPa": 0.0,
+          "gerber_n_f": 1.58,
+          "langer_n_y": 3.55
+        },
+        "part_b_pulsating_torsion_and_steady_bending": {
+          "sigma_bending_a_MPa": 0.0,
+          "sigma_bending_m_MPa": 93.8,
+          "tau_torsion_a_MPa": 15.3,
+          "tau_torsion_m_MPa": 19.7,
+          "sigma_vm_a_MPa": 26.5,
+          "sigma_vm_m_MPa": 99.8,
+          "gerber_n_f": 3.12,
+          "langer_n_y": 2.93
+        }
+      }
+    },
+    "notes": [
+      "This file follows Example 6-14 on p325-p329.",
+      "The problem statement data are captured here; nothing should be hardcoded.",
+      "Table A-16 is used for reduced-section A values and stress concentration factors in bending and torsion.",
+      "Figures 6-20 and 6-21 are used for bending and torsion notch sensitivity.",
+      "Table 6-7 is used for the Gerber and Langer failure relations."
+    ]
+  }
+}

@@ -3612,3 +3612,398 @@ class BrittleMaterialAxialFatigueSolver:
         if verification:
             output["verification"] = verification
         return output
+
+
+def _repo_figure_6_21_payload(self) -> dict[str, Any]:
+    if getattr(self, "_figure_6_21_payload", None) is None:
+        self._figure_6_21_payload = self._read_json("figure_6_21.json")
+    return self._figure_6_21_payload
+
+
+def _repo_table_a_16_payload(self) -> dict[str, Any]:
+    if getattr(self, "_table_a_16_payload", None) is None:
+        self._table_a_16_payload = self._read_json("table_a_16.json")
+    return self._table_a_16_payload
+
+
+def _repo_notch_sensitivity_q_torsion(self, sut_kpsi: float, r_in: float) -> dict[str, Any]:
+    payload = self.figure_6_21_payload
+    traces = payload.get("traces", [])
+    steel_traces = [trace for trace in traces if str(trace.get("material", "")).lower() == "steel"]
+    if len(steel_traces) < 2:
+        raise DataLookupError("figure_6_21.json must contain at least two steel traces.")
+    trace_values: list[tuple[float, float]] = []
+    for trace in steel_traces:
+        sut_trace = float(trace["Sut_kpsi"])
+        q_val = DigitizedDataRepository._interp_from_points(
+            x=float(r_in),
+            points=trace["points"],
+            x_key="r_in",
+            y_key="q_shear",
+        )
+        trace_values.append((sut_trace, q_val))
+    trace_values.sort(key=lambda item: item[0])
+    suts = [item[0] for item in trace_values]
+    qs = [item[1] for item in trace_values]
+    q_final = linear_interpolate(float(sut_kpsi), suts, qs)
+    return {
+        "sut_kpsi": float(sut_kpsi),
+        "r_in": float(r_in),
+        "r_mm": float(in_to_mm(r_in)),
+        "q_shear": q_final,
+        "source": "figure_6_21_interpolated",
+        "intermediate_trace_values": [
+            {"Sut_kpsi": sut_val, "q_shear_at_requested_r_in": q_val}
+            for sut_val, q_val in trace_values
+        ],
+    }
+
+
+def _repo_table_a_16_transverse_hole(self, mode: str, a_over_D: float, d_over_D: float) -> dict[str, Any]:
+    payload = self.table_a_16_payload
+    mode_norm = str(mode).strip().lower()
+    if mode_norm not in {"bending", "torsion"}:
+        raise ValidationError("table_a_16 mode must be 'bending' or 'torsion'.")
+    section = payload.get(mode_norm)
+    if not section:
+        raise DataLookupError(f"table_a_16.json is missing the {mode_norm!r} section.")
+    traces = section.get("traces", [])
+    if len(traces) < 2:
+        raise DataLookupError(f"table_a_16.json {mode_norm!r} section must contain at least two traces.")
+    row_values: list[tuple[float, float, float]] = []
+    response_key = "K_t" if mode_norm == "bending" else "K_ts"
+    for trace in traces:
+        d_trace = float(trace["d_over_D"])
+        rows = trace.get("rows", [])
+        a_vals = [float(row["a_over_D"]) for row in rows]
+        A_vals = [float(row["A"]) for row in rows]
+        K_vals = [float(row[response_key]) for row in rows]
+        A_interp = linear_interpolate(float(a_over_D), a_vals, A_vals)
+        K_interp = linear_interpolate(float(a_over_D), a_vals, K_vals)
+        row_values.append((d_trace, A_interp, K_interp))
+    row_values.sort(key=lambda item: item[0])
+    d_vals = [item[0] for item in row_values]
+    A_traces = [item[1] for item in row_values]
+    K_traces = [item[2] for item in row_values]
+    A_final = linear_interpolate(float(d_over_D), d_vals, A_traces)
+    K_final = linear_interpolate(float(d_over_D), d_vals, K_traces)
+    return {
+        "mode": mode_norm,
+        "a_over_D": float(a_over_D),
+        "d_over_D": float(d_over_D),
+        "A": A_final,
+        response_key: K_final,
+        "source": "table_a_16_interpolated",
+        "intermediate_trace_values": [
+            {
+                "d_over_D": d_val,
+                "A_at_requested_a_over_D": A_val,
+                response_key + "_at_requested_a_over_D": K_val,
+            }
+            for d_val, A_val, K_val in row_values
+        ],
+    }
+
+
+DigitizedDataRepository.figure_6_21_payload = property(_repo_figure_6_21_payload)
+DigitizedDataRepository.table_a_16_payload = property(_repo_table_a_16_payload)
+DigitizedDataRepository.notch_sensitivity_q_torsion = _repo_notch_sensitivity_q_torsion
+DigitizedDataRepository.table_a_16_transverse_hole = _repo_table_a_16_transverse_hole
+
+
+class CombinedLoadingModesSolver:
+    """Implements Shigley Chapter 6 Example 6-14 for combined bending and torsion with a transverse hole."""
+
+    solve_path = "combined_loading_modes"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    def _resolve_material(self, inputs: dict[str, Any]) -> SteelRecord:
+        sae_aisi_no = coalesce(inputs.get("sae_aisi_no"), inputs.get("steel_grade"))
+        processing = coalesce(inputs.get("processing"), inputs.get("material_processing"))
+        if sae_aisi_no is None:
+            raise ValidationError("sae_aisi_no is required for solve_path='combined_loading_modes'.")
+        return self.repository.find_steel_record(sae_aisi_no=sae_aisi_no, processing=processing)
+
+    @staticmethod
+    def _vm(sigma: float, tau: float) -> float:
+        return math.sqrt(sigma * sigma + 3.0 * tau * tau)
+
+    @staticmethod
+    def _eval_formula(expression: str, variables: dict[str, float]) -> float:
+        text = str(expression).strip()
+        if "=" in text:
+            text = text.split("=", 1)[1].strip()
+        return safe_eval_expression(text.replace("^", "**"), variables)
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"CombinedLoadingModesSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        record = self._resolve_material(inputs)
+        outer_diameter_mm = ensure_positive("outer_diameter_mm", coalesce(inputs.get("outer_diameter_mm"), inputs.get("D_mm")))
+        wall_thickness_mm = ensure_positive("wall_thickness_mm", coalesce(inputs.get("wall_thickness_mm"), inputs.get("t_mm")))
+        transverse_hole_diameter_mm = ensure_positive(
+            "transverse_hole_diameter_mm",
+            coalesce(inputs.get("transverse_hole_diameter_mm"), inputs.get("a_mm"), inputs.get("hole_diameter_mm"))
+        )
+        notch_radius_mm = ensure_positive("notch_radius_mm", coalesce(inputs.get("notch_radius_mm"), inputs.get("r_mm"), 3.0))
+        surface_finish = str(coalesce(inputs.get("surface_finish"), "Machined or cold-drawn"))
+        reliability_percent = float(coalesce(inputs.get("reliability_percent"), 50.0))
+        misc_factor = float(coalesce(inputs.get("miscellaneous_factor_k_f"), inputs.get("misc_factor"), 1.0))
+        if wall_thickness_mm * 2.0 >= outer_diameter_mm:
+            raise ValidationError("wall_thickness_mm is too large for the specified outer_diameter_mm.")
+        inner_diameter_mm = float(coalesce(inputs.get("inner_diameter_mm"), outer_diameter_mm - 2.0 * wall_thickness_mm))
+        if inner_diameter_mm <= 0 or inner_diameter_mm >= outer_diameter_mm:
+            raise ValidationError("Resolved inner_diameter_mm must satisfy 0 < inner_diameter_mm < outer_diameter_mm.")
+
+        sut_mpa = record.tensile_strength_MPa
+        sut_kpsi = record.tensile_strength_kpsi
+        sy_mpa = record.yield_strength_MPa
+        sy_kpsi = record.yield_strength_kpsi
+
+        if sut_kpsi <= 200.0:
+            se_prime_kpsi = 0.5 * sut_kpsi
+            se_prime_source = "eq_6_8_low_strength_branch"
+        else:
+            se_prime_kpsi = 100.0
+            se_prime_source = "eq_6_8_high_strength_branch"
+        se_prime_mpa = kpsi_to_mpa(se_prime_kpsi)
+
+        finish_record = self.repository.find_surface_finish_record(surface_finish)
+        ka = finish_record.a_factor_MPa * (sut_mpa ** finish_record.b_exponent)
+        kb = (outer_diameter_mm / 7.62) ** (-0.107)
+        kc = float(coalesce(inputs.get("load_factor_k_c"), 1.0))
+        kd = float(coalesce(inputs.get("temperature_factor_k_d"), 1.0))
+        ke_lookup = self.repository.reliability_factor_from_table_6_5(reliability_percent)
+        ke = float(coalesce(inputs.get("reliability_factor_k_e"), ke_lookup["reliability_factor_k_e"]))
+        se_mpa = ka * kb * kc * kd * ke * misc_factor * se_prime_mpa
+        se_kpsi = mpa_to_kpsi(se_mpa)
+
+        a_over_D = transverse_hole_diameter_mm / outer_diameter_mm
+        d_over_D = inner_diameter_mm / outer_diameter_mm
+
+        bending_lookup = self.repository.table_a_16_transverse_hole("bending", a_over_D, d_over_D)
+        torsion_lookup = self.repository.table_a_16_transverse_hole("torsion", a_over_D, d_over_D)
+        A_b = float(bending_lookup["A"])
+        K_t_b = float(bending_lookup["K_t"])
+        A_t = float(torsion_lookup["A"])
+        K_ts = float(torsion_lookup["K_ts"])
+
+        D_mm = outer_diameter_mm
+        d_mm = inner_diameter_mm
+        z_net_mm3 = math.pi * A_b * (D_mm**4 - d_mm**4) / (32.0 * D_mm)
+        j_net_mm4 = math.pi * A_t * (D_mm**4 - d_mm**4) / 32.0
+
+        r_in = mm_to_in(notch_radius_mm)
+        q_b_lookup = self.repository.notch_sensitivity_q_bending(sut_kpsi, r_in)
+        q_s_lookup = self.repository.notch_sensitivity_q_torsion(sut_kpsi, r_in)
+        q_b = float(q_b_lookup["q"])
+        q_s = float(q_s_lookup["q_shear"])
+
+        K_f_b = 1.0 + q_b * (K_t_b - 1.0)
+        K_fs = 1.0 + q_s * (K_ts - 1.0)
+
+        table_6_7 = self.repository.table_6_7_payload
+        gerber_row = FatigueFactorOfSafetySolver._get_row_by_criterion(table_6_7, "gerber")
+        langer_row = FatigueFactorOfSafetySolver._get_langer_row(table_6_7)
+
+        cases = inputs.get("cases") or []
+        if not cases:
+            cases = [
+                {
+                    "name": "part_a_reversed_bending_and_torsion",
+                    "bending_moment_min_N_m": -150.0,
+                    "bending_moment_max_N_m": 150.0,
+                    "torque_min_N_m": -120.0,
+                    "torque_max_N_m": 120.0,
+                },
+                {
+                    "name": "part_b_pulsating_torsion_and_steady_bending",
+                    "bending_moment_min_N_m": 150.0,
+                    "bending_moment_max_N_m": 150.0,
+                    "torque_min_N_m": 20.0,
+                    "torque_max_N_m": 160.0,
+                },
+            ]
+
+        results_cases: list[dict[str, Any]] = []
+        verification: dict[str, Any] = {}
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        expected_case_results = expected_ref.get("case_results", {})
+
+        for case in cases:
+            name = case.get("name") or "combined_loading_case"
+            m_min = float(coalesce(case.get("bending_moment_min_N_m"), case.get("M_min_N_m"), 0.0))
+            m_max = float(coalesce(case.get("bending_moment_max_N_m"), case.get("M_max_N_m"), 0.0))
+            t_min = float(coalesce(case.get("torque_min_N_m"), case.get("T_min_N_m"), 0.0))
+            t_max = float(coalesce(case.get("torque_max_N_m"), case.get("T_max_N_m"), 0.0))
+
+            M_a = 0.5 * abs(m_max - m_min)
+            M_m = 0.5 * (m_max + m_min)
+            T_a = 0.5 * abs(t_max - t_min)
+            T_m = 0.5 * (t_max + t_min)
+
+            sigma_b_a = K_f_b * (M_a * 1000.0) / z_net_mm3
+            sigma_b_m = K_f_b * (M_m * 1000.0) / z_net_mm3
+            tau_t_a = K_fs * (T_a * 1000.0) * D_mm / (2.0 * j_net_mm4)
+            tau_t_m = K_fs * (T_m * 1000.0) * D_mm / (2.0 * j_net_mm4)
+
+            sigma_vm_a = self._vm(sigma_b_a, tau_t_a)
+            sigma_vm_m = self._vm(sigma_b_m, tau_t_m)
+
+            if math.isclose(sigma_vm_m, 0.0, rel_tol=0.0, abs_tol=1e-15):
+                r = math.inf
+                gerber_nf = se_mpa / sigma_vm_a
+                Sa_gerber = se_mpa
+                Sm_gerber = 0.0
+            else:
+                r = sigma_vm_a / sigma_vm_m
+                vars_common = {
+                    "r": r,
+                    "Se": se_mpa,
+                    "Sut": sut_mpa,
+                    "Sy": sy_mpa,
+                    "sigma_a": sigma_vm_a,
+                    "sigma_m": sigma_vm_m,
+                }
+                gerber_nf = self._eval_formula(table_6_7["fatigue_factor_of_safety"]["equation"], vars_common)
+                Sa_gerber = self._eval_formula(gerber_row["intersection_coordinates"]["Sa"], vars_common)
+                Sm_gerber = self._eval_formula(gerber_row["intersection_coordinates"]["Sm"], {**vars_common, "Sa": Sa_gerber})
+
+            langer_nf = sy_mpa / (sigma_vm_a + sigma_vm_m) if (sigma_vm_a + sigma_vm_m) > 0 else math.inf
+            if math.isfinite(r):
+                vars_langer = {"r": r, "Sy": sy_mpa}
+                Sa_langer = self._eval_formula(langer_row["intersection_coordinates"]["Sa"], vars_langer)
+                Sm_langer = self._eval_formula(langer_row["intersection_coordinates"]["Sm"], vars_langer)
+            else:
+                Sa_langer = sy_mpa
+                Sm_langer = 0.0
+
+            result_item = {
+                "name": name,
+                "bending_moment_min_N_m": safe_round(m_min),
+                "bending_moment_max_N_m": safe_round(m_max),
+                "torque_min_N_m": safe_round(t_min),
+                "torque_max_N_m": safe_round(t_max),
+                "bending_moment_amplitude_N_m": safe_round(M_a),
+                "bending_moment_mean_N_m": safe_round(M_m),
+                "torque_amplitude_N_m": safe_round(T_a),
+                "torque_mean_N_m": safe_round(T_m),
+                "sigma_bending_a_MPa": safe_round(sigma_b_a),
+                "sigma_bending_m_MPa": safe_round(sigma_b_m),
+                "tau_torsion_a_MPa": safe_round(tau_t_a),
+                "tau_torsion_m_MPa": safe_round(tau_t_m),
+                "sigma_vm_a_MPa": safe_round(sigma_vm_a),
+                "sigma_vm_m_MPa": safe_round(sigma_vm_m),
+                "load_line_slope_r": None if math.isinf(r) else safe_round(r),
+                "gerber": {
+                    "factor_of_safety_n_f": safe_round(gerber_nf),
+                    "Sa_MPa": safe_round(Sa_gerber),
+                    "Sm_MPa": safe_round(Sm_gerber),
+                },
+                "langer": {
+                    "factor_of_safety_n_y": None if math.isinf(langer_nf) else safe_round(langer_nf),
+                    "Sa_MPa": safe_round(Sa_langer),
+                    "Sm_MPa": safe_round(Sm_langer),
+                },
+            }
+            results_cases.append(result_item)
+
+            ref = expected_case_results.get(name, {})
+            for key, actual in {
+                "sigma_bending_a_MPa": sigma_b_a,
+                "sigma_bending_m_MPa": sigma_b_m,
+                "tau_torsion_a_MPa": tau_t_a,
+                "tau_torsion_m_MPa": tau_t_m,
+                "sigma_vm_a_MPa": sigma_vm_a,
+                "sigma_vm_m_MPa": sigma_vm_m,
+                "gerber_n_f": gerber_nf,
+                "gerber_Sa_MPa": Sa_gerber,
+                "gerber_Sm_MPa": Sm_gerber,
+                "langer_n_y": None if math.isinf(langer_nf) else langer_nf,
+            }.items():
+                if key in ref and actual is not None:
+                    verification[f"{name}::{key}"] = {
+                        "actual": safe_round(actual),
+                        "reference": float(ref[key]),
+                        "relative_error_percent": safe_round(relative_error_percent(actual, float(ref[key]))),
+                    }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Combined loading modes analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_a_20": record.to_dict(),
+                "table_6_2": finish_record.to_dict(),
+                "table_6_5": ke_lookup,
+                "table_a_16_bending": bending_lookup,
+                "table_a_16_torsion": torsion_lookup,
+                "figure_6_20": q_b_lookup,
+                "figure_6_21": q_s_lookup,
+                "table_6_7": {
+                    "table_id": table_6_7.get("table_id"),
+                    "criterion": "gerber_and_langer",
+                    "fatigue_factor_of_safety_equation": table_6_7.get("fatigue_factor_of_safety", {}).get("equation"),
+                },
+            },
+            "derived": {
+                "outer_diameter_mm": safe_round(outer_diameter_mm),
+                "inner_diameter_mm": safe_round(inner_diameter_mm),
+                "wall_thickness_mm": safe_round(wall_thickness_mm),
+                "transverse_hole_diameter_mm": safe_round(transverse_hole_diameter_mm),
+                "notch_radius_mm": safe_round(notch_radius_mm),
+                "outer_diameter_in": safe_round(mm_to_in(outer_diameter_mm)),
+                "inner_diameter_in": safe_round(mm_to_in(inner_diameter_mm)),
+                "transverse_hole_diameter_in": safe_round(mm_to_in(transverse_hole_diameter_mm)),
+                "notch_radius_in": safe_round(mm_to_in(notch_radius_mm)),
+                "a_over_D": safe_round(a_over_D),
+                "d_over_D": safe_round(d_over_D),
+                "sut_MPa": safe_round(sut_mpa),
+                "sut_kpsi": safe_round(sut_kpsi),
+                "sy_MPa": safe_round(sy_mpa),
+                "sy_kpsi": safe_round(sy_kpsi),
+                "se_prime_MPa": safe_round(se_prime_mpa),
+                "se_prime_kpsi": safe_round(se_prime_kpsi),
+                "se_prime_source": se_prime_source,
+                "ka": safe_round(ka),
+                "kb": safe_round(kb),
+                "kc": safe_round(kc),
+                "kd": safe_round(kd),
+                "ke": safe_round(ke),
+                "miscellaneous_factor_k_f": safe_round(misc_factor),
+                "Se_MPa": safe_round(se_mpa),
+                "Se_kpsi": safe_round(se_kpsi),
+                "A_bending": safe_round(A_b),
+                "K_t_bending": safe_round(K_t_b),
+                "A_torsion": safe_round(A_t),
+                "K_ts_torsion": safe_round(K_ts),
+                "Z_net_mm3": safe_round(z_net_mm3),
+                "J_net_mm4": safe_round(j_net_mm4),
+                "q_bending": safe_round(q_b),
+                "q_torsion": safe_round(q_s),
+                "K_f_bending": safe_round(K_f_b),
+                "K_fs_torsion": safe_round(K_fs),
+            },
+            "results": {
+                "cases": results_cases,
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-8", "6-18", "6-19", "6-20", "6-32", "6-55", "6-56", "table_6_7_gerber", "table_6_7_langer"],
+                "notes": [
+                    "This solver targets Example 6-14 style combined-loading fatigue analysis for a tube with a transverse round hole.",
+                    "The endurance limit Se uses Marin factors for bending: ka, kb, and kc=1, matching the textbook procedure.",
+                    "Table A-16 supplies reduced-section factors A and theoretical stress concentration factors for bending and torsion, from which Z_net and J_net are computed.",
+                    "Figures 6-20 and 6-21 supply bending and torsion notch sensitivities, which are used with Eq. (6-32) to compute K_f and K_fs.",
+                    "Von Mises alternating and midrange components are computed with Eqs. (6-55) and (6-56).",
+                    "Fatigue factor of safety is computed with the Gerber criterion; static factor of safety is reported with the Langer relation n_y = Sy / (sigma'_a + sigma'_m).",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }

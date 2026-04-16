@@ -324,3 +324,30 @@ python -m cli brittle_material_axial_fatigue \
   --pretty \
   --show
 ```
+
+## Example 6-14 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_14_combined_loading_modes.json \
+  --outfile example_6_14_combined_loading_modes_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli combined_loading_modes \
+  --sae-aisi-no 1018 \
+  --processing CD \
+  --outer-diameter-mm 42 \
+  --wall-thickness-mm 4 \
+  --transverse-hole-diameter-mm 6 \
+  --notch-radius-mm 3 \
+  --part-a-bending-max-nm 150 \
+  --part-a-torque-max-nm 120 \
+  --part-b-bending-nm 150 \
+  --part-b-torque-min-nm 20 \
+  --part-b-torque-max-nm 160 \
+  --pretty \
+  --show
+```
