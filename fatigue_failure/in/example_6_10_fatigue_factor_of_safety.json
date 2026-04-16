@@ -1,0 +1,42 @@
+{
+  "problem": "fatigue_factor_of_safety",
+  "title": "Example 6-10 fatigue factor of safety for a machined AISI 1050 CD bar",
+  "inputs": {
+    "solve_path": "fatigue_factor_of_safety",
+    "sae_aisi_no": "1050",
+    "processing": "CD",
+    "surface_finish": "Machined or cold-drawn",
+    "diameter_in": 1.5,
+    "load_min_kip": 0.0,
+    "load_max_kip": 16.0,
+    "K_f": 1.85,
+    "reliability_percent": 50.0,
+    "service_temperature_F": 70.0,
+    "notes": [
+      "This file follows Example 6-10 on p316-p319.",
+      "The fluctuating tensile load varies from 0 to 16 kip, so the alternating and mean loads are both 8 kip.",
+      "The fatigue stress-concentration factor K_f is treated as a given input, as stated in the example.",
+      "The solver fetches material properties from Table A-20, surface factor coefficients from Table 6-2, and Gerber/ASME-elliptic formulas from Table 6-7 and Table 6-8.",
+      "Following the textbook example, K_f is applied to both sigma_a and sigma_m for the no-notch-yielding prescription."
+    ],
+    "expected_textbook_reference_values": {
+      "ka": 0.797,
+      "kb": 1.0,
+      "kc": 0.85,
+      "kd": 1.0,
+      "ke": 1.0,
+      "endurance_limit_kpsi": 33.9,
+      "sigma_a_nom_kpsi": 4.53,
+      "sigma_m_nom_kpsi": 4.53,
+      "sigma_a_kpsi": 8.38,
+      "sigma_m_kpsi": 8.38,
+      "n_y": 5.01,
+      "gerber_n_f": 3.66,
+      "gerber_Sa_kpsi": 30.7,
+      "gerber_Sm_kpsi": 30.7,
+      "asme_elliptic_n_f": 3.75,
+      "asme_elliptic_Sa_kpsi": 31.4,
+      "asme_elliptic_Sm_kpsi": 31.4
+    }
+  }
+}

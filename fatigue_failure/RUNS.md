@@ -225,3 +225,28 @@ python -m cli life_of_part \
   --pretty \
   --show
 ```
+
+## Example 6-10 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_10_fatigue_factor_of_safety.json \
+  --outfile example_6_10_fatigue_factor_of_safety_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli fatigue_factor_of_safety \
+  --sae-aisi-no 1050 \
+  --processing CD \
+  --surface-finish "Machined or cold-drawn" \
+  --diameter-in 1.5 \
+  --load-min-kip 0 \
+  --load-max-kip 16 \
+  --k-f 1.85 \
+  --reliability-percent 50 \
+  --service-temperature-f 70 \
+  --pretty \
+  --show
+```

@@ -2373,3 +2373,462 @@ class LifeOfPartSolver:
             },
             **({"verification": verification} if verification else {}),
         }
+
+
+def _repo_table_6_7_payload(self) -> dict[str, Any]:
+    if getattr(self, "_table_6_7_payload", None) is None:
+        self._table_6_7_payload = self._read_json("table_6_7.json")
+    return self._table_6_7_payload
+
+
+def _repo_table_6_8_payload(self) -> dict[str, Any]:
+    if getattr(self, "_table_6_8_payload", None) is None:
+        self._table_6_8_payload = self._read_json("table_6_8.json")
+    return self._table_6_8_payload
+
+
+DigitizedDataRepository.table_6_7_payload = property(_repo_table_6_7_payload)
+DigitizedDataRepository.table_6_8_payload = property(_repo_table_6_8_payload)
+
+
+
+class FatigueFactorOfSafetySolver:
+    """Implements Shigley Chapter 6 Example 6-10 for fatigue factor of safety using Gerber and ASME-elliptic criteria."""
+
+    solve_path = "fatigue_factor_of_safety"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    def _resolve_material(self, inputs: dict[str, Any]) -> SteelRecord:
+        sae_aisi_no = coalesce(inputs.get("sae_aisi_no"), inputs.get("steel_grade"))
+        processing = coalesce(inputs.get("processing"), inputs.get("material_processing"))
+        if sae_aisi_no is None:
+            raise ValidationError("sae_aisi_no is required for solve_path='fatigue_factor_of_safety'.")
+        return self.repository.find_steel_record(sae_aisi_no=sae_aisi_no, processing=processing)
+
+    def _resolve_temperature_f(self, inputs: dict[str, Any]) -> float:
+        if inputs.get("service_temperature_F") is not None:
+            return float(inputs["service_temperature_F"])
+        if inputs.get("service_temperature_C") is not None:
+            return float(inputs["service_temperature_C"]) * 9.0 / 5.0 + 32.0
+        return 70.0
+
+    def _resolve_diameter(self, inputs: dict[str, Any]) -> dict[str, float]:
+        diameter_in = coalesce(inputs.get("diameter_in"), inputs.get("bar_diameter_in"))
+        diameter_mm = coalesce(inputs.get("diameter_mm"), inputs.get("bar_diameter_mm"))
+        if diameter_in is None and diameter_mm is None:
+            raise ValidationError("diameter_in or diameter_mm is required.")
+        if diameter_in is not None and diameter_mm is not None:
+            return {"diameter_in": float(diameter_in), "diameter_mm": float(diameter_mm), "source": "user_input_both_units"}
+        if diameter_in is not None:
+            return {"diameter_in": float(diameter_in), "diameter_mm": in_to_mm(float(diameter_in)), "source": "user_input_in"}
+        return {"diameter_in": mm_to_in(float(diameter_mm)), "diameter_mm": float(diameter_mm), "source": "user_input_mm"}
+
+    def _resolve_local_stresses(self, inputs: dict[str, Any], diameter_in: float, K_f: float) -> dict[str, float]:
+        sigma_a_kpsi = coalesce(inputs.get("sigma_a_kpsi"), inputs.get("stress_amplitude_kpsi"))
+        sigma_m_kpsi = coalesce(inputs.get("sigma_m_kpsi"), inputs.get("mean_stress_kpsi"))
+        sigma_a_nom_kpsi = coalesce(inputs.get("sigma_a_nom_kpsi"), inputs.get("nominal_stress_amplitude_kpsi"))
+        sigma_m_nom_kpsi = coalesce(inputs.get("sigma_m_nom_kpsi"), inputs.get("nominal_mean_stress_kpsi"))
+
+        if sigma_a_kpsi is not None and sigma_m_kpsi is not None:
+            sigma_a_kpsi = float(sigma_a_kpsi)
+            sigma_m_kpsi = float(sigma_m_kpsi)
+            sigma_a_nom_kpsi = sigma_a_kpsi / K_f
+            sigma_m_nom_kpsi = sigma_m_kpsi / K_f
+            F_a_kip = sigma_a_nom_kpsi * math.pi * diameter_in**2 / 4.0
+            F_m_kip = sigma_m_nom_kpsi * math.pi * diameter_in**2 / 4.0
+            F_max_kip = F_m_kip + F_a_kip
+            F_min_kip = F_m_kip - F_a_kip
+            return {
+                "F_min_kip": F_min_kip,
+                "F_max_kip": F_max_kip,
+                "F_a_kip": F_a_kip,
+                "F_m_kip": F_m_kip,
+                "sigma_a_nom_kpsi": sigma_a_nom_kpsi,
+                "sigma_m_nom_kpsi": sigma_m_nom_kpsi,
+                "sigma_a_kpsi": sigma_a_kpsi,
+                "sigma_m_kpsi": sigma_m_kpsi,
+            }
+
+        if sigma_a_nom_kpsi is not None and sigma_m_nom_kpsi is not None:
+            sigma_a_nom_kpsi = float(sigma_a_nom_kpsi)
+            sigma_m_nom_kpsi = float(sigma_m_nom_kpsi)
+            sigma_a_kpsi = K_f * sigma_a_nom_kpsi
+            sigma_m_kpsi = K_f * sigma_m_nom_kpsi
+            F_a_kip = sigma_a_nom_kpsi * math.pi * diameter_in**2 / 4.0
+            F_m_kip = sigma_m_nom_kpsi * math.pi * diameter_in**2 / 4.0
+            F_max_kip = F_m_kip + F_a_kip
+            F_min_kip = F_m_kip - F_a_kip
+            return {
+                "F_min_kip": F_min_kip,
+                "F_max_kip": F_max_kip,
+                "F_a_kip": F_a_kip,
+                "F_m_kip": F_m_kip,
+                "sigma_a_nom_kpsi": sigma_a_nom_kpsi,
+                "sigma_m_nom_kpsi": sigma_m_nom_kpsi,
+                "sigma_a_kpsi": sigma_a_kpsi,
+                "sigma_m_kpsi": sigma_m_kpsi,
+            }
+
+        load_min_kip = coalesce(inputs.get("load_min_kip"), inputs.get("P_min_kip"), inputs.get("F_min_kip"))
+        load_max_kip = coalesce(inputs.get("load_max_kip"), inputs.get("P_max_kip"), inputs.get("F_max_kip"))
+        if load_min_kip is None and load_max_kip is None:
+            load_min_lbf = coalesce(inputs.get("load_min_lbf"), inputs.get("P_min_lbf"), inputs.get("F_min_lbf"))
+            load_max_lbf = coalesce(inputs.get("load_max_lbf"), inputs.get("P_max_lbf"), inputs.get("F_max_lbf"))
+            if load_min_lbf is not None or load_max_lbf is not None:
+                load_min_kip = 0.001 * float(coalesce(load_min_lbf, 0.0))
+                load_max_kip = 0.001 * float(coalesce(load_max_lbf, 0.0))
+
+        if load_min_kip is None or load_max_kip is None:
+            raise ValidationError(
+                "Provide either load_min/load_max, nominal stresses, or local stresses for solve_path='fatigue_factor_of_safety'."
+            )
+
+        F_min_kip = float(load_min_kip)
+        F_max_kip = float(load_max_kip)
+        F_a_kip = 0.5 * (F_max_kip - F_min_kip)
+        F_m_kip = 0.5 * (F_max_kip + F_min_kip)
+        area_in2 = math.pi * diameter_in**2 / 4.0
+        sigma_a_nom_kpsi = F_a_kip / area_in2
+        sigma_m_nom_kpsi = F_m_kip / area_in2
+        sigma_a_kpsi = K_f * sigma_a_nom_kpsi
+        sigma_m_kpsi = K_f * sigma_m_nom_kpsi
+        return {
+            "F_min_kip": F_min_kip,
+            "F_max_kip": F_max_kip,
+            "F_a_kip": F_a_kip,
+            "F_m_kip": F_m_kip,
+            "sigma_a_nom_kpsi": sigma_a_nom_kpsi,
+            "sigma_m_nom_kpsi": sigma_m_nom_kpsi,
+            "sigma_a_kpsi": sigma_a_kpsi,
+            "sigma_m_kpsi": sigma_m_kpsi,
+        }
+
+    @staticmethod
+    def _get_row_by_criterion(payload: dict[str, Any], criterion: str) -> dict[str, Any]:
+        for row in payload.get("rows", []):
+            if row.get("criterion") == criterion and row.get("row_type") == "fatigue_criterion":
+                return row
+        raise DataLookupError(f"No fatigue_criterion row found for criterion={criterion!r}.")
+
+    @staticmethod
+    def _get_langer_row(payload: dict[str, Any]) -> dict[str, Any]:
+        for row in payload.get("rows", []):
+            if row.get("criterion") == "langer" and row.get("row_type") == "static_langer_criterion":
+                return row
+        raise DataLookupError("No static_langer_criterion row found.")
+
+    @staticmethod
+    def _get_crossover_row(payload: dict[str, Any]) -> dict[str, Any] | None:
+        for row in payload.get("rows", []):
+            if row.get("row_type") == "intersection_static_and_fatigue":
+                return row
+        return None
+
+    @staticmethod
+    def _eval_formula(expression: str, variables: dict[str, float]) -> float:
+        text = str(expression).strip()
+        if "=" in text:
+            text = text.split("=", 1)[1].strip()
+        return safe_eval_expression(text.replace("^", "**"), variables)
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"FatigueFactorOfSafetySolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        record = self._resolve_material(inputs)
+        surface_finish = coalesce(inputs.get("surface_finish"), "Machined or cold-drawn")
+        diameter = self._resolve_diameter(inputs)
+        reliability_percent = float(coalesce(inputs.get("reliability_percent"), 50.0))
+        service_temperature_f = self._resolve_temperature_f(inputs)
+        misc_factor = float(coalesce(inputs.get("miscellaneous_factor_k_f"), inputs.get("misc_factor"), 1.0))
+        K_f = ensure_positive("K_f", coalesce(inputs.get("K_f"), inputs.get("kf"), inputs.get("fatigue_stress_concentration_factor")))
+        size_factor_override = inputs.get("size_factor_k_b")
+        load_factor_override = inputs.get("load_factor_k_c")
+        temp_factor_override = inputs.get("temperature_factor_k_d")
+        reliability_factor_override = inputs.get("reliability_factor_k_e")
+
+        sut_room_kpsi = record.tensile_strength_kpsi
+        sut_room_mpa = record.tensile_strength_MPa
+        sy_room_kpsi = record.yield_strength_kpsi
+        sy_room_mpa = record.yield_strength_MPa
+
+        if abs(service_temperature_f - 70.0) <= 1e-12:
+            temp_lookup = {"temperature_f": 70.0, "st_over_srt": 1.0, "source": "room_temperature_default"}
+            st_over_srt = 1.0
+        else:
+            temp_lookup = self.repository.table_6_4_ratio_from_f(service_temperature_f)
+            st_over_srt = float(temp_lookup["st_over_srt"])
+
+        sut_kpsi = st_over_srt * sut_room_kpsi
+        sut_mpa = kpsi_to_mpa(sut_kpsi)
+        sy_kpsi = st_over_srt * sy_room_kpsi
+        sy_mpa = kpsi_to_mpa(sy_kpsi)
+
+        if sut_kpsi <= 200.0:
+            se_prime_kpsi = 0.5 * sut_kpsi
+            se_prime_source = "eq_6_8_low_strength_branch"
+        else:
+            se_prime_kpsi = 100.0
+            se_prime_source = "eq_6_8_high_strength_branch"
+        se_prime_mpa = kpsi_to_mpa(se_prime_kpsi)
+
+        finish_record = self.repository.find_surface_finish_record(str(surface_finish))
+        ka = finish_record.a_factor_kpsi * (sut_kpsi ** finish_record.b_exponent)
+        ka_expression = f"k_a = {safe_round(finish_record.a_factor_kpsi)} * Sut^({safe_round(finish_record.b_exponent)}) [kpsi]"
+
+        if size_factor_override is not None:
+            kb = float(size_factor_override)
+            kb_source = "user_override"
+        else:
+            kb = 1.0
+            kb_source = "eq_6_21_axial"
+
+        if load_factor_override is not None:
+            kc = float(load_factor_override)
+            kc_source = "user_override"
+        else:
+            kc = 0.85
+            kc_source = "eq_6_26_axial"
+
+        if temp_factor_override is not None:
+            kd = float(temp_factor_override)
+            kd_source = "user_override"
+        else:
+            kd = 1.0
+            kd_source = "room_temperature_or_absorbed_into_sut_policy"
+
+        if reliability_factor_override is not None:
+            ke = float(reliability_factor_override)
+            ke_lookup = {
+                "reliability_percent": float(reliability_percent),
+                "reliability_factor_k_e": ke,
+                "source": "user_override",
+            }
+        else:
+            ke_lookup = self.repository.reliability_factor_from_table_6_5(reliability_percent)
+            ke = float(ke_lookup["reliability_factor_k_e"])
+
+        se_kpsi = ka * kb * kc * kd * ke * misc_factor * se_prime_kpsi
+        se_mpa = kpsi_to_mpa(se_kpsi)
+
+        local = self._resolve_local_stresses(inputs, diameter["diameter_in"], K_f)
+        sigma_a_kpsi = local["sigma_a_kpsi"]
+        sigma_m_kpsi = local["sigma_m_kpsi"]
+        sigma_a_mpa = kpsi_to_mpa(sigma_a_kpsi)
+        sigma_m_mpa = kpsi_to_mpa(sigma_m_kpsi)
+
+        if math.isclose(sigma_m_kpsi, 0.0, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("This solve path requires a nonzero mean stress to define the load-line slope r = sigma_a/sigma_m.")
+        r = sigma_a_kpsi / sigma_m_kpsi
+
+        table_6_7 = self.repository.table_6_7_payload
+        table_6_8 = self.repository.table_6_8_payload
+        gerber_row = self._get_row_by_criterion(table_6_7, "gerber")
+        asme_row = self._get_row_by_criterion(table_6_8, "asme_elliptic")
+
+        vars_common = {
+            "r": r,
+            "Se": se_kpsi,
+            "Sut": sut_kpsi,
+            "Sy": sy_kpsi,
+            "sigma_a": sigma_a_kpsi,
+            "sigma_m": sigma_m_kpsi,
+        }
+
+        gerber_Sa = self._eval_formula(gerber_row["intersection_coordinates"]["Sa"], vars_common)
+        gerber_Sm = self._eval_formula(gerber_row["intersection_coordinates"]["Sm"], {**vars_common, "Sa": gerber_Sa})
+        gerber_nf = self._eval_formula(table_6_7["fatigue_factor_of_safety"]["equation"], vars_common)
+
+        asme_Sa = self._eval_formula(asme_row["intersection_coordinates"]["Sa"], vars_common)
+        asme_Sm = self._eval_formula(asme_row["intersection_coordinates"]["Sm"], {**vars_common, "Sa": asme_Sa})
+        asme_nf = self._eval_formula(table_6_8["fatigue_factor_of_safety"]["equation"], vars_common)
+
+        n_y = sy_kpsi / (sigma_a_kpsi + sigma_m_kpsi)
+
+        gerber_langer = self._get_langer_row(table_6_7)
+        gerber_static_Sa = self._eval_formula(gerber_langer["intersection_coordinates"]["Sa"], vars_common)
+        gerber_static_Sm = self._eval_formula(gerber_langer["intersection_coordinates"]["Sm"], vars_common)
+        gerber_crossover = self._get_crossover_row(table_6_7)
+        gerber_r_crit = None
+        gerber_crossover_Sa = None
+        gerber_crossover_Sm = None
+        if gerber_crossover is not None:
+            gerber_crossover_Sm = self._eval_formula(gerber_crossover["intersection_coordinates"]["Sm"], vars_common)
+            gerber_crossover_Sa = self._eval_formula(gerber_crossover["intersection_coordinates"]["Sa"], {**vars_common, "Sm": gerber_crossover_Sm})
+            gerber_r_crit = self._eval_formula(gerber_crossover["intersection_coordinates"]["r_crit"], {**vars_common, "Sa": gerber_crossover_Sa, "Sm": gerber_crossover_Sm})
+
+        asme_langer = self._get_langer_row(table_6_8)
+        asme_static_Sa = self._eval_formula(asme_langer["intersection_coordinates"]["Sa"], vars_common)
+        asme_static_Sm = self._eval_formula(asme_langer["intersection_coordinates"]["Sm"], vars_common)
+        asme_crossover = self._get_crossover_row(table_6_8)
+        asme_r_crit = None
+        asme_crossover_Sa = None
+        asme_crossover_Sm = None
+        if asme_crossover is not None:
+            solutions = asme_crossover["intersection_coordinates"].get("solutions", [])
+            practical = None
+            for sol in solutions:
+                if sol.get("is_practical_crossover"):
+                    practical = sol
+                    break
+            if practical is not None:
+                asme_crossover_Sa = self._eval_formula(practical["Sa"], vars_common)
+                asme_crossover_Sm = self._eval_formula(practical["Sm"], {**vars_common, "Sa": asme_crossover_Sa})
+                asme_r_crit = self._eval_formula(practical["r_crit"], {**vars_common, "Sa": asme_crossover_Sa, "Sm": asme_crossover_Sm})
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification: dict[str, Any] = {}
+        for key, actual in {
+            "ka": ka,
+            "kb": kb,
+            "kc": kc,
+            "kd": kd,
+            "ke": ke,
+            "endurance_limit_kpsi": se_kpsi,
+            "endurance_limit_MPa": se_mpa,
+            "sigma_a_nom_kpsi": local["sigma_a_nom_kpsi"],
+            "sigma_m_nom_kpsi": local["sigma_m_nom_kpsi"],
+            "sigma_a_kpsi": sigma_a_kpsi,
+            "sigma_m_kpsi": sigma_m_kpsi,
+            "sigma_a_MPa": sigma_a_mpa,
+            "sigma_m_MPa": sigma_m_mpa,
+            "n_y": n_y,
+            "gerber_n_f": gerber_nf,
+            "gerber_Sa_kpsi": gerber_Sa,
+            "gerber_Sm_kpsi": gerber_Sm,
+            "asme_elliptic_n_f": asme_nf,
+            "asme_elliptic_Sa_kpsi": asme_Sa,
+            "asme_elliptic_Sm_kpsi": asme_Sm,
+        }.items():
+            if key in expected_ref:
+                verification[key] = {
+                    "actual": safe_round(actual),
+                    "reference": float(expected_ref[key]),
+                    "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
+                }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Fatigue factor of safety analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "table_a_20": record.to_dict(),
+                "table_6_4": temp_lookup,
+                "table_6_2": finish_record.to_dict(),
+                "table_6_5": ke_lookup,
+                "table_6_7": {
+                    "table_id": table_6_7.get("table_id"),
+                    "criterion": "gerber",
+                    "fatigue_factor_of_safety_equation": table_6_7.get("fatigue_factor_of_safety", {}).get("equation"),
+                    "fatigue_intersection_coordinates": gerber_row.get("intersection_coordinates"),
+                    "langer_intersection_coordinates": gerber_langer.get("intersection_coordinates"),
+                },
+                "table_6_8": {
+                    "table_id": table_6_8.get("table_id"),
+                    "criterion": "asme_elliptic",
+                    "fatigue_factor_of_safety_equation": table_6_8.get("fatigue_factor_of_safety", {}).get("equation"),
+                    "fatigue_intersection_coordinates": asme_row.get("intersection_coordinates"),
+                    "langer_intersection_coordinates": asme_langer.get("intersection_coordinates"),
+                },
+            },
+            "derived": {
+                "service_temperature_f": safe_round(service_temperature_f),
+                "service_temperature_c": safe_round((service_temperature_f - 32.0) * 5.0 / 9.0),
+                "diameter_in": safe_round(diameter["diameter_in"]),
+                "diameter_mm": safe_round(diameter["diameter_mm"]),
+                "area_in2": safe_round(math.pi * diameter["diameter_in"]**2 / 4.0),
+                "area_mm2": safe_round(math.pi * diameter["diameter_mm"]**2 / 4.0),
+                "sut_room_temperature_kpsi": safe_round(sut_room_kpsi),
+                "sut_room_temperature_MPa": safe_round(sut_room_mpa),
+                "sy_room_temperature_kpsi": safe_round(sy_room_kpsi),
+                "sy_room_temperature_MPa": safe_round(sy_room_mpa),
+                "st_over_srt": safe_round(st_over_srt),
+                "sut_at_service_temperature_kpsi": safe_round(sut_kpsi),
+                "sut_at_service_temperature_MPa": safe_round(sut_mpa),
+                "sy_at_service_temperature_kpsi": safe_round(sy_kpsi),
+                "sy_at_service_temperature_MPa": safe_round(sy_mpa),
+                "se_prime_kpsi": safe_round(se_prime_kpsi),
+                "se_prime_MPa": safe_round(se_prime_mpa),
+                "se_prime_source": se_prime_source,
+                "surface_finish_normalized": normalize_surface_finish(str(surface_finish)),
+                "ka": safe_round(ka),
+                "ka_expression": ka_expression,
+                "kb": safe_round(kb),
+                "kb_source": kb_source,
+                "kc": safe_round(kc),
+                "kc_source": kc_source,
+                "kd": safe_round(kd),
+                "kd_source": kd_source,
+                "ke": safe_round(ke),
+                "miscellaneous_factor_k_f": safe_round(misc_factor),
+                "endurance_limit_kpsi": safe_round(se_kpsi),
+                "endurance_limit_MPa": safe_round(se_mpa),
+                "K_f": safe_round(K_f),
+                "load_min_kip": safe_round(local["F_min_kip"]),
+                "load_max_kip": safe_round(local["F_max_kip"]),
+                "alternating_load_kip": safe_round(local["F_a_kip"]),
+                "mean_load_kip": safe_round(local["F_m_kip"]),
+                "sigma_a_nom_kpsi": safe_round(local["sigma_a_nom_kpsi"]),
+                "sigma_m_nom_kpsi": safe_round(local["sigma_m_nom_kpsi"]),
+                "sigma_a_nom_MPa": safe_round(kpsi_to_mpa(local["sigma_a_nom_kpsi"])),
+                "sigma_m_nom_MPa": safe_round(kpsi_to_mpa(local["sigma_m_nom_kpsi"])),
+                "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                "sigma_a_MPa": safe_round(sigma_a_mpa),
+                "sigma_m_MPa": safe_round(sigma_m_mpa),
+                "load_line_slope_r": safe_round(r),
+                "n_y": safe_round(n_y),
+                "langer_static_yield_equation": "n_y = S_y / (sigma_a + sigma_m)",
+            },
+            "results": {
+                "gerber": {
+                    "criterion": "gerber",
+                    "Sa_kpsi": safe_round(gerber_Sa),
+                    "Sm_kpsi": safe_round(gerber_Sm),
+                    "Sa_MPa": safe_round(kpsi_to_mpa(gerber_Sa)),
+                    "Sm_MPa": safe_round(kpsi_to_mpa(gerber_Sm)),
+                    "fatigue_factor_of_safety_n_f": safe_round(gerber_nf),
+                    "first_cycle_yield_factor_n_y": safe_round(n_y),
+                    "governing_mode": "fatigue" if gerber_nf < n_y else "first_cycle_yield",
+                    "critical_crossover_r": safe_round(gerber_r_crit),
+                    "critical_crossover_Sa_kpsi": safe_round(gerber_crossover_Sa),
+                    "critical_crossover_Sm_kpsi": safe_round(gerber_crossover_Sm),
+                    "langer_intersection_Sa_kpsi": safe_round(gerber_static_Sa),
+                    "langer_intersection_Sm_kpsi": safe_round(gerber_static_Sm),
+                },
+                "asme_elliptic": {
+                    "criterion": "asme_elliptic",
+                    "Sa_kpsi": safe_round(asme_Sa),
+                    "Sm_kpsi": safe_round(asme_Sm),
+                    "Sa_MPa": safe_round(kpsi_to_mpa(asme_Sa)),
+                    "Sm_MPa": safe_round(kpsi_to_mpa(asme_Sm)),
+                    "fatigue_factor_of_safety_n_f": safe_round(asme_nf),
+                    "first_cycle_yield_factor_n_y": safe_round(n_y),
+                    "governing_mode": "fatigue" if asme_nf < n_y else "first_cycle_yield",
+                    "critical_crossover_r": safe_round(asme_r_crit),
+                    "critical_crossover_Sa_kpsi": safe_round(asme_crossover_Sa),
+                    "critical_crossover_Sm_kpsi": safe_round(asme_crossover_Sm),
+                    "langer_intersection_Sa_kpsi": safe_round(asme_static_Sa),
+                    "langer_intersection_Sm_kpsi": safe_round(asme_static_Sm),
+                },
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-8", "6-18", "6-19", "6-21", "6-26", "6-45", "6-47", "6-48", "6-49"],
+                "notes": [
+                    "This solver targets Example 6-10 style fatigue factor-of-safety calculations for axial loading.",
+                    "The alternating and mean loads are resolved from the minimum and maximum fluctuating tensile load unless stresses are provided directly.",
+                    "Nominal axial stresses are computed from sigma = F/A using the provided bar diameter.",
+                    "Following Example 6-10, the fatigue stress concentration factor K_f is applied to both sigma_a and sigma_m for the no-notch-yielding prescription.",
+                    "The corrected endurance limit is computed from Marin factors using Eqs. (6-18), (6-19), (6-21), and (6-26).",
+                    "Gerber and ASME-elliptic fatigue safety factors and strength coordinates are evaluated using the digitized Table 6-7 and Table 6-8 relations.",
+                    "First-cycle yielding is checked using the Langer relation from Eq. (6-49).",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }

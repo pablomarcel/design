@@ -177,6 +177,38 @@ class FatigueFailureCLI:
         lop_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         lop_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+
+        ffs_parser = subparsers.add_parser(
+            "fatigue_factor_of_safety",
+            help="Direct CLI entry point for Example 6-10 style fatigue factor-of-safety calculations.",
+        )
+        ffs_parser.add_argument("--title", default="Fatigue factor of safety analysis from CLI flags")
+        ffs_parser.add_argument("--sae-aisi-no", dest="sae_aisi_no", required=True, help="SAE/AISI steel designation for Table A-20 lookup, e.g. 1050.")
+        ffs_parser.add_argument("--processing", required=True, help="Processing variant for Table A-20 lookup, e.g. HR or CD.")
+        ffs_parser.add_argument("--surface-finish", default="Machined or cold-drawn", help="Surface finish used for k_a, e.g. 'Machined or cold-drawn'.")
+        ffs_parser.add_argument("--diameter-in", type=float, help="Bar diameter in inches.")
+        ffs_parser.add_argument("--diameter-mm", type=float, help="Bar diameter in mm.")
+        ffs_parser.add_argument("--load-min-kip", type=float, help="Minimum fluctuating axial load in kip.")
+        ffs_parser.add_argument("--load-max-kip", type=float, help="Maximum fluctuating axial load in kip.")
+        ffs_parser.add_argument("--load-min-lbf", type=float, help="Minimum fluctuating axial load in lbf.")
+        ffs_parser.add_argument("--load-max-lbf", type=float, help="Maximum fluctuating axial load in lbf.")
+        ffs_parser.add_argument("--sigma-a-kpsi", type=float, help="Local alternating stress in kpsi.")
+        ffs_parser.add_argument("--sigma-m-kpsi", type=float, help="Local mean stress in kpsi.")
+        ffs_parser.add_argument("--sigma-a-nom-kpsi", type=float, help="Nominal alternating stress in kpsi.")
+        ffs_parser.add_argument("--sigma-m-nom-kpsi", type=float, help="Nominal mean stress in kpsi.")
+        ffs_parser.add_argument("--k-f", "--K-f", dest="K_f", type=float, required=True, help="Fatigue stress concentration factor K_f.")
+        ffs_parser.add_argument("--service-temperature-f", type=float, help="Service temperature in °F. Defaults to 70°F.")
+        ffs_parser.add_argument("--service-temperature-c", type=float, help="Service temperature in °C.")
+        ffs_parser.add_argument("--reliability-percent", type=float, default=50.0, help="Required reliability percentage. Defaults to 50.")
+        ffs_parser.add_argument("--misc-factor", type=float, default=1.0, help="Miscellaneous Marin factor k_f. Defaults to 1.0.")
+        ffs_parser.add_argument("--size-factor-k-b", dest="size_factor_k_b", type=float, help="Optional direct override for size factor k_b.")
+        ffs_parser.add_argument("--load-factor-k-c", dest="load_factor_k_c", type=float, help="Optional direct override for load factor k_c.")
+        ffs_parser.add_argument("--temperature-factor-k-d", dest="temperature_factor_k_d", type=float, help="Optional direct override for temperature factor k_d.")
+        ffs_parser.add_argument("--reliability-factor-k-e", dest="reliability_factor_k_e", type=float, help="Optional direct override for reliability factor k_e.")
+        ffs_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        ffs_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        ffs_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
 
@@ -370,6 +402,38 @@ class FatigueFailureCLI:
             },
         }
 
+
+    def _payload_from_fatigue_factor_of_safety_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        return {
+            "problem": "fatigue_factor_of_safety",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "fatigue_factor_of_safety",
+                "sae_aisi_no": args.sae_aisi_no,
+                "processing": args.processing,
+                "surface_finish": args.surface_finish,
+                "diameter_in": args.diameter_in,
+                "diameter_mm": args.diameter_mm,
+                "load_min_kip": args.load_min_kip,
+                "load_max_kip": args.load_max_kip,
+                "load_min_lbf": args.load_min_lbf,
+                "load_max_lbf": args.load_max_lbf,
+                "sigma_a_kpsi": args.sigma_a_kpsi,
+                "sigma_m_kpsi": args.sigma_m_kpsi,
+                "sigma_a_nom_kpsi": args.sigma_a_nom_kpsi,
+                "sigma_m_nom_kpsi": args.sigma_m_nom_kpsi,
+                "K_f": args.K_f,
+                "service_temperature_F": args.service_temperature_f,
+                "service_temperature_C": args.service_temperature_c,
+                "reliability_percent": args.reliability_percent,
+                "miscellaneous_factor_k_f": args.misc_factor,
+                "size_factor_k_b": args.size_factor_k_b,
+                "load_factor_k_c": args.load_factor_k_c,
+                "temperature_factor_k_d": args.temperature_factor_k_d,
+                "reliability_factor_k_e": args.reliability_factor_k_e,
+            },
+        }
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -407,6 +471,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_endurance_limit_and_fatigue_strength_args(args)
             elif args.command == "life_of_part":
                 payload = self._payload_from_life_of_part_args(args)
+            elif args.command == "fatigue_factor_of_safety":
+                payload = self._payload_from_fatigue_factor_of_safety_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2
