@@ -301,6 +301,25 @@ class FatigueFailureCLI:
         clm_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
         clm_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
 
+        vsbd_parser = subparsers.add_parser(
+            "variable_stress_block_damage",
+            help="Direct CLI entry point for Example 6-15 style variable-stress block damage calculations.",
+        )
+        vsbd_parser.add_argument("--title", default="Variable stress block damage analysis from CLI flags")
+        vsbd_parser.add_argument("--sut-kpsi", dest="Sut_kpsi", type=float, required=True, help="Ultimate tensile strength in kpsi.")
+        vsbd_parser.add_argument("--se-kpsi", dest="Se_kpsi", type=float, required=True, help="Endurance limit in kpsi.")
+        vsbd_parser.add_argument("--f-override", dest="f_override", type=float, help="Optional override for Figure 6-18 fatigue strength fraction f.")
+        vsbd_parser.add_argument("--damage-constant-c", type=float, default=1.0, help="Miner/Palmgren damage constant c. Defaults to 1.")
+        vsbd_parser.add_argument("--cycle1-max-kpsi", type=float, default=80.0)
+        vsbd_parser.add_argument("--cycle1-min-kpsi", type=float, default=-60.0)
+        vsbd_parser.add_argument("--cycle2-max-kpsi", type=float, default=60.0)
+        vsbd_parser.add_argument("--cycle2-min-kpsi", type=float, default=40.0)
+        vsbd_parser.add_argument("--cycle3-max-kpsi", type=float, default=-20.0)
+        vsbd_parser.add_argument("--cycle3-min-kpsi", type=float, default=-40.0)
+        vsbd_parser.add_argument("--outfile", help="Output JSON path. If relative without directories, it is written under out/.")
+        vsbd_parser.add_argument("--pretty", action="store_true", help="Write and print formatted JSON.")
+        vsbd_parser.add_argument("--show", action="store_true", help="Print result JSON to stdout.")
+
         paths_parser = subparsers.add_parser("list-solve-paths", help="List supported solve paths.")
         paths_parser.add_argument("--json", action="store_true", help="Emit the solve paths as JSON.")
         return parser
@@ -622,6 +641,26 @@ class FatigueFailureCLI:
             },
         }
 
+    def _payload_from_variable_stress_block_damage_args(self, args: argparse.Namespace) -> dict[str, Any]:
+        payload = {
+            "problem": "variable_stress_block_damage",
+            "title": args.title,
+            "inputs": {
+                "solve_path": "variable_stress_block_damage",
+                "Sut_kpsi": args.Sut_kpsi,
+                "Se_kpsi": args.Se_kpsi,
+                "damage_constant_c": args.damage_constant_c,
+                "block_cycles": [
+                    {"name": "cycle_1", "sigma_max_kpsi": args.cycle1_max_kpsi, "sigma_min_kpsi": args.cycle1_min_kpsi, "count_per_block": 1},
+                    {"name": "cycle_2", "sigma_max_kpsi": args.cycle2_max_kpsi, "sigma_min_kpsi": args.cycle2_min_kpsi, "count_per_block": 1},
+                    {"name": "cycle_3", "sigma_max_kpsi": args.cycle3_max_kpsi, "sigma_min_kpsi": args.cycle3_min_kpsi, "count_per_block": 1},
+                ],
+            },
+        }
+        if args.f_override is not None:
+            payload["inputs"]["fatigue_strength_fraction_f_override"] = args.f_override
+        return payload
+
     def run(self, argv: list[str] | None = None) -> int:
         args = self.parser.parse_args(argv)
         try:
@@ -669,6 +708,8 @@ class FatigueFailureCLI:
                 payload = self._payload_from_brittle_material_axial_fatigue_args(args)
             elif args.command == "combined_loading_modes":
                 payload = self._payload_from_combined_loading_modes_args(args)
+            elif args.command == "variable_stress_block_damage":
+                payload = self._payload_from_variable_stress_block_damage_args(args)
             else:
                 self.parser.error(f"Unsupported command: {args.command}")
                 return 2

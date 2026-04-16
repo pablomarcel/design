@@ -18,6 +18,7 @@ try:
         MultipleCriteriaCyclesToFailureSolver,
         BrittleMaterialAxialFatigueSolver,
         CombinedLoadingModesSolver,
+        VariableStressBlockDamageSolver,
     )
     from .utils import ValidationError
 except ImportError:  # pragma: no cover
@@ -36,6 +37,7 @@ except ImportError:  # pragma: no cover
         MultipleCriteriaCyclesToFailureSolver,
         BrittleMaterialAxialFatigueSolver,
         CombinedLoadingModesSolver,
+        VariableStressBlockDamageSolver,
     )
     from utils import ValidationError
 
@@ -58,6 +60,7 @@ class SolverAPI:
         multiple_criteria_cycles_to_failure_solver = MultipleCriteriaCyclesToFailureSolver(repository=repository)
         brittle_material_axial_fatigue_solver = BrittleMaterialAxialFatigueSolver(repository=repository)
         combined_loading_modes_solver = CombinedLoadingModesSolver(repository=repository)
+        variable_stress_block_damage_solver = VariableStressBlockDamageSolver(repository=repository)
         self._solvers = {
             fatigue_strength_solver.solve_path: fatigue_strength_solver,
             surface_factor_solver.solve_path: surface_factor_solver,
@@ -72,6 +75,7 @@ class SolverAPI:
             multiple_criteria_cycles_to_failure_solver.solve_path: multiple_criteria_cycles_to_failure_solver,
             brittle_material_axial_fatigue_solver.solve_path: brittle_material_axial_fatigue_solver,
             combined_loading_modes_solver.solve_path: combined_loading_modes_solver,
+            variable_stress_block_damage_solver.solve_path: variable_stress_block_damage_solver,
         }
 
     def available_solve_paths(self) -> list[str]:

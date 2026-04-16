@@ -351,3 +351,27 @@ python -m cli combined_loading_modes \
   --pretty \
   --show
 ```
+
+## Example 6-15 from JSON
+
+```bash
+python -m cli run \
+  --infile example_6_15_variable_stress_block_damage.json \
+  --outfile example_6_15_variable_stress_block_damage_out.json \
+  --pretty \
+  --show
+```
+
+```bash
+python -m cli variable_stress_block_damage \
+  --sut-kpsi 151 \
+  --se-kpsi 67.5 \
+  --cycle1-max-kpsi 80 \
+  --cycle1-min-kpsi -60 \
+  --cycle2-max-kpsi 60 \
+  --cycle2-min-kpsi 40 \
+  --cycle3-max-kpsi -20 \
+  --cycle3-min-kpsi -40 \
+  --pretty \
+  --show
+```

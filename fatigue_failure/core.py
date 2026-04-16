@@ -4007,3 +4007,272 @@ class CombinedLoadingModesSolver:
             },
             **({"verification": verification} if verification else {}),
         }
+
+
+class VariableStressBlockDamageSolver:
+    """Implements Shigley Chapter 6 Example 6-15 for repeated variable-stress blocks using Miner’s rule."""
+
+    solve_path = "variable_stress_block_damage"
+
+    def __init__(self, repository: DigitizedDataRepository | None = None) -> None:
+        self.repository = repository or DigitizedDataRepository()
+
+    @staticmethod
+    def _eval_formula(expression: str, variables: dict[str, float]) -> float:
+        text = str(expression).strip()
+        if "=" in text:
+            text = text.split("=", 1)[1].strip()
+        return safe_eval_expression(text.replace("^", "**"), variables)
+
+    @staticmethod
+    def _resolve_strength(inputs: dict[str, Any], kpsi_key: str, mpa_key: str, label: str) -> dict[str, float]:
+        value_kpsi = inputs.get(kpsi_key)
+        value_mpa = inputs.get(mpa_key)
+        if value_kpsi is None and value_mpa is None:
+            raise ValidationError(f"{label} is required. Provide {kpsi_key} or {mpa_key}.")
+        if value_kpsi is not None and value_mpa is not None:
+            return {kpsi_key: float(value_kpsi), mpa_key: float(value_mpa)}
+        if value_kpsi is not None:
+            return {kpsi_key: float(value_kpsi), mpa_key: kpsi_to_mpa(float(value_kpsi))}
+        return {kpsi_key: mpa_to_kpsi(float(value_mpa)), mpa_key: float(value_mpa)}
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") not in (None, self.solve_path):
+            raise ValidationError(
+                f"VariableStressBlockDamageSolver received solve_path={inputs.get('solve_path')!r}; expected {self.solve_path!r}."
+            )
+
+        sut_info = self._resolve_strength(inputs, "Sut_kpsi", "Sut_MPa", "Ultimate tensile strength")
+        se_info = self._resolve_strength(inputs, "Se_kpsi", "Se_MPa", "Endurance limit")
+        sut_kpsi = float(sut_info["Sut_kpsi"])
+        sut_mpa = float(sut_info["Sut_MPa"])
+        se_kpsi = float(se_info["Se_kpsi"])
+        se_mpa = float(se_info["Se_MPa"])
+
+        f_override = coalesce(inputs.get("f"), inputs.get("fatigue_strength_fraction_f"), inputs.get("fatigue_strength_fraction_f_override"))
+        if f_override is not None:
+            f_lookup = {
+                "f": float(f_override),
+                "source": "user_override",
+                "note": "User provided f override.",
+            }
+        else:
+            f_lookup = self.repository.fatigue_strength_fraction_from_figure_6_18(sut_kpsi)
+        f_value = ensure_positive("fatigue_strength_fraction_f", f_lookup["f"])
+
+        sf_low_kpsi = f_value * sut_kpsi
+        sf_low_mpa = kpsi_to_mpa(sf_low_kpsi)
+        n_low = ensure_at_least("sn_low_cycle_anchor_cycles", coalesce(inputs.get("sn_low_cycle_anchor_cycles"), 1.0e3), 1.0)
+        n_endurance = ensure_at_least("endurance_limit_cycles", coalesce(inputs.get("endurance_limit_cycles"), 1.0e6), n_low)
+        if math.isclose(n_low, n_endurance, rel_tol=0.0, abs_tol=1e-15):
+            raise ValidationError("sn_low_cycle_anchor_cycles and endurance_limit_cycles must differ.")
+
+        a_kpsi = (sf_low_kpsi ** 2) / se_kpsi
+        a_mpa = kpsi_to_mpa(a_kpsi)
+        b = log10(se_kpsi / sf_low_kpsi) / log10(n_endurance / n_low)
+
+        table_6_7 = self.repository.table_6_7_payload
+        gerber_row = FatigueFactorOfSafetySolver._get_row_by_criterion(table_6_7, "gerber")
+
+        block_cycles = inputs.get("block_cycles") or inputs.get("cycles") or []
+        if not block_cycles:
+            raise ValidationError("block_cycles is required for solve_path='variable_stress_block_damage'.")
+
+        c_damage = float(coalesce(inputs.get("damage_constant_c"), inputs.get("miner_constant_c"), 1.0))
+
+        cycle_results: list[dict[str, Any]] = []
+        damage_per_block = 0.0
+        total_cycles_per_block = 0.0
+
+        for i, entry in enumerate(block_cycles, start=1):
+            cycle_name = str(coalesce(entry.get("name"), f"cycle_{i}"))
+            sigma_max_kpsi = coalesce(entry.get("sigma_max_kpsi"), entry.get("smax_kpsi"), entry.get("stress_max_kpsi"))
+            sigma_min_kpsi = coalesce(entry.get("sigma_min_kpsi"), entry.get("smin_kpsi"), entry.get("stress_min_kpsi"))
+            sigma_max_mpa = coalesce(entry.get("sigma_max_MPa"), entry.get("smax_MPa"))
+            sigma_min_mpa = coalesce(entry.get("sigma_min_MPa"), entry.get("smin_MPa"))
+
+            if sigma_max_kpsi is None and sigma_max_mpa is None:
+                raise ValidationError(f"Block cycle {cycle_name!r} is missing sigma_max.")
+            if sigma_min_kpsi is None and sigma_min_mpa is None:
+                raise ValidationError(f"Block cycle {cycle_name!r} is missing sigma_min.")
+
+            if sigma_max_kpsi is None:
+                sigma_max_kpsi = mpa_to_kpsi(float(sigma_max_mpa))
+            else:
+                sigma_max_kpsi = float(sigma_max_kpsi)
+            if sigma_min_kpsi is None:
+                sigma_min_kpsi = mpa_to_kpsi(float(sigma_min_mpa))
+            else:
+                sigma_min_kpsi = float(sigma_min_kpsi)
+
+            n_i = float(coalesce(entry.get("count_per_block"), entry.get("n_i"), entry.get("count"), 1.0))
+            total_cycles_per_block += n_i
+
+            sigma_a_kpsi = 0.5 * (sigma_max_kpsi - sigma_min_kpsi)
+            sigma_m_kpsi = 0.5 * (sigma_max_kpsi + sigma_min_kpsi)
+            sigma_a_mpa = kpsi_to_mpa(sigma_a_kpsi)
+            sigma_m_mpa = kpsi_to_mpa(sigma_m_kpsi)
+
+            if math.isclose(sigma_m_kpsi, 0.0, rel_tol=0.0, abs_tol=1e-15):
+                r = math.inf
+            else:
+                r = sigma_a_kpsi / sigma_m_kpsi
+
+            if sigma_m_kpsi > 0.0:
+                vars_common = {
+                    "r": r,
+                    "Se": se_kpsi,
+                    "Sut": sut_kpsi,
+                    "Sy": float("nan"),
+                    "sigma_a": sigma_a_kpsi,
+                    "sigma_m": sigma_m_kpsi,
+                }
+                sa_allowable = self._eval_formula(gerber_row["intersection_coordinates"]["Sa"], vars_common)
+                if sigma_a_kpsi < sa_allowable or math.isclose(sigma_a_kpsi, sa_allowable, rel_tol=0.0, abs_tol=1e-12):
+                    equivalent_reversed_stress_kpsi = se_kpsi
+                    equivalent_reversed_source = "under_gerber_curve_infinite_life"
+                    N_i = math.inf
+                    damage_i = 0.0
+                    life_regime = "endurance_or_infinite_life"
+                else:
+                    equivalent_reversed_stress_kpsi = sigma_a_kpsi / (1.0 - (sigma_m_kpsi / sut_kpsi) ** 2)
+                    equivalent_reversed_source = "eq_6_47_rearranged_n_equals_1"
+                    N_i = (equivalent_reversed_stress_kpsi / a_kpsi) ** (1.0 / b)
+                    damage_i = n_i / N_i
+                    life_regime = "finite_life"
+            else:
+                sa_allowable = None
+                if sigma_a_kpsi <= se_kpsi or math.isclose(sigma_a_kpsi, se_kpsi, rel_tol=0.0, abs_tol=1e-12):
+                    equivalent_reversed_stress_kpsi = se_kpsi
+                    equivalent_reversed_source = "nonpositive_mean_stress_endurance_policy"
+                    N_i = math.inf
+                    damage_i = 0.0
+                    life_regime = "endurance_or_infinite_life"
+                else:
+                    equivalent_reversed_stress_kpsi = sigma_a_kpsi
+                    equivalent_reversed_source = "nonpositive_mean_stress_as_fully_reversed_policy"
+                    N_i = (equivalent_reversed_stress_kpsi / a_kpsi) ** (1.0 / b)
+                    damage_i = n_i / N_i
+                    life_regime = "finite_life"
+
+            damage_per_block += damage_i
+
+            cycle_results.append({
+                "cycle_number": i,
+                "name": cycle_name,
+                "count_per_block_n_i": safe_round(n_i),
+                "sigma_max_kpsi": safe_round(sigma_max_kpsi),
+                "sigma_min_kpsi": safe_round(sigma_min_kpsi),
+                "sigma_max_MPa": safe_round(kpsi_to_mpa(sigma_max_kpsi)),
+                "sigma_min_MPa": safe_round(kpsi_to_mpa(sigma_min_kpsi)),
+                "sigma_a_kpsi": safe_round(sigma_a_kpsi),
+                "sigma_m_kpsi": safe_round(sigma_m_kpsi),
+                "sigma_a_MPa": safe_round(sigma_a_mpa),
+                "sigma_m_MPa": safe_round(sigma_m_mpa),
+                "load_line_slope_r": None if math.isinf(r) else safe_round(r),
+                "gerber_allowable_Sa_kpsi": safe_round(sa_allowable),
+                "gerber_allowable_Sa_MPa": safe_round(kpsi_to_mpa(sa_allowable)) if sa_allowable is not None else None,
+                "equivalent_reversed_stress_kpsi": safe_round(equivalent_reversed_stress_kpsi),
+                "equivalent_reversed_stress_MPa": safe_round(kpsi_to_mpa(equivalent_reversed_stress_kpsi)),
+                "equivalent_reversed_stress_source": equivalent_reversed_source,
+                "cycles_to_failure_N_i": None if math.isinf(N_i) else safe_round(N_i),
+                "cycles_to_failure_note": "Infinite life for this sub-cycle." if math.isinf(N_i) else None,
+                "damage_fraction_n_i_over_N_i": safe_round(damage_i),
+                "life_regime": life_regime,
+            })
+
+        if damage_per_block <= 0.0:
+            block_repetitions_to_failure = math.inf
+            total_counted_cycles_to_failure = math.inf
+        else:
+            block_repetitions_to_failure = c_damage / damage_per_block
+            total_counted_cycles_to_failure = block_repetitions_to_failure * total_cycles_per_block
+
+        expected_ref = inputs.get("expected_textbook_reference_values") or {}
+        verification: dict[str, Any] = {}
+        for key, actual in {
+            "fatigue_strength_fraction_f": f_value,
+            "a_kpsi": a_kpsi,
+            "b": b,
+            "damage_per_block": damage_per_block,
+            "block_repetitions_to_failure": None if math.isinf(block_repetitions_to_failure) else block_repetitions_to_failure,
+        }.items():
+            if key in expected_ref and actual is not None:
+                verification[key] = {
+                    "actual": safe_round(actual),
+                    "reference": float(expected_ref[key]),
+                    "relative_error_percent": safe_round(relative_error_percent(actual, float(expected_ref[key]))),
+                }
+
+        expected_cycles = expected_ref.get("cycle_results", {})
+        for item in cycle_results:
+            ref = expected_cycles.get(str(item["cycle_number"])) or expected_cycles.get(item["name"])
+            if ref:
+                for key, actual_key in [
+                    ("gerber_allowable_Sa_kpsi", "gerber_allowable_Sa_kpsi"),
+                    ("equivalent_reversed_stress_kpsi", "equivalent_reversed_stress_kpsi"),
+                    ("cycles_to_failure_N_i", "cycles_to_failure_N_i"),
+                ]:
+                    if key in ref and item.get(actual_key) is not None:
+                        verification[f"cycle::{item['cycle_number']}::{key}"] = {
+                            "actual": item[actual_key],
+                            "reference": float(ref[key]),
+                            "relative_error_percent": safe_round(relative_error_percent(float(item[actual_key]), float(ref[key]))),
+                        }
+
+        return {
+            "problem": payload.get("problem", self.solve_path),
+            "title": payload.get("title", "Variable stress block damage analysis"),
+            "inputs": inputs,
+            "lookups": {
+                "figure_6_18": {
+                    "sut_kpsi_for_lookup": safe_round(sut_kpsi),
+                    "fatigue_strength_fraction_f": safe_round(f_value),
+                    "source": f_lookup.get("source"),
+                    "note": f_lookup.get("note"),
+                },
+                "table_6_7": {
+                    "table_id": table_6_7.get("table_id"),
+                    "criterion": "gerber",
+                    "fatigue_factor_of_safety_equation": table_6_7.get("fatigue_factor_of_safety", {}).get("equation"),
+                    "fatigue_intersection_coordinates": gerber_row.get("intersection_coordinates"),
+                },
+            },
+            "derived": {
+                "Sut_kpsi": safe_round(sut_kpsi),
+                "Sut_MPa": safe_round(sut_mpa),
+                "Se_kpsi": safe_round(se_kpsi),
+                "Se_MPa": safe_round(se_mpa),
+                "fatigue_strength_fraction_f": safe_round(f_value),
+                "sf_at_1e3_cycles_kpsi": safe_round(sf_low_kpsi),
+                "sf_at_1e3_cycles_MPa": safe_round(sf_low_mpa),
+                "sn_low_cycle_anchor_cycles": safe_round(n_low),
+                "endurance_limit_cycles": safe_round(n_endurance),
+                "a_kpsi": safe_round(a_kpsi),
+                "a_MPa": safe_round(a_mpa),
+                "b": safe_round(b),
+                "sn_equation_kpsi": f"S_f = {safe_round(a_kpsi)} * N^({safe_round(b)})",
+                "sn_equation_MPa": f"S_f = {safe_round(a_mpa)} * N^({safe_round(b)})",
+                "damage_constant_c": safe_round(c_damage),
+            },
+            "results": {
+                "block_cycles": cycle_results,
+                "damage_per_block": safe_round(damage_per_block),
+                "block_repetitions_to_failure": None if math.isinf(block_repetitions_to_failure) else safe_round(block_repetitions_to_failure),
+                "total_counted_cycles_per_block": safe_round(total_cycles_per_block),
+                "total_counted_cycles_to_failure": None if math.isinf(total_counted_cycles_to_failure) else safe_round(total_counted_cycles_to_failure),
+            },
+            "meta": {
+                "solve_path": self.solve_path,
+                "implemented_equations": ["6-14", "6-15", "6-47", "6-57", "6-58"],
+                "notes": [
+                    "This solver targets Example 6-15 style repeated stress-block calculations using Miner’s linear damage rule.",
+                    "Each sub-cycle in the block is defined in the input JSON by sigma_max, sigma_min, and count_per_block.",
+                    "For positive mean stress, the Gerber criterion is used to determine whether the sub-cycle causes finite life and, if so, the equivalent fully reversed stress is computed from the rearranged Gerber relation with n = 1.",
+                    "For nonpositive mean stress, this implementation uses a conservative policy that ignores the beneficial mean stress and treats the sub-cycle as fully reversed for finite-life evaluation; if sigma_a <= Se, infinite life is reported for that sub-cycle.",
+                    "Block repetitions to failure are computed from D = sum(n_i/N_i) and c = 1 by default, but damage_constant_c can be overridden in the input.",
+                ],
+            },
+            **({"verification": verification} if verification else {}),
+        }

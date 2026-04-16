@@ -1,0 +1,54 @@
+{
+  "problem": "variable_stress_block_damage",
+  "title": "Example 6-15 variable stress block damage using Miner rule and Gerber equivalent reversed stress",
+  "inputs": {
+    "solve_path": "variable_stress_block_damage",
+    "Sut_kpsi": 151.0,
+    "Se_kpsi": 67.5,
+    "damage_constant_c": 1.0,
+    "block_cycles": [
+      {
+        "name": "cycle_1",
+        "sigma_max_kpsi": 80.0,
+        "sigma_min_kpsi": -60.0,
+        "count_per_block": 1
+      },
+      {
+        "name": "cycle_2",
+        "sigma_max_kpsi": 60.0,
+        "sigma_min_kpsi": 40.0,
+        "count_per_block": 1
+      },
+      {
+        "name": "cycle_3",
+        "sigma_max_kpsi": -20.0,
+        "sigma_min_kpsi": -40.0,
+        "count_per_block": 1
+      }
+    ],
+    "expected_textbook_reference_values": {
+      "fatigue_strength_fraction_f": 0.795,
+      "a_kpsi": 213.5,
+      "b": -0.0833,
+      "damage_per_block": 1.6155088852988692e-06,
+      "block_repetitions_to_failure": 619000.0,
+      "cycle_results": {
+        "1": {
+          "gerber_allowable_Sa_kpsi": 67.2,
+          "equivalent_reversed_stress_kpsi": 70.3,
+          "cycles_to_failure_N_i": 619000.0
+        },
+        "2": {
+          "gerber_allowable_Sa_kpsi": 24.2
+        }
+      }
+    },
+    "notes": [
+      "This file follows Example 6-15 on p331-p332.",
+      "The stress block cycles are entered explicitly rather than inferred from the figure, so the input JSON remains the source of truth.",
+      "Figure 6-18 provides the fatigue strength fraction f from Sut.",
+      "Table 6-7 provides the Gerber first-quadrant relation used to determine whether a sub-cycle causes finite life.",
+      "Miner damage is accumulated as D = sum(n_i / N_i) with c = 1 by default."
+    ]
+  }
+}
