@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 import argparse
@@ -26,69 +25,38 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     run_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
-    direct_parser = subparsers.add_parser(
-        "ductile_failure_fos",
-        help="Direct CLI solve for the Example 5-1 style ductile static-failure problem.",
-    )
+    direct_parser = subparsers.add_parser("ductile_failure_fos", help="Direct CLI solve for the Example 5-1 style ductile static-failure problem.")
     direct_parser.add_argument("--Syt", type=float, required=True, help="Yield strength in tension.")
     direct_parser.add_argument("--Syc", type=float, help="Yield strength in compression. Defaults to Syt.")
     direct_parser.add_argument("--ef", type=float, help="True strain at fracture.")
     direct_parser.add_argument("--strength-unit", default="kpsi", help="Strength unit label for reporting.")
-    direct_parser.add_argument(
-        "--case",
-        action="append",
-        nargs=4,
-        metavar=("LABEL", "SIGMA_X", "SIGMA_Y", "TAU_XY"),
-        help="Plane-stress case definition. May be repeated.",
-    )
+    direct_parser.add_argument("--case", action="append", nargs=4, metavar=("LABEL", "SIGMA_X", "SIGMA_Y", "TAU_XY"), help="Plane-stress case definition. May be repeated.")
     direct_parser.add_argument("--outfile", help="Output JSON file.")
     direct_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     direct_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
-    cm_parser = subparsers.add_parser(
-        "coulomb_mohr_fos",
-        help="Direct CLI solve for Example 5-2 style Coulomb-Mohr factor of safety.",
-    )
+    cm_parser = subparsers.add_parser("coulomb_mohr_fos", help="Direct CLI solve for Example 5-2 style Coulomb-Mohr factor of safety.")
     cm_parser.add_argument("--material-lookup", help="material_id from data/static_failure_materials.csv")
     cm_parser.add_argument("--Syt", type=float, help="Yield strength in tension.")
     cm_parser.add_argument("--Syc", type=float, help="Yield strength in compression.")
     cm_parser.add_argument("--strength-unit", default="MPa", help="Strength unit label for reporting.")
-    cm_parser.add_argument(
-        "--stress-input-mode",
-        choices=["torsion_shaft", "plane_stress", "principal_stresses"],
-        default="torsion_shaft",
-        help="How the stress state is defined.",
-    )
+    cm_parser.add_argument("--stress-input-mode", choices=["torsion_shaft", "plane_stress", "principal_stresses"], default="torsion_shaft", help="How the stress state is defined.")
     cm_parser.add_argument("--diameter-mm", type=float, help="Shaft diameter for torsion_shaft mode.")
     cm_parser.add_argument("--torque-N-m", type=float, help="Applied torque for torsion_shaft mode.")
     cm_parser.add_argument("--sigma-x", type=float, help="Plane-stress sigma_x.")
     cm_parser.add_argument("--sigma-y", type=float, help="Plane-stress sigma_y.")
     cm_parser.add_argument("--tau-xy", type=float, help="Plane-stress tau_xy.")
-    cm_parser.add_argument(
-        "--principal-stresses",
-        nargs=3,
-        type=float,
-        metavar=("S1", "S2", "S3"),
-        help="Principal stresses for principal_stresses mode.",
-    )
+    cm_parser.add_argument("--principal-stresses", nargs=3, type=float, metavar=("S1", "S2", "S3"), help="Principal stresses for principal_stresses mode.")
     cm_parser.add_argument("--label", default="coulomb_mohr_case", help="Case label for reporting.")
     cm_parser.add_argument("--outfile", help="Output JSON file.")
     cm_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     cm_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
-    ft_parser = subparsers.add_parser(
-        "failure_theory_strength",
-        help="Direct CLI solve for Example 5-3 style load-at-yield strength problems.",
-    )
+    ft_parser = subparsers.add_parser("failure_theory_strength", help="Direct CLI solve for Example 5-3 style load-at-yield strength problems.")
     ft_parser.add_argument("--material-lookup", help="material_id from data/static_failure_materials.csv")
     ft_parser.add_argument("--Syt", type=float, help="Yield strength in tension.")
     ft_parser.add_argument("--strength-unit", default="kpsi", help="Strength unit label for reporting.")
-    ft_parser.add_argument(
-        "--geometry-mode",
-        default="round_shaft_bending_torsion_linear_force",
-        choices=["round_shaft_bending_torsion_linear_force"],
-        help="Geometry/loading model used to map force to the critical stress state.",
-    )
+    ft_parser.add_argument("--geometry-mode", default="round_shaft_bending_torsion_linear_force", choices=["round_shaft_bending_torsion_linear_force"], help="Geometry/loading model used to map force to the critical stress state.")
     ft_parser.add_argument("--diameter-in", type=float, help="Critical section diameter.")
     ft_parser.add_argument("--bending-moment-arm-in", type=float, help="Moment arm from applied force to bending moment at the critical section.")
     ft_parser.add_argument("--torsion-arm-in", type=float, help="Moment arm from applied force to torque at the critical section.")
@@ -100,10 +68,7 @@ def build_parser() -> argparse.ArgumentParser:
     ft_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     ft_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
-    tube_parser = subparsers.add_parser(
-        "realized_fos_stock_tube",
-        help="Direct CLI solve for Example 5-4 style stock round-tube selection.",
-    )
+    tube_parser = subparsers.add_parser("realized_fos_stock_tube", help="Direct CLI solve for Example 5-4 style stock round-tube selection.")
     tube_parser.add_argument("--material-lookup", help="material_id from data/static_failure_materials.csv")
     tube_parser.add_argument("--Syt", type=float, help="Yield strength in tension.")
     tube_parser.add_argument("--strength-unit", default="MPa", help="Strength unit label for reporting.")
@@ -119,6 +84,25 @@ def build_parser() -> argparse.ArgumentParser:
     tube_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     tube_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
+    brittle_parser = subparsers.add_parser("brittle_failure_strength", help="Direct CLI solve for Example 5-5 style brittle-material strength problems.")
+    brittle_parser.add_argument("--gray-cast-iron-astm-grade", type=int, required=True, help="ASTM gray cast iron grade from Table A-24.")
+    brittle_parser.add_argument("--strength-unit", default="kpsi", help="Strength unit label for reporting.")
+    brittle_parser.add_argument("--stress-input-mode", default="linear_plane_stress_per_force", choices=["linear_plane_stress_per_force", "round_shaft_bending_torsion_linear_force"], help="How the normalized stress state is defined.")
+    brittle_parser.add_argument("--sigma-x-per-force", type=float, help="Normalized sigma_x coefficient in strength_unit/force_unit.")
+    brittle_parser.add_argument("--sigma-y-per-force", type=float, default=0.0, help="Normalized sigma_y coefficient in strength_unit/force_unit.")
+    brittle_parser.add_argument("--tau-xy-per-force", type=float, help="Normalized tau_xy coefficient in strength_unit/force_unit.")
+    brittle_parser.add_argument("--diameter-in", type=float, help="Critical section diameter for round_shaft mode.")
+    brittle_parser.add_argument("--bending-moment-arm-in", type=float, help="Moment arm from applied force to bending moment at the critical section.")
+    brittle_parser.add_argument("--torsion-arm-in", type=float, help="Moment arm from applied force to torque at the critical section.")
+    brittle_parser.add_argument("--Kf", type=float, default=1.0, help="Normal-stress concentration factor for round_shaft mode.")
+    brittle_parser.add_argument("--Kfs", type=float, default=1.0, help="Shear-stress concentration factor for round_shaft mode.")
+    brittle_parser.add_argument("--design-factor", type=float, default=1.0, help="Target design factor. Defaults to fracture at n=1.")
+    brittle_parser.add_argument("--force-unit", default="lbf", help="Force unit label for reporting.")
+    brittle_parser.add_argument("--label", default="brittle_failure_strength_case", help="Case label for reporting.")
+    brittle_parser.add_argument("--outfile", help="Output JSON file.")
+    brittle_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
+    brittle_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
+
     return parser
 
 
@@ -126,43 +110,18 @@ def build_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
     cases: list[dict[str, Any]] = []
     for raw_case in args.case or []:
         label, sigma_x, sigma_y, tau_xy = raw_case
-        cases.append(
-            {
-                "label": label,
-                "sigma_x": float(sigma_x),
-                "sigma_y": float(sigma_y),
-                "tau_xy": float(tau_xy),
-            }
-        )
-
-    return {
-        "problem": "static_failure",
-        "title": "Static failure factor-of-safety analysis",
-        "inputs": {
-            "solve_path": "ductile_failure_fos",
-            "Syt": args.Syt,
-            "Syc": args.Syc if args.Syc is not None else args.Syt,
-            "ef": args.ef,
-            "strength_unit": args.strength_unit,
-            "stress_states": cases,
-        },
-    }
+        cases.append({"label": label, "sigma_x": float(sigma_x), "sigma_y": float(sigma_y), "tau_xy": float(tau_xy)})
+    return {"problem": "static_failure", "title": "Static failure factor-of-safety analysis", "inputs": {"solve_path": "ductile_failure_fos", "Syt": args.Syt, "Syc": args.Syc if args.Syc is not None else args.Syt, "ef": args.ef, "strength_unit": args.strength_unit, "stress_states": cases}}
 
 
 def build_coulomb_mohr_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    inputs: dict[str, Any] = {
-        "solve_path": "coulomb_mohr_fos",
-        "strength_unit": args.strength_unit,
-        "stress_input_mode": args.stress_input_mode,
-        "label": args.label,
-    }
+    inputs: dict[str, Any] = {"solve_path": "coulomb_mohr_fos", "strength_unit": args.strength_unit, "stress_input_mode": args.stress_input_mode, "label": args.label}
     if args.material_lookup:
         inputs["material_lookup"] = args.material_lookup
     if args.Syt is not None:
         inputs["Syt"] = args.Syt
     if args.Syc is not None:
         inputs["Syc"] = args.Syc
-
     if args.stress_input_mode == "torsion_shaft":
         if args.diameter_mm is None or args.torque_N_m is None:
             raise ValueError("torsion_shaft mode requires --diameter-mm and --torque-N-m")
@@ -174,56 +133,29 @@ def build_coulomb_mohr_payload_from_args(args: argparse.Namespace) -> dict[str, 
         inputs["sigma_x"] = args.sigma_x
         inputs["sigma_y"] = args.sigma_y
         inputs["tau_xy"] = args.tau_xy
-    elif args.stress_input_mode == "principal_stresses":
+    else:
         if args.principal_stresses is None:
             raise ValueError("principal_stresses mode requires --principal-stresses S1 S2 S3")
         inputs["principal_stresses"] = list(args.principal_stresses)
-
-    return {
-        "problem": "static_failure",
-        "title": "Coulomb-Mohr factor-of-safety analysis",
-        "inputs": inputs,
-    }
+    return {"problem": "static_failure", "title": "Coulomb-Mohr factor-of-safety analysis", "inputs": inputs}
 
 
 def build_failure_theory_strength_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    inputs: dict[str, Any] = {
-        "solve_path": "failure_theory_strength",
-        "strength_unit": args.strength_unit,
-        "geometry_mode": args.geometry_mode,
-        "design_factor": args.design_factor,
-        "force_unit": args.force_unit,
-        "moment_unit": args.moment_unit,
-        "label": args.label,
-    }
+    inputs: dict[str, Any] = {"solve_path": "failure_theory_strength", "strength_unit": args.strength_unit, "geometry_mode": args.geometry_mode, "design_factor": args.design_factor, "force_unit": args.force_unit, "moment_unit": args.moment_unit, "label": args.label}
     if args.material_lookup:
         inputs["material_lookup"] = args.material_lookup
     if args.Syt is not None:
         inputs["Syt"] = args.Syt
     if args.diameter_in is None or args.bending_moment_arm_in is None or args.torsion_arm_in is None:
-        raise ValueError(
-            "failure_theory_strength requires --diameter-in --bending-moment-arm-in --torsion-arm-in"
-        )
+        raise ValueError("failure_theory_strength requires --diameter-in --bending-moment-arm-in --torsion-arm-in")
     inputs["diameter_in"] = args.diameter_in
     inputs["bending_moment_arm_in"] = args.bending_moment_arm_in
     inputs["torsion_arm_in"] = args.torsion_arm_in
-    return {
-        "problem": "static_failure",
-        "title": "Failure-theory strength analysis",
-        "inputs": inputs,
-    }
+    return {"problem": "static_failure", "title": "Failure-theory strength analysis", "inputs": inputs}
 
 
 def build_realized_fos_stock_tube_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    inputs: dict[str, Any] = {
-        "solve_path": "realized_fos_stock_tube",
-        "strength_unit": args.strength_unit,
-        "required_design_factor": args.required_design_factor,
-        "size_system": args.size_system,
-        "axial_force_N": args.axial_force_N,
-        "torsion_N_m": args.torsion_N_m,
-        "label": args.label,
-    }
+    inputs: dict[str, Any] = {"solve_path": "realized_fos_stock_tube", "strength_unit": args.strength_unit, "required_design_factor": args.required_design_factor, "size_system": args.size_system, "axial_force_N": args.axial_force_N, "torsion_N_m": args.torsion_N_m, "label": args.label}
     if args.material_lookup:
         inputs["material_lookup"] = args.material_lookup
     if args.Syt is not None:
@@ -232,16 +164,29 @@ def build_realized_fos_stock_tube_payload_from_args(args: argparse.Namespace) ->
         inputs["bending_moment_N_mm"] = args.bending_moment_N_mm
     else:
         if args.bending_load_N is None or args.bending_moment_arm_mm is None:
-            raise ValueError(
-                "realized_fos_stock_tube requires either --bending-moment-N-mm or both --bending-load-N and --bending-moment-arm-mm"
-            )
+            raise ValueError("realized_fos_stock_tube requires either --bending-moment-N-mm or both --bending-load-N and --bending-moment-arm-mm")
         inputs["bending_load_N"] = args.bending_load_N
         inputs["bending_moment_arm_mm"] = args.bending_moment_arm_mm
-    return {
-        "problem": "static_failure",
-        "title": "Realized factor-of-safety stock tube selection",
-        "inputs": inputs,
-    }
+    return {"problem": "static_failure", "title": "Realized factor-of-safety stock tube selection", "inputs": inputs}
+
+
+def build_brittle_failure_strength_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    inputs: dict[str, Any] = {"solve_path": "brittle_failure_strength", "gray_cast_iron_astm_grade": args.gray_cast_iron_astm_grade, "strength_unit": args.strength_unit, "stress_input_mode": args.stress_input_mode, "design_factor": args.design_factor, "force_unit": args.force_unit, "label": args.label}
+    if args.stress_input_mode == "linear_plane_stress_per_force":
+        if args.sigma_x_per_force is None or args.tau_xy_per_force is None:
+            raise ValueError("linear_plane_stress_per_force mode requires --sigma-x-per-force and --tau-xy-per-force")
+        inputs["sigma_x_per_force"] = args.sigma_x_per_force
+        inputs["sigma_y_per_force"] = args.sigma_y_per_force
+        inputs["tau_xy_per_force"] = args.tau_xy_per_force
+    else:
+        if args.diameter_in is None or args.bending_moment_arm_in is None or args.torsion_arm_in is None:
+            raise ValueError("round_shaft_bending_torsion_linear_force mode requires --diameter-in --bending-moment-arm-in --torsion-arm-in")
+        inputs["diameter_in"] = args.diameter_in
+        inputs["bending_moment_arm_in"] = args.bending_moment_arm_in
+        inputs["torsion_arm_in"] = args.torsion_arm_in
+        inputs["Kf"] = args.Kf
+        inputs["Kfs"] = args.Kfs
+    return {"problem": "static_failure", "title": "Brittle-material strength analysis", "inputs": inputs}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -249,57 +194,25 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     console = Console()
     app = StaticFailureApp(console=console)
-
     try:
         if args.command == "run":
-            app.solve_file(
-                infile=args.infile,
-                outfile=args.outfile,
-                pretty=args.pretty,
-                show=args.show,
-            )
+            app.solve_file(infile=args.infile, outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
-
         if args.command == "ductile_failure_fos":
-            payload = build_payload_from_args(args)
-            app.solve_payload(
-                payload,
-                outfile=args.outfile,
-                pretty=args.pretty,
-                show=args.show,
-            )
+            app.solve_payload(build_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
-
         if args.command == "coulomb_mohr_fos":
-            payload = build_coulomb_mohr_payload_from_args(args)
-            app.solve_payload(
-                payload,
-                outfile=args.outfile,
-                pretty=args.pretty,
-                show=args.show,
-            )
+            app.solve_payload(build_coulomb_mohr_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
-
         if args.command == "failure_theory_strength":
-            payload = build_failure_theory_strength_payload_from_args(args)
-            app.solve_payload(
-                payload,
-                outfile=args.outfile,
-                pretty=args.pretty,
-                show=args.show,
-            )
+            app.solve_payload(build_failure_theory_strength_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
-
         if args.command == "realized_fos_stock_tube":
-            payload = build_realized_fos_stock_tube_payload_from_args(args)
-            app.solve_payload(
-                payload,
-                outfile=args.outfile,
-                pretty=args.pretty,
-                show=args.show,
-            )
+            app.solve_payload(build_realized_fos_stock_tube_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
-
+        if args.command == "brittle_failure_strength":
+            app.solve_payload(build_brittle_failure_strength_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
+            return 0
         parser.error(f"Unsupported command: {args.command}")
         return 2
     except Exception as exc:  # pragma: no cover

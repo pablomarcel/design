@@ -103,3 +103,28 @@ python -m cli realized_fos_stock_tube \
   --pretty \
   --show
 ```
+
+## Example 5-5
+
+```bash
+python -m cli run \
+  --infile example_5_5_brittle_materials.json \
+  --outfile example_5_5_brittle_materials_out.json \
+  --pretty \
+  --show
+```
+
+## Direct CLI Example 5-5 using normalized stresses
+
+```bash
+python -m cli brittle_failure_strength \
+  --gray-cast-iron-astm-grade 30 \
+  --stress-input-mode linear_plane_stress_per_force \
+  --sigma-x-per-force 0.1426 \
+  --tau-xy-per-force 0.0764 \
+  --strength-unit kpsi \
+  --force-unit lbf \
+  --outfile example_5_5_direct_out.json \
+  --pretty \
+  --show
+```

@@ -1,0 +1,20 @@
+{
+  "problem": "static_failure",
+  "title": "Brittle-material strength analysis",
+  "inputs": {
+    "solve_path": "brittle_failure_strength",
+    "strength_unit": "kpsi",
+    "gray_cast_iron_astm_grade": 30,
+    "stress_input_mode": "linear_plane_stress_per_force",
+    "sigma_x_per_force": 0.1426,
+    "sigma_y_per_force": 0.0,
+    "tau_xy_per_force": 0.0764,
+    "design_factor": 1.0,
+    "force_unit": "lbf",
+    "label": "example_5_5_case",
+    "notes": [
+      "Input JSON is the source of truth for the normalized critical-section stress state.",
+      "For Example 5-5, the normalized coefficients come from the Example 5-3 wrench mechanics: sigma_x = 142.6 F psi and tau_xy = 76.4 F psi."
+    ]
+  }
+}

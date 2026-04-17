@@ -1,4 +1,3 @@
-
 from __future__ import annotations
 
 from typing import Any
@@ -9,6 +8,7 @@ try:
         Example52CoulombMohrSolver,
         Example53FailureTheoryStrengthSolver,
         Example54RealizedFactorOfSafetySolver,
+        Example55BrittleFailureStrengthSolver,
     )
 except ImportError:  # pragma: no cover
     from core import (
@@ -16,6 +16,7 @@ except ImportError:  # pragma: no cover
         Example52CoulombMohrSolver,
         Example53FailureTheoryStrengthSolver,
         Example54RealizedFactorOfSafetySolver,
+        Example55BrittleFailureStrengthSolver,
     )
 
 
@@ -28,6 +29,7 @@ class SolverAPI:
             Example52CoulombMohrSolver.solve_path: Example52CoulombMohrSolver(),
             Example53FailureTheoryStrengthSolver.solve_path: Example53FailureTheoryStrengthSolver(),
             Example54RealizedFactorOfSafetySolver.solve_path: Example54RealizedFactorOfSafetySolver(),
+            Example55BrittleFailureStrengthSolver.solve_path: Example55BrittleFailureStrengthSolver(),
         }
 
     def available_solve_paths(self) -> list[str]:
