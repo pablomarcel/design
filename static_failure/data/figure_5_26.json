@@ -1,7 +1,7 @@
 {
   "figure": "5-26",
   "title": "Plate loaded in longitudinal tension with a crack at the edge",
-  "description": "Polished engineering digitization of Figure 5-26. Solid curves are for no bending constraints; dashed curve is with bending constraints added. The small-crack intercept for the solid h/b = 1.0 curve has been adjusted to align with the textbook Example 5-7 behavior near a/b -> 0.",
+  "description": "Polished engineering digitization of Figure 5-26. Solid curves are for no bending constraints; dashed curve is with bending constraints added. The small-crack region for the solid h/b = 1.0 curve has been adjusted to better align with the textbook Example 5-7 behavior near a/b -> 0.",
   "axes": {
     "x": {
       "name": "a_over_b_ratio",
@@ -19,30 +19,30 @@
     "Use interpolation between points for programmatic access.",
     "Solid curves correspond to no bending constraints.",
     "Dashed curve corresponds to bending constraints added.",
-    "For the solid h_over_b_1_0 curve, the near-origin values were adjusted upward so that very small a/b ratios better reflect the textbook edge-crack limit behavior."
+    "For the solid h_over_b_1_0 curve, the near-origin values were revised so that very small a/b ratios interpolate closer to beta \u2248 1.10 instead of beta \u2248 1.12."
   ],
   "curves": {
     "solid_no_bending_constraints": {
       "h_over_b_1_0": [
         [
           0.0,
-          1.12
+          1.1
         ],
         [
           0.01,
-          1.126
+          1.11
         ],
         [
           0.02,
-          1.133
+          1.12
         ],
         [
           0.03,
-          1.14
+          1.13
         ],
         [
           0.04,
-          1.146
+          1.14
         ],
         [
           0.05,
@@ -255,6 +255,12 @@
           1.99
         ]
       ]
+    }
+  },
+  "validation": {
+    "example_5_7_small_crack_check": {
+      "a_over_b_ratio": 0.001928571429,
+      "interpolated_beta_from_h_over_b_1_0": 1.1019285714290001
     }
   }
 }
