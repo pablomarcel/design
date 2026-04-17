@@ -1,0 +1,202 @@
+{
+  "figure": "5-30",
+  "title": "Cylinder subjected to internal pressure with a longitudinal radial crack",
+  "description": "Approximate digitization of Figure 5-30 from the provided image. Curves are keyed by r_i_over_r_o ratio.",
+  "axes": {
+    "x": {
+      "name": "a_over_ro_minus_ri_ratio",
+      "min": 0.0,
+      "max": 0.8
+    },
+    "y": {
+      "name": "beta",
+      "min": 1.0,
+      "max": 3.4
+    }
+  },
+  "notes": [
+    "Approximate engineering digitization from the provided figure image.",
+    "Use interpolation between points for programmatic access.",
+    "Curves are keyed by r_i_over_r_o ratio."
+  ],
+  "curves": {
+    "ri_over_ro_0_35": [
+      [
+        0.0,
+        1.1
+      ],
+      [
+        0.05,
+        1.11
+      ],
+      [
+        0.1,
+        1.13
+      ],
+      [
+        0.15,
+        1.16
+      ],
+      [
+        0.2,
+        1.2
+      ],
+      [
+        0.25,
+        1.25
+      ],
+      [
+        0.3,
+        1.31
+      ],
+      [
+        0.35,
+        1.38
+      ],
+      [
+        0.4,
+        1.45
+      ],
+      [
+        0.45,
+        1.53
+      ],
+      [
+        0.5,
+        1.61
+      ],
+      [
+        0.55,
+        1.69
+      ],
+      [
+        0.6,
+        1.79
+      ],
+      [
+        0.65,
+        1.86
+      ],
+      [
+        0.7,
+        1.92
+      ]
+    ],
+    "ri_over_ro_0_75": [
+      [
+        0.0,
+        1.1
+      ],
+      [
+        0.05,
+        1.11
+      ],
+      [
+        0.1,
+        1.14
+      ],
+      [
+        0.15,
+        1.18
+      ],
+      [
+        0.2,
+        1.24
+      ],
+      [
+        0.25,
+        1.31
+      ],
+      [
+        0.3,
+        1.4
+      ],
+      [
+        0.35,
+        1.51
+      ],
+      [
+        0.4,
+        1.63
+      ],
+      [
+        0.45,
+        1.77
+      ],
+      [
+        0.5,
+        1.92
+      ],
+      [
+        0.55,
+        2.07
+      ],
+      [
+        0.58,
+        2.15
+      ],
+      [
+        0.6,
+        2.19
+      ]
+    ],
+    "ri_over_ro_0_9": [
+      [
+        0.0,
+        1.1
+      ],
+      [
+        0.05,
+        1.12
+      ],
+      [
+        0.1,
+        1.16
+      ],
+      [
+        0.15,
+        1.23
+      ],
+      [
+        0.2,
+        1.32
+      ],
+      [
+        0.25,
+        1.43
+      ],
+      [
+        0.3,
+        1.56
+      ],
+      [
+        0.35,
+        1.72
+      ],
+      [
+        0.4,
+        1.91
+      ],
+      [
+        0.45,
+        2.14
+      ],
+      [
+        0.5,
+        2.43
+      ],
+      [
+        0.55,
+        2.82
+      ],
+      [
+        0.58,
+        3.08
+      ],
+      [
+        0.6,
+        3.3
+      ]
+    ]
+  }
+}

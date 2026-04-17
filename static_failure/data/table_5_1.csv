@@ -1,0 +1,9 @@
+material_family,material_grade,K_Ic_MPa_sqrt_m,Syt_MPa
+Aluminum,2024,26,455
+Aluminum,7075,24,495
+Aluminum,7178,33,490
+Titanium,Ti-6AL-4V,115,910
+Titanium,Ti-6AL-4V,55,1035
+Steel,4340,99,860
+Steel,4340,60,1515
+Steel,52100,14,2070

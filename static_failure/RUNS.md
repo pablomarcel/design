@@ -128,3 +128,32 @@ python -m cli brittle_failure_strength \
   --pretty \
   --show
 ```
+
+## Example 5-6 from input JSON
+
+```bash
+python -m cli run \
+  --infile example_5_6_transverse_crack.json \
+  --outfile example_5_6_transverse_crack_out.json \
+  --pretty \
+  --show
+```
+
+## Direct CLI solve for Example 5-6 style problem
+
+```bash
+python -m cli transverse_crack_fracture \
+  --K-Ic 28.3 \
+  --Syt 240 \
+  --strength-unit MPa \
+  --nominal-stress 50 \
+  --length-unit mm \
+  --geometry-mode figure_5_25_off_center_crack_longitudinal_tension \
+  --two-a 65 \
+  --d 6000 \
+  --b 6000 \
+  --crack-tip A \
+  --outfile example_5_6_transverse_crack_out.json \
+  --pretty \
+  --show
+```

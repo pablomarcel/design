@@ -1,0 +1,157 @@
+{
+  "figure": "5-29",
+  "title": "Cylinder loading in axial tension having a radial crack extending completely around the circumference",
+  "description": "Approximate digitization of Figure 5-29 from the provided image. Curves are keyed by r_i_over_r_o ratio.",
+  "axes": {
+    "x": {
+      "name": "a_over_ro_minus_ri_ratio",
+      "min": 0.0,
+      "max": 0.9
+    },
+    "y": {
+      "name": "beta",
+      "min": 1.0,
+      "max": 4.0
+    }
+  },
+  "notes": [
+    "Approximate engineering digitization from the provided figure image.",
+    "Use interpolation between points for programmatic access.",
+    "Curves are keyed by r_i_over_r_o ratio.",
+    "Some curves begin at nonzero x in the source figure; this is preserved here."
+  ],
+  "curves": {
+    "ri_over_ro_0_0": [
+      [
+        0.0,
+        1.03
+      ],
+      [
+        0.1,
+        1.08
+      ],
+      [
+        0.2,
+        1.18
+      ],
+      [
+        0.3,
+        1.32
+      ],
+      [
+        0.4,
+        1.52
+      ],
+      [
+        0.5,
+        1.82
+      ],
+      [
+        0.6,
+        2.4
+      ],
+      [
+        0.65,
+        2.95
+      ],
+      [
+        0.7,
+        3.65
+      ],
+      [
+        0.72,
+        4.0
+      ]
+    ],
+    "ri_over_ro_0_1": [
+      [
+        0.0,
+        1.02
+      ],
+      [
+        0.1,
+        1.05
+      ],
+      [
+        0.2,
+        1.12
+      ],
+      [
+        0.3,
+        1.22
+      ],
+      [
+        0.4,
+        1.38
+      ],
+      [
+        0.5,
+        1.62
+      ],
+      [
+        0.6,
+        2.05
+      ],
+      [
+        0.7,
+        2.78
+      ],
+      [
+        0.78,
+        4.0
+      ]
+    ],
+    "ri_over_ro_0_4": [
+      [
+        0.31,
+        1.22
+      ],
+      [
+        0.4,
+        1.32
+      ],
+      [
+        0.5,
+        1.48
+      ],
+      [
+        0.6,
+        1.72
+      ],
+      [
+        0.7,
+        2.05
+      ],
+      [
+        0.8,
+        2.82
+      ],
+      [
+        0.88,
+        4.0
+      ]
+    ],
+    "ri_over_ro_0_8": [
+      [
+        0.52,
+        1.48
+      ],
+      [
+        0.6,
+        1.58
+      ],
+      [
+        0.7,
+        1.82
+      ],
+      [
+        0.8,
+        2.3
+      ],
+      [
+        0.9,
+        3.2
+      ]
+    ]
+  }
+}

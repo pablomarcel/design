@@ -1,0 +1,24 @@
+{
+  "problem": "static_failure",
+  "title": "Mode-I fracture catastrophic-failure analysis",
+  "inputs": {
+    "solve_path": "transverse_crack_fracture",
+    "strength_unit": "MPa",
+    "K_Ic_unit": "MPa*sqrt(m)",
+    "K_Ic": 28.3,
+    "Syt": 240.0,
+    "nominal_stress": 50.0,
+    "length_unit": "mm",
+    "geometry_mode": "figure_5_25_off_center_crack_longitudinal_tension",
+    "two_a": 65.0,
+    "d": 6000.0,
+    "b": 6000.0,
+    "crack_tip": "A",
+    "label": "example_5_6_case",
+    "notes": [
+      "Input JSON is the source of truth for the problem statement data.",
+      "For Example 5-6, 2a = 65 mm, plate width = 12 m so 2b = 12000 mm and b = d = 6000 mm.",
+      "Since a/d is very small, beta from Figure 5-25 is approximately 1."
+    ]
+  }
+}

@@ -9,6 +9,8 @@ try:
         Example53FailureTheoryStrengthSolver,
         Example54RealizedFactorOfSafetySolver,
         Example55BrittleFailureStrengthSolver,
+        Example56TransverseCrackFractureSolver,
+        Example56TransverseCrackFractureSolver,
     )
 except ImportError:  # pragma: no cover
     from core import (
@@ -17,6 +19,7 @@ except ImportError:  # pragma: no cover
         Example53FailureTheoryStrengthSolver,
         Example54RealizedFactorOfSafetySolver,
         Example55BrittleFailureStrengthSolver,
+        Example56TransverseCrackFractureSolver,
     )
 
 
@@ -30,6 +33,7 @@ class SolverAPI:
             Example53FailureTheoryStrengthSolver.solve_path: Example53FailureTheoryStrengthSolver(),
             Example54RealizedFactorOfSafetySolver.solve_path: Example54RealizedFactorOfSafetySolver(),
             Example55BrittleFailureStrengthSolver.solve_path: Example55BrittleFailureStrengthSolver(),
+            Example56TransverseCrackFractureSolver.solve_path: Example56TransverseCrackFractureSolver(),
         }
 
     def available_solve_paths(self) -> list[str]:

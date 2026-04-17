@@ -1,0 +1,219 @@
+{
+  "figure": "5-28",
+  "title": "Plate in tension containing a circular hole with two cracks",
+  "description": "Approximate digitization of Figure 5-28 from the provided image. Curves are keyed by r_over_b ratio.",
+  "axes": {
+    "x": {
+      "name": "a_over_b_ratio",
+      "min": 0.0,
+      "max": 0.9
+    },
+    "y": {
+      "name": "beta",
+      "min": 0.0,
+      "max": 3.0
+    }
+  },
+  "notes": [
+    "Approximate engineering digitization from the provided figure image.",
+    "Use interpolation between points for programmatic access.",
+    "Curves are keyed by r_over_b ratio.",
+    "The r_over_b = 0.25 and r_over_b = 0.5 curves have near-vertical behavior near their left-end asymptotes as shown in the figure."
+  ],
+  "curves": {
+    "r_over_b_0_0": [
+      [
+        0.0,
+        1.0
+      ],
+      [
+        0.05,
+        1.0
+      ],
+      [
+        0.1,
+        1.0
+      ],
+      [
+        0.15,
+        1.01
+      ],
+      [
+        0.2,
+        1.02
+      ],
+      [
+        0.25,
+        1.03
+      ],
+      [
+        0.3,
+        1.05
+      ],
+      [
+        0.35,
+        1.07
+      ],
+      [
+        0.4,
+        1.1
+      ],
+      [
+        0.45,
+        1.14
+      ],
+      [
+        0.5,
+        1.19
+      ],
+      [
+        0.55,
+        1.25
+      ],
+      [
+        0.6,
+        1.33
+      ],
+      [
+        0.65,
+        1.42
+      ],
+      [
+        0.7,
+        1.54
+      ],
+      [
+        0.75,
+        1.69
+      ],
+      [
+        0.8,
+        1.88
+      ],
+      [
+        0.85,
+        2.15
+      ],
+      [
+        0.9,
+        2.5
+      ]
+    ],
+    "r_over_b_0_25": [
+      [
+        0.245,
+        0.0
+      ],
+      [
+        0.25,
+        0.4
+      ],
+      [
+        0.26,
+        0.75
+      ],
+      [
+        0.28,
+        1.02
+      ],
+      [
+        0.3,
+        1.12
+      ],
+      [
+        0.35,
+        1.26
+      ],
+      [
+        0.4,
+        1.35
+      ],
+      [
+        0.45,
+        1.4
+      ],
+      [
+        0.5,
+        1.41
+      ],
+      [
+        0.55,
+        1.39
+      ],
+      [
+        0.6,
+        1.36
+      ],
+      [
+        0.65,
+        1.43
+      ],
+      [
+        0.7,
+        1.55
+      ],
+      [
+        0.75,
+        1.72
+      ],
+      [
+        0.8,
+        1.95
+      ],
+      [
+        0.85,
+        2.25
+      ],
+      [
+        0.9,
+        2.62
+      ]
+    ],
+    "r_over_b_0_5": [
+      [
+        0.495,
+        0.0
+      ],
+      [
+        0.5,
+        0.35
+      ],
+      [
+        0.515,
+        0.95
+      ],
+      [
+        0.54,
+        1.25
+      ],
+      [
+        0.58,
+        1.48
+      ],
+      [
+        0.62,
+        1.65
+      ],
+      [
+        0.68,
+        1.82
+      ],
+      [
+        0.74,
+        2.03
+      ],
+      [
+        0.8,
+        2.3
+      ],
+      [
+        0.85,
+        2.56
+      ],
+      [
+        0.9,
+        2.85
+      ]
+    ]
+  }
+}

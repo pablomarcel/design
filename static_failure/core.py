@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from bisect import bisect_left
 from math import inf, isclose, pi, sqrt
 from pathlib import Path
 from typing import Any
@@ -162,6 +164,119 @@ class TableA24GrayCastIron:
             known = ", ".join(table["astm_number"].astype(str).tolist())
             raise ValueError(f"Unknown ASTM gray cast iron grade '{astm_number}'. Available grades: {known}")
         return matches.iloc[0].to_dict()
+
+
+class Table51FractureToughness:
+    """CSV-backed fracture-toughness table (Table 5-1)."""
+
+    def __init__(self, csv_path: str | Path | None = None) -> None:
+        self.csv_path = Path(csv_path) if csv_path is not None else Path(__file__).resolve().parent / "data" / "table_5_1.csv"
+        self._table: pd.DataFrame | None = None
+
+    def _load(self) -> pd.DataFrame:
+        if self._table is None:
+            if not self.csv_path.exists():
+                raise FileNotFoundError(f"Table 5-1 not found: {self.csv_path}")
+            self._table = pd.read_csv(self.csv_path)
+        return self._table.copy()
+
+    def lookup(self, material_family: str, material_grade: str) -> dict[str, Any]:
+        table = self._load()
+        fam_mask = table["material_family"].astype(str).str.strip().str.lower() == str(material_family).strip().lower()
+        grade_mask = table["material_grade"].astype(str).str.strip().str.lower() == str(material_grade).strip().lower()
+        matches = table.loc[fam_mask & grade_mask]
+        if matches.empty:
+            known = ", ".join(f"{r.material_family}:{r.material_grade}" for r in table[["material_family", "material_grade"]].itertuples(index=False))
+            raise ValueError(f"Unknown Table 5-1 material '{material_family}:{material_grade}'. Available rows: {known}")
+        if len(matches) > 1:
+            rows = matches.to_dict(orient="records")
+            raise ValueError(f"Table 5-1 lookup for '{material_family}:{material_grade}' is ambiguous. Provide direct K_Ic/Syt inputs instead. Matching rows: {rows}")
+        return matches.iloc[0].to_dict()
+
+
+class FigureJsonLibrary:
+    """JSON-backed fracture beta-curve library with interpolation helpers."""
+
+    def __init__(self, data_dir: str | Path | None = None) -> None:
+        self.data_dir = Path(data_dir) if data_dir is not None else Path(__file__).resolve().parent / "data"
+        self._cache: dict[str, dict[str, Any]] = {}
+
+    def load(self, figure_id: str) -> dict[str, Any]:
+        normalized = str(figure_id).strip().lower().replace("-", "_")
+        if not normalized.startswith("figure_"):
+            normalized = f"figure_{normalized}"
+        path = self.data_dir / f"{normalized}.json"
+        if normalized not in self._cache:
+            if not path.exists():
+                raise FileNotFoundError(f"Figure JSON not found: {path}")
+            self._cache[normalized] = json.loads(path.read_text(encoding="utf-8"))
+        return self._cache[normalized]
+
+    @staticmethod
+    def _interp_curve(points: list[list[float]], x: float) -> float:
+        if len(points) < 2:
+            raise ValueError("A curve needs at least two points for interpolation.")
+        xs = [float(p[0]) for p in points]
+        ys = [float(p[1]) for p in points]
+        if x < xs[0] or x > xs[-1]:
+            raise ValueError(f"x={x} is outside the curve domain [{xs[0]}, {xs[-1]}].")
+        if isclose(x, xs[0], abs_tol=1e-12):
+            return ys[0]
+        if isclose(x, xs[-1], abs_tol=1e-12):
+            return ys[-1]
+        i = bisect_left(xs, x)
+        if i < len(xs) and isclose(xs[i], x, abs_tol=1e-12):
+            return ys[i]
+        x0, x1 = xs[i - 1], xs[i]
+        y0, y1 = ys[i - 1], ys[i]
+        if isclose(x1, x0, abs_tol=1e-12):
+            return y0
+        return y0 + (y1 - y0) * (x - x0) / (x1 - x0)
+
+    @staticmethod
+    def _extract_numeric_suffix(curve_key: str) -> float:
+        token = str(curve_key).rsplit("_", 1)[-1]
+        return float(token)
+
+    def interpolate_curve(self, figure_id: str, curve_key: str, x: float, family: str | None = None) -> float:
+        figure = self.load(figure_id)
+        curves = figure.get("curves", {})
+        if family is not None:
+            curves = curves[family]
+        points = curves[curve_key]
+        return self._interp_curve(points, x)
+
+    def interpolate_family_parameter(self, figure_id: str, x: float, parameter_value: float, family: str | None = None, prefix: str | None = None) -> dict[str, Any]:
+        figure = self.load(figure_id)
+        curves = figure.get("curves", {})
+        if family is not None:
+            curves = curves[family]
+        available: list[tuple[float, str]] = []
+        for key in curves.keys():
+            if prefix is not None and not str(key).startswith(prefix):
+                continue
+            try:
+                available.append((self._extract_numeric_suffix(key), str(key)))
+            except Exception:
+                continue
+        if not available:
+            raise ValueError(f"No parameterized curves found in {figure_id} for family={family} prefix={prefix}.")
+        available.sort(key=lambda item: item[0])
+        values = [v for v, _ in available]
+        keys = [k for _, k in available]
+        if parameter_value < values[0] or parameter_value > values[-1]:
+            raise ValueError(f"Parameter value {parameter_value} is outside available range [{values[0]}, {values[-1]}] for {figure_id}.")
+        for v, k in available:
+            if isclose(v, parameter_value, rel_tol=1e-9, abs_tol=1e-12):
+                beta = self.interpolate_curve(figure_id, k, x, family=family)
+                return {"beta": beta, "curve_key": k, "parameter_value": v, "interpolation": "exact"}
+        i = bisect_left(values, parameter_value)
+        v0, k0 = values[i - 1], keys[i - 1]
+        v1, k1 = values[i], keys[i]
+        beta0 = self.interpolate_curve(figure_id, k0, x, family=family)
+        beta1 = self.interpolate_curve(figure_id, k1, x, family=family)
+        beta = beta0 + (beta1 - beta0) * (parameter_value - v0) / (v1 - v0)
+        return {"beta": beta, "curve_key_lower": k0, "curve_key_upper": k1, "parameter_value_lower": v0, "parameter_value_upper": v1, "beta_lower": beta0, "beta_upper": beta1, "interpolation": "linear_between_curves"}
 
 
 class StressState:
@@ -976,3 +1091,92 @@ class Example55BrittleFailureStrengthSolver:
             "ordered_principal_stresses": {"sigma_1": s1, "sigma_2": s2, "sigma_3": s3},
             "derived": {"maximum_shear_stress": state.max_shear_stress(), "in_plane_principal_stresses": {"sigma_A": sigma_a, "sigma_B": sigma_b}},
         }
+
+
+class Example56TransverseCrackFractureSolver:
+    solve_path = "transverse_crack_fracture"
+
+    def __init__(self, table_5_1: Table51FractureToughness | None = None, figure_library: FigureJsonLibrary | None = None) -> None:
+        self.table_5_1 = table_5_1 or Table51FractureToughness()
+        self.figure_library = figure_library or FigureJsonLibrary()
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") != self.solve_path:
+            raise ValueError(f"Unsupported solve_path '{inputs.get('solve_path')}'. Expected '{self.solve_path}'.")
+        material = self._build_material(inputs)
+        geometry = self._build_geometry(inputs)
+        applied = self._build_applied_loading(inputs, material["strength_unit"])
+        beta_info = self._resolve_beta(inputs, geometry)
+        K_I_applied = beta_info["beta"] * applied["nominal_stress"] * sqrt(pi * geometry["a_m"])
+        n_fracture = inf if isclose(K_I_applied, 0.0, abs_tol=1e-12) else material["K_Ic"] / K_I_applied
+        sigma_catastrophic = inf if isclose(beta_info["beta"] * sqrt(pi * geometry["a_m"]), 0.0, abs_tol=1e-12) else material["K_Ic"] / (beta_info["beta"] * sqrt(pi * geometry["a_m"]))
+        ratio_to_yield = None if material.get("Syt") in (None, 0) else sigma_catastrophic / material["Syt"]
+        yield_limited = material.get("Syt") is not None and sigma_catastrophic >= material["Syt"]
+        summary_df = pd.DataFrame([{"beta": beta_info["beta"], f"K_I applied {material['K_Ic_unit']}": K_I_applied, "n_fracture": n_fracture, f"sigma_cat {material['strength_unit']}": sigma_catastrophic, f"Syt {material['strength_unit']}": material.get("Syt"), "sigma_cat_over_Syt": ratio_to_yield}])
+        return {"problem": payload.get("problem", "static_failure"), "title": payload.get("title", "Mode-I fracture catastrophic-failure analysis"), "inputs": inputs, "material": material, "meta": {"solve_path": self.solve_path, "applicability": "Mode-I fracture assessments using K_I = beta*sigma*sqrt(pi*a) and n = K_Ic/K_I", "implemented_equations": ["Eq_5_37", "Eq_5_38"], "beta_source_type": beta_info["source_type"]}, "results": {"critical_section": {"geometry_mode": geometry["geometry_mode"], "a_m": geometry["a_m"], "geometry_ratios": geometry["geometry_ratios"], "beta_lookup": beta_info}, "strength_predictions": {"fracture_assessment": {"applied_nominal_stress": applied["nominal_stress"], "applied_stress_unit": material["strength_unit"], "K_I_applied": K_I_applied, "K_Ic": material["K_Ic"], "K_I_unit": material["K_Ic_unit"], "fracture_factor_of_safety_n": n_fracture, "catastrophic_failure_stress": sigma_catastrophic, "yield_strength": material.get("Syt"), "catastrophic_to_yield_ratio": ratio_to_yield, "catastrophic_exceeds_yield_strength": yield_limited}}, "summary_table": summary_df.to_dict(orient="records")}}
+
+    def _build_material(self, inputs: dict[str, Any]) -> dict[str, Any]:
+        strength_unit = str(inputs.get("strength_unit", "MPa"))
+        K_unit = str(inputs.get("K_Ic_unit", "MPa*sqrt(m)"))
+        material_name = inputs.get("material_name")
+        source = inputs.get("material_source")
+        K_Ic = inputs.get("K_Ic")
+        Syt = inputs.get("Syt")
+        if inputs.get("table_5_1_lookup"):
+            lookup = inputs["table_5_1_lookup"]
+            if not isinstance(lookup, dict):
+                raise ValueError("'table_5_1_lookup' must be an object with material_family and material_grade.")
+            row = self.table_5_1.lookup(lookup.get("material_family"), lookup.get("material_grade"))
+            K_Ic = row["K_Ic_MPa_sqrt_m"] if K_Ic is None else K_Ic
+            Syt = row["Syt_MPa"] if Syt is None else Syt
+            material_name = material_name or f"{lookup.get('material_family')} {lookup.get('material_grade')}"
+            source = source or "Table 5-1"
+        if K_Ic is None:
+            raise ValueError("Provide 'K_Ic' directly or via 'table_5_1_lookup'.")
+        return {"name": material_name, "K_Ic": float(K_Ic), "K_Ic_unit": K_unit, "Syt": float(Syt) if Syt is not None else None, "strength_unit": strength_unit, "source": source}
+
+    @staticmethod
+    def _build_applied_loading(inputs: dict[str, Any], strength_unit: str) -> dict[str, Any]:
+        if "nominal_stress" not in inputs:
+            raise ValueError("Missing required input 'nominal_stress'.")
+        return {"nominal_stress": float(inputs["nominal_stress"]), "stress_unit": strength_unit}
+
+    @staticmethod
+    def _to_meters(value: float, unit: str) -> float:
+        u = str(unit).strip().lower()
+        scales = {"m": 1.0, "mm": 1e-3, "cm": 1e-2, "in": 0.0254, "ft": 0.3048}
+        if u not in scales:
+            raise ValueError(f"Unsupported length_unit '{unit}'.")
+        return float(value) * scales[u]
+
+    @classmethod
+    def _build_geometry(cls, inputs: dict[str, Any]) -> dict[str, Any]:
+        length_unit = str(inputs.get("length_unit", "mm"))
+        geometry_mode = str(inputs.get("geometry_mode", "figure_5_25_off_center_crack_longitudinal_tension"))
+        if geometry_mode == "figure_5_25_off_center_crack_longitudinal_tension":
+            if inputs.get("a") is None:
+                if inputs.get("two_a") is None:
+                    raise ValueError("Provide either 'a' or 'two_a' for the crack length.")
+                a = 0.5 * float(inputs["two_a"])
+            else:
+                a = float(inputs["a"])
+            if "d" not in inputs:
+                raise ValueError("Provide 'd' for figure_5_25 geometry.")
+            d = float(inputs["d"])
+            b = float(inputs.get("b", d))
+            return {"geometry_mode": geometry_mode, "a_m": cls._to_meters(a, length_unit), "length_unit": length_unit, "geometry_ratios": {"a_over_d": a / d, "d_over_b": d / b}, "raw_dimensions": {"a": a, "d": d, "b": b}}
+        raise ValueError("Unsupported geometry_mode. Currently implemented: 'figure_5_25_off_center_crack_longitudinal_tension'.")
+
+    def _resolve_beta(self, inputs: dict[str, Any], geometry: dict[str, Any]) -> dict[str, Any]:
+        if inputs.get("beta_override") is not None:
+            return {"source_type": "override", "beta": float(inputs["beta_override"])}
+        if geometry["geometry_mode"] == "figure_5_25_off_center_crack_longitudinal_tension":
+            figure_id = str(inputs.get("beta_figure_id", "figure_5_25"))
+            crack_tip = str(inputs.get("crack_tip", "A")).strip().upper()
+            family = "tip_A" if crack_tip == "A" else "tip_B"
+            d_over_b = float(inputs.get("d_over_b", geometry["geometry_ratios"]["d_over_b"]))
+            x_ratio = float(inputs.get("a_over_d", geometry["geometry_ratios"]["a_over_d"]))
+            info = self.figure_library.interpolate_family_parameter(figure_id=figure_id, x=x_ratio, parameter_value=d_over_b, family=family, prefix="d_over_b_")
+            return {"source_type": "figure_json", "figure_id": figure_id, "family": family, "crack_tip": crack_tip, "x_ratio_name": "a_over_d", "x_ratio": x_ratio, "parameter_name": "d_over_b", **info}
+        raise ValueError(f"Unsupported geometry mode for beta lookup: {geometry['geometry_mode']}")

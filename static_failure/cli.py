@@ -105,6 +105,25 @@ def build_parser() -> argparse.ArgumentParser:
     brittle_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     brittle_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
+    fracture_parser = subparsers.add_parser("transverse_crack_fracture", help="Direct CLI solve for Example 5-6 style Mode-I fracture problems.")
+    fracture_parser.add_argument("--K-Ic", dest="K_Ic", type=float, help="Critical stress-intensity factor.")
+    fracture_parser.add_argument("--K-Ic-unit", dest="K_Ic_unit", default="MPa*sqrt(m)", help="Unit label for K_Ic.")
+    fracture_parser.add_argument("--Syt", type=float, help="Yield strength for comparison.")
+    fracture_parser.add_argument("--strength-unit", default="MPa", help="Stress unit label for nominal stress and yield.")
+    fracture_parser.add_argument("--nominal-stress", type=float, required=True, help="Applied nominal tensile stress.")
+    fracture_parser.add_argument("--length-unit", default="mm", help="Length unit for a, two_a, d, and b.")
+    fracture_parser.add_argument("--geometry-mode", default="figure_5_25_off_center_crack_longitudinal_tension", choices=["figure_5_25_off_center_crack_longitudinal_tension"], help="Geometry/beta source model.")
+    fracture_parser.add_argument("--a", type=float, help="Crack half-length.")
+    fracture_parser.add_argument("--two-a", dest="two_a", type=float, help="Total crack length 2a.")
+    fracture_parser.add_argument("--d", type=float, help="Distance parameter d for Figure 5-25.")
+    fracture_parser.add_argument("--b", type=float, help="Half-width parameter b for Figure 5-25.")
+    fracture_parser.add_argument("--crack-tip", default="A", choices=["A", "B"], help="Crack tip family for Figure 5-25.")
+    fracture_parser.add_argument("--beta-override", type=float, help="Directly specify beta instead of figure lookup.")
+    fracture_parser.add_argument("--label", default="transverse_crack_case", help="Case label for reporting.")
+    fracture_parser.add_argument("--outfile", help="Output JSON file.")
+    fracture_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
+    fracture_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
+
     return parser
 
 
@@ -199,6 +218,27 @@ def build_brittle_failure_strength_payload_from_args(args: argparse.Namespace) -
     return {"problem": "static_failure", "title": "Brittle-material strength analysis", "inputs": inputs}
 
 
+
+
+def build_transverse_crack_fracture_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    inputs: dict[str, Any] = {"solve_path": "transverse_crack_fracture", "strength_unit": args.strength_unit, "K_Ic_unit": args.K_Ic_unit, "nominal_stress": args.nominal_stress, "length_unit": args.length_unit, "geometry_mode": args.geometry_mode, "crack_tip": args.crack_tip, "label": args.label}
+    if args.K_Ic is not None:
+        inputs["K_Ic"] = args.K_Ic
+    if args.Syt is not None:
+        inputs["Syt"] = args.Syt
+    if args.a is not None:
+        inputs["a"] = args.a
+    if args.two_a is not None:
+        inputs["two_a"] = args.two_a
+    if args.d is not None:
+        inputs["d"] = args.d
+    if args.b is not None:
+        inputs["b"] = args.b
+    if args.beta_override is not None:
+        inputs["beta_override"] = args.beta_override
+    return {"problem": "static_failure", "title": "Mode-I fracture catastrophic-failure analysis", "inputs": inputs}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -222,6 +262,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "brittle_failure_strength":
             app.solve_payload(build_brittle_failure_strength_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
+            return 0
+        if args.command == "transverse_crack_fracture":
+            app.solve_payload(build_transverse_crack_fracture_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
         parser.error(f"Unsupported command: {args.command}")
         return 2
