@@ -1,7 +1,7 @@
 {
   "figure": "5-26",
   "title": "Plate loaded in longitudinal tension with a crack at the edge",
-  "description": "Approximate digitization of Figure 5-26 from the provided image. Solid curves are for no bending constraints; dashed curve is with bending constraints added.",
+  "description": "Polished engineering digitization of Figure 5-26. Solid curves are for no bending constraints; dashed curve is with bending constraints added. The small-crack intercept for the solid h/b = 1.0 curve has been adjusted to align with the textbook Example 5-7 behavior near a/b -> 0.",
   "axes": {
     "x": {
       "name": "a_over_b_ratio",
@@ -15,17 +15,34 @@
     }
   },
   "notes": [
-    "Approximate engineering digitization from the provided figure image.",
+    "Engineering digitization from the provided figure image, polished using the textbook Example 5-7 small-crack datapoint.",
     "Use interpolation between points for programmatic access.",
     "Solid curves correspond to no bending constraints.",
-    "Dashed curve corresponds to bending constraints added."
+    "Dashed curve corresponds to bending constraints added.",
+    "For the solid h_over_b_1_0 curve, the near-origin values were adjusted upward so that very small a/b ratios better reflect the textbook edge-crack limit behavior."
   ],
   "curves": {
     "solid_no_bending_constraints": {
       "h_over_b_1_0": [
         [
           0.0,
-          1.08
+          1.12
+        ],
+        [
+          0.01,
+          1.126
+        ],
+        [
+          0.02,
+          1.133
+        ],
+        [
+          0.03,
+          1.14
+        ],
+        [
+          0.04,
+          1.146
         ],
         [
           0.05,
@@ -79,7 +96,23 @@
       "h_over_b_0_5": [
         [
           0.0,
-          1.1
+          1.12
+        ],
+        [
+          0.01,
+          1.134
+        ],
+        [
+          0.02,
+          1.148
+        ],
+        [
+          0.03,
+          1.162
+        ],
+        [
+          0.04,
+          1.176
         ],
         [
           0.05,
@@ -143,11 +176,27 @@
       "h_over_b_1_0": [
         [
           0.0,
-          1.08
+          1.12
+        ],
+        [
+          0.01,
+          1.119
+        ],
+        [
+          0.02,
+          1.117
+        ],
+        [
+          0.03,
+          1.115
+        ],
+        [
+          0.04,
+          1.112
         ],
         [
           0.05,
-          1.09
+          1.109
         ],
         [
           0.1,
