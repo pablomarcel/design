@@ -1,0 +1,23 @@
+{
+  "problem": "static_failure",
+  "title": "Edge-crack alloy selection",
+  "inputs": {
+    "solve_path": "edge_crack_alloy_selection",
+    "force_N": 4000000.0,
+    "plate_width_m": 1.4,
+    "plate_length_m": 2.8,
+    "edge_crack_a_mm": 2.7,
+    "required_safety_factor": 1.3,
+    "table_5_1_filter": {
+      "material_family": "Titanium",
+      "material_grade": "Ti-6AL-4V"
+    },
+    "beta_figure_id": "figure_5_26",
+    "figure_5_26_family": "solid_no_bending_constraints",
+    "notes": [
+      "Input JSON is the source of truth for the problem statement data.",
+      "Example 5-7 compares the two Ti-6AL-4V rows in Table 5-1.",
+      "For this problem h/b = (2.8/2)/1.4 = 1 and a/b = 2.7/(1400) = 0.00192857."
+    ]
+  }
+}

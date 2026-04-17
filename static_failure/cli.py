@@ -124,6 +124,21 @@ def build_parser() -> argparse.ArgumentParser:
     fracture_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
     fracture_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
+    edge_parser = subparsers.add_parser("edge_crack_alloy_selection", help="Direct CLI solve for Example 5-7 style edge-crack alloy selection.")
+    edge_parser.add_argument("--force-N", type=float, required=True, help="Applied tensile force in N.")
+    edge_parser.add_argument("--plate-width-m", type=float, required=True, help="Plate width b in m.")
+    edge_parser.add_argument("--plate-length-m", type=float, required=True, help="Plate length 2h in m.")
+    edge_parser.add_argument("--edge-crack-a-mm", type=float, required=True, help="Detectable edge crack size a in mm.")
+    edge_parser.add_argument("--required-safety-factor", type=float, required=True, help="Required safety factor.")
+    edge_parser.add_argument("--material-family", required=True, help="Table 5-1 material family filter.")
+    edge_parser.add_argument("--material-grade", required=True, help="Table 5-1 material grade filter.")
+    edge_parser.add_argument("--beta-figure-id", default="figure_5_26", help="Figure JSON used for beta lookup.")
+    edge_parser.add_argument("--figure-5-26-family", default="solid_no_bending_constraints", choices=["solid_no_bending_constraints", "dashed_with_bending_constraints"], help="Curve family in figure_5_26.json.")
+    edge_parser.add_argument("--beta-override", type=float, help="Directly specify beta.")
+    edge_parser.add_argument("--outfile", help="Output JSON file.")
+    edge_parser.add_argument("--pretty", action="store_true", help="Write pretty-printed JSON output.")
+    edge_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
+
     return parser
 
 
@@ -239,6 +254,27 @@ def build_transverse_crack_fracture_payload_from_args(args: argparse.Namespace) 
     return {"problem": "static_failure", "title": "Mode-I fracture catastrophic-failure analysis", "inputs": inputs}
 
 
+
+def build_edge_crack_alloy_selection_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
+    inputs: dict[str, Any] = {
+        "solve_path": "edge_crack_alloy_selection",
+        "force_N": args.force_N,
+        "plate_width_m": args.plate_width_m,
+        "plate_length_m": args.plate_length_m,
+        "edge_crack_a_mm": args.edge_crack_a_mm,
+        "required_safety_factor": args.required_safety_factor,
+        "table_5_1_filter": {
+            "material_family": args.material_family,
+            "material_grade": args.material_grade,
+        },
+        "beta_figure_id": args.beta_figure_id,
+        "figure_5_26_family": args.figure_5_26_family,
+    }
+    if args.beta_override is not None:
+        inputs["beta_override"] = args.beta_override
+    return {"problem": "static_failure", "title": "Edge-crack alloy selection", "inputs": inputs}
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
@@ -265,6 +301,9 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if args.command == "transverse_crack_fracture":
             app.solve_payload(build_transverse_crack_fracture_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
+            return 0
+        if args.command == "edge_crack_alloy_selection":
+            app.solve_payload(build_edge_crack_alloy_selection_payload_from_args(args), outfile=args.outfile, pretty=args.pretty, show=args.show)
             return 0
         parser.error(f"Unsupported command: {args.command}")
         return 2

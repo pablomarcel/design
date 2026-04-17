@@ -180,7 +180,7 @@ class Table51FractureToughness:
             self._table = pd.read_csv(self.csv_path)
         return self._table.copy()
 
-    def lookup(self, material_family: str, material_grade: str) -> dict[str, Any]:
+    def lookup_all(self, material_family: str, material_grade: str) -> list[dict[str, Any]]:
         table = self._load()
         fam_mask = table["material_family"].astype(str).str.strip().str.lower() == str(material_family).strip().lower()
         grade_mask = table["material_grade"].astype(str).str.strip().str.lower() == str(material_grade).strip().lower()
@@ -188,10 +188,16 @@ class Table51FractureToughness:
         if matches.empty:
             known = ", ".join(f"{r.material_family}:{r.material_grade}" for r in table[["material_family", "material_grade"]].itertuples(index=False))
             raise ValueError(f"Unknown Table 5-1 material '{material_family}:{material_grade}'. Available rows: {known}")
+        return matches.to_dict(orient="records")
+
+    def lookup(self, material_family: str, material_grade: str) -> dict[str, Any]:
+        matches = self.lookup_all(material_family, material_grade)
         if len(matches) > 1:
-            rows = matches.to_dict(orient="records")
-            raise ValueError(f"Table 5-1 lookup for '{material_family}:{material_grade}' is ambiguous. Provide direct K_Ic/Syt inputs instead. Matching rows: {rows}")
-        return matches.iloc[0].to_dict()
+            raise ValueError(
+                f"Table 5-1 lookup for '{material_family}:{material_grade}' is ambiguous. "
+                f"Provide direct K_Ic/Syt inputs instead. Matching rows: {matches}"
+            )
+        return matches[0]
 
 
 class FigureJsonLibrary:
@@ -237,6 +243,10 @@ class FigureJsonLibrary:
     def _extract_numeric_suffix(curve_key: str) -> float:
         token = str(curve_key).rsplit("_", 1)[-1]
         return float(token)
+
+    def interpolate_named_curve(self, figure_id: str, x: float, family: str, curve_key: str) -> dict[str, Any]:
+        beta = self.interpolate_curve(figure_id=figure_id, curve_key=curve_key, x=x, family=family)
+        return {"beta": beta, "curve_key": curve_key, "interpolation": "exact_curve"}
 
     def interpolate_curve(self, figure_id: str, curve_key: str, x: float, family: str | None = None) -> float:
         figure = self.load(figure_id)
@@ -1180,3 +1190,165 @@ class Example56TransverseCrackFractureSolver:
             info = self.figure_library.interpolate_family_parameter(figure_id=figure_id, x=x_ratio, parameter_value=d_over_b, family=family, prefix="d_over_b_")
             return {"source_type": "figure_json", "figure_id": figure_id, "family": family, "crack_tip": crack_tip, "x_ratio_name": "a_over_d", "x_ratio": x_ratio, "parameter_name": "d_over_b", **info}
         raise ValueError(f"Unsupported geometry mode for beta lookup: {geometry['geometry_mode']}")
+
+
+class Example57EdgeCrackAlloySelectionSolver:
+    solve_path = "edge_crack_alloy_selection"
+
+    def __init__(self, table_5_1: Table51FractureToughness | None = None, figure_library: FigureJsonLibrary | None = None) -> None:
+        self.table_5_1 = table_5_1 or Table51FractureToughness()
+        self.figure_library = figure_library or FigureJsonLibrary()
+
+    def solve(self, payload: dict[str, Any]) -> dict[str, Any]:
+        inputs = payload.get("inputs", payload)
+        if inputs.get("solve_path") != self.solve_path:
+            raise ValueError(f"Unsupported solve_path '{inputs.get('solve_path')}'. Expected '{self.solve_path}'.")
+
+        model = self._build_model(inputs)
+        candidates = self._build_candidates(inputs)
+        beta_info = self._resolve_beta(model=model, inputs=inputs)
+        beta = beta_info["beta"]
+
+        evaluated: list[dict[str, Any]] = []
+        for idx, candidate in enumerate(candidates, start=1):
+            syt = float(candidate["Syt_MPa"])
+            kic = float(candidate["K_Ic_MPa_sqrt_m"])
+            sigma_allow_yield = syt / model["required_safety_factor"]
+            t_yield_m = model["force_N"] / (model["plate_width_m"] * sigma_allow_yield * 1.0e6)
+
+            sigma_fracture_n1 = kic / (beta * sqrt(pi * model["a_m"]))
+            sigma_allow_fracture = sigma_fracture_n1 / model["required_safety_factor"]
+            t_fracture_m = model["force_N"] / (model["plate_width_m"] * sigma_allow_fracture * 1.0e6)
+
+            governing_mode = "yield" if t_yield_m >= t_fracture_m else "fracture"
+            t_required_m = max(t_yield_m, t_fracture_m)
+
+            evaluated.append({
+                "candidate_index": idx,
+                "candidate_label": candidate.get("candidate_label", f"candidate_{idx}"),
+                "material_family": candidate["material_family"],
+                "material_grade": candidate["material_grade"],
+                "K_Ic_MPa_sqrt_m": kic,
+                "Syt_MPa": syt,
+                "sigma_allow_yield_MPa": sigma_allow_yield,
+                "required_thickness_yield_mm": t_yield_m * 1.0e3,
+                "sigma_fracture_n1_MPa": sigma_fracture_n1,
+                "sigma_allow_fracture_MPa": sigma_allow_fracture,
+                "required_thickness_fracture_mm": t_fracture_m * 1.0e3,
+                "governing_mode": governing_mode,
+                "required_thickness_mm": t_required_m * 1.0e3,
+            })
+
+        selected = min(evaluated, key=lambda row: row["required_thickness_mm"])
+
+        summary_df = pd.DataFrame([
+            {
+                "Candidate": row["candidate_label"],
+                "K_Ic MPa*sqrt(m)": row["K_Ic_MPa_sqrt_m"],
+                "Syt MPa": row["Syt_MPa"],
+                "t_yield mm": row["required_thickness_yield_mm"],
+                "t_fracture mm": row["required_thickness_fracture_mm"],
+                "t_required mm": row["required_thickness_mm"],
+                "Governing": row["governing_mode"],
+                "Selected": row is selected,
+            }
+            for row in evaluated
+        ])
+
+        return {
+            "problem": payload.get("problem", "static_failure"),
+            "title": payload.get("title", "Edge-crack alloy selection"),
+            "inputs": inputs,
+            "meta": {
+                "solve_path": self.solve_path,
+                "applicability": "Plate edge-crack screening where yield and fracture thickness requirements are compared across candidate alloys",
+                "implemented_equations": ["Eq_5_37", "Eq_5_38", "sigma_allow = strength/n", "t = P/(w*sigma_allow)"],
+                "beta_source_type": beta_info["source_type"],
+                "selection_rule": "Choose the candidate with minimum required thickness, assuming weight is proportional to thickness for the compared alloy family.",
+            },
+            "results": {
+                "geometry": {
+                    "plate_width_m": model["plate_width_m"],
+                    "plate_length_m": model["plate_length_m"],
+                    "edge_crack_a_mm": model["edge_crack_a_mm"],
+                    "required_safety_factor": model["required_safety_factor"],
+                    "h_over_b": model["h_over_b"],
+                    "a_over_b": model["a_over_b"],
+                    "beta_lookup": beta_info,
+                },
+                "candidates": evaluated,
+                "selected_candidate": selected,
+                "summary_table": summary_df.to_dict(orient="records"),
+            },
+        }
+
+    @staticmethod
+    def _build_model(inputs: dict[str, Any]) -> dict[str, Any]:
+        required = ["force_N", "plate_width_m", "plate_length_m", "edge_crack_a_mm", "required_safety_factor"]
+        missing = [key for key in required if key not in inputs]
+        if missing:
+            raise ValueError(f"Missing required inputs: {', '.join(missing)}")
+        width_m = float(inputs["plate_width_m"])
+        length_m = float(inputs["plate_length_m"])
+        a_mm = float(inputs["edge_crack_a_mm"])
+        a_m = a_mm * 1.0e-3
+        h_m = length_m / 2.0
+        b_m = width_m
+        return {
+            "force_N": float(inputs["force_N"]),
+            "plate_width_m": width_m,
+            "plate_length_m": length_m,
+            "edge_crack_a_mm": a_mm,
+            "a_m": a_m,
+            "required_safety_factor": float(inputs["required_safety_factor"]),
+            "h_over_b": h_m / b_m,
+            "a_over_b": a_m / b_m,
+        }
+
+    def _build_candidates(self, inputs: dict[str, Any]) -> list[dict[str, Any]]:
+        if inputs.get("candidate_rows"):
+            rows = []
+            for idx, row in enumerate(inputs["candidate_rows"], start=1):
+                rows.append({
+                    "candidate_label": row.get("candidate_label", f"candidate_{idx}"),
+                    "material_family": row["material_family"],
+                    "material_grade": row["material_grade"],
+                    "K_Ic_MPa_sqrt_m": float(row["K_Ic_MPa_sqrt_m"]),
+                    "Syt_MPa": float(row["Syt_MPa"]),
+                })
+            return rows
+
+        table_filter = inputs.get("table_5_1_filter")
+        if not table_filter:
+            raise ValueError("Provide either 'candidate_rows' or 'table_5_1_filter'.")
+        rows = self.table_5_1.lookup_all(table_filter["material_family"], table_filter["material_grade"])
+        labeled = []
+        for idx, row in enumerate(rows, start=1):
+            labeled.append({
+                **row,
+                "candidate_label": row.get("candidate_label", f"{table_filter['material_family']} {table_filter['material_grade']} option {idx}"),
+            })
+        return labeled
+
+    def _resolve_beta(self, model: dict[str, Any], inputs: dict[str, Any]) -> dict[str, Any]:
+        if inputs.get("beta_override") is not None:
+            return {"source_type": "override", "beta": float(inputs["beta_override"])}
+
+        figure_id = str(inputs.get("beta_figure_id", "figure_5_26"))
+        family = str(inputs.get("figure_5_26_family", "solid_no_bending_constraints"))
+        h_over_b = model["h_over_b"]
+        a_over_b = model["a_over_b"]
+        if not isclose(h_over_b, 1.0, rel_tol=1e-9, abs_tol=1e-12):
+            raise ValueError(f"Current implementation expects h/b = 1.0 for figure_5_26 exact-curve lookup; got {h_over_b}.")
+        curve_key = "h_over_b_1_0"
+        info = self.figure_library.interpolate_named_curve(figure_id=figure_id, x=a_over_b, family=family, curve_key=curve_key)
+        return {
+            "source_type": "figure_json",
+            "figure_id": figure_id,
+            "family": family,
+            "curve_key": info["curve_key"],
+            "interpolation": info["interpolation"],
+            "beta": info["beta"],
+            "h_over_b": h_over_b,
+            "a_over_b": a_over_b,
+        }

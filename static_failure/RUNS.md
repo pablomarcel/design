@@ -157,3 +157,31 @@ python -m cli transverse_crack_fracture \
   --pretty \
   --show
 ```
+
+## Example 5-7 from input JSON
+
+```bash
+python -m cli run \
+  --infile example_5_7_edge_crack_alloy_selection.json \
+  --outfile example_5_7_edge_crack_alloy_selection_out.json \
+  --pretty \
+  --show
+```
+
+## Direct CLI solve
+
+```bash
+python -m cli edge_crack_alloy_selection \
+  --force-N 4000000 \
+  --plate-width-m 1.4 \
+  --plate-length-m 2.8 \
+  --edge-crack-a-mm 2.7 \
+  --required-safety-factor 1.3 \
+  --material-family Titanium \
+  --material-grade Ti-6AL-4V \
+  --beta-figure-id figure_5_26 \
+  --figure-5-26-family solid_no_bending_constraints \
+  --outfile example_5_7_edge_crack_alloy_selection_out.json \
+  --pretty \
+  --show
+```
