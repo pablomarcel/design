@@ -51,13 +51,28 @@ class StaticFailureApp:
         payload = self.io.load_json(infile)
         return self.solve_payload(payload, outfile=outfile, pretty=pretty, show=show)
 
+    @staticmethod
+    def _is_flat_mapping(mapping: dict[str, Any]) -> bool:
+        for value in mapping.values():
+            if isinstance(value, (dict, list, tuple, set)):
+                return False
+        return True
+
+    def _print_mapping(self, title: str, mapping: dict[str, Any]) -> None:
+        if not mapping:
+            return
+        if self._is_flat_mapping(mapping):
+            self.display.print_key_value_block(title, mapping)
+        else:
+            self.display.print_nested_mapping(title, mapping)
+
     def render_result(self, result: dict[str, Any]) -> None:
         self.display.print_banner(result.get("title", "Static Failure Result"))
-        self.display.print_key_value_block("Meta", result.get("meta", {}))
-        self.display.print_key_value_block("Material", result.get("material", {}))
+        self._print_mapping("Meta", result.get("meta", {}))
+        self._print_mapping("Material", result.get("material", {}))
         inputs = result.get("inputs", {})
         input_preview = {k: v for k, v in inputs.items() if k not in {"stress_states"}}
-        self.display.print_key_value_block("Inputs", input_preview)
+        self._print_mapping("Inputs", input_preview)
 
         results = result.get("results", {})
 

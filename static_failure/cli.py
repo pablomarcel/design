@@ -85,7 +85,9 @@ def build_parser() -> argparse.ArgumentParser:
     tube_parser.add_argument("--show", action="store_true", help="Render the summary table in the terminal.")
 
     brittle_parser = subparsers.add_parser("brittle_failure_strength", help="Direct CLI solve for Example 5-5 style brittle-material strength problems.")
-    brittle_parser.add_argument("--gray-cast-iron-astm-grade", type=int, required=True, help="ASTM gray cast iron grade from Table A-24.")
+    brittle_parser.add_argument("--gray-cast-iron-astm-grade", type=int, help="ASTM gray cast iron grade from Table A-24.")
+    brittle_parser.add_argument("--Sut", type=float, help="Ultimate tensile strength in the chosen strength unit.")
+    brittle_parser.add_argument("--Suc", type=float, help="Ultimate compressive strength in the chosen strength unit.")
     brittle_parser.add_argument("--strength-unit", default="kpsi", help="Strength unit label for reporting.")
     brittle_parser.add_argument("--stress-input-mode", default="linear_plane_stress_per_force", choices=["linear_plane_stress_per_force", "round_shaft_bending_torsion_linear_force"], help="How the normalized stress state is defined.")
     brittle_parser.add_argument("--sigma-x-per-force", type=float, help="Normalized sigma_x coefficient in strength_unit/force_unit.")
@@ -171,7 +173,13 @@ def build_realized_fos_stock_tube_payload_from_args(args: argparse.Namespace) ->
 
 
 def build_brittle_failure_strength_payload_from_args(args: argparse.Namespace) -> dict[str, Any]:
-    inputs: dict[str, Any] = {"solve_path": "brittle_failure_strength", "gray_cast_iron_astm_grade": args.gray_cast_iron_astm_grade, "strength_unit": args.strength_unit, "stress_input_mode": args.stress_input_mode, "design_factor": args.design_factor, "force_unit": args.force_unit, "label": args.label}
+    inputs: dict[str, Any] = {"solve_path": "brittle_failure_strength", "strength_unit": args.strength_unit, "stress_input_mode": args.stress_input_mode, "design_factor": args.design_factor, "force_unit": args.force_unit, "label": args.label}
+    if args.gray_cast_iron_astm_grade is not None:
+        inputs["gray_cast_iron_astm_grade"] = args.gray_cast_iron_astm_grade
+    if args.Sut is not None:
+        inputs["Sut"] = args.Sut
+    if args.Suc is not None:
+        inputs["Suc"] = args.Suc
     if args.stress_input_mode == "linear_plane_stress_per_force":
         if args.sigma_x_per_force is None or args.tau_xy_per_force is None:
             raise ValueError("linear_plane_stress_per_force mode requires --sigma-x-per-force and --tau-xy-per-force")
@@ -186,6 +194,8 @@ def build_brittle_failure_strength_payload_from_args(args: argparse.Namespace) -
         inputs["torsion_arm_in"] = args.torsion_arm_in
         inputs["Kf"] = args.Kf
         inputs["Kfs"] = args.Kfs
+    if inputs.get("gray_cast_iron_astm_grade") is None and not ("Sut" in inputs and "Suc" in inputs):
+        raise ValueError("Provide either --gray-cast-iron-astm-grade or both --Sut and --Suc.")
     return {"problem": "static_failure", "title": "Brittle-material strength analysis", "inputs": inputs}
 
 

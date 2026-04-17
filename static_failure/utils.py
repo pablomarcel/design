@@ -93,6 +93,15 @@ class DisplayUtils:
             if isinstance(value, dict):
                 self.console.print(f"{pad}[bold]{key}[/bold]")
                 self._print_nested_mapping_body(value, digits=digits, indent=indent + 1)
+            elif isinstance(value, list):
+                self.console.print(f"{pad}[bold]{key}[/bold]")
+                for idx, item in enumerate(value, start=1):
+                    if isinstance(item, dict):
+                        self.console.print(f"{pad}  - item_{idx}")
+                        self._print_nested_mapping_body(item, digits=digits, indent=indent + 2)
+                    else:
+                        rendered = self._format_cell(self.normalize_float(item, digits=digits))
+                        self.console.print(f"{pad}  - {rendered}")
             else:
                 rendered = self._format_cell(self.normalize_float(value, digits=digits))
                 self.console.print(f"{pad}{key}: {rendered}")

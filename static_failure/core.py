@@ -8,6 +8,27 @@ from typing import Any
 import pandas as pd
 
 
+def _stress_unit_to_psi_scale(unit: str) -> float:
+    normalized = str(unit).strip().lower()
+    scales = {
+        "psi": 1.0,
+        "kpsi": 1000.0,
+        "ksi": 1000.0,
+        "mpa": 145.03773773020923,
+        "gpa": 145037.73773020922,
+    }
+    if normalized not in scales:
+        raise ValueError(f"Unsupported stress unit: {unit}")
+    return scales[normalized]
+
+
+def convert_stress_value(value: float, from_unit: str, to_unit: str) -> float:
+    if str(from_unit).strip().lower() == str(to_unit).strip().lower():
+        return float(value)
+    value_psi = float(value) * _stress_unit_to_psi_scale(from_unit)
+    return value_psi / _stress_unit_to_psi_scale(to_unit)
+
+
 @dataclass
 class MaterialProperties:
     Syt: float
@@ -813,6 +834,13 @@ class Example55BrittleFailureStrengthSolver:
                 "Sut": material.Syt,
                 "Suc": material.Syc,
                 "material_type": "brittle",
+                "strength_properties": {
+                    "Sut": material.Syt,
+                    "Suc": material.Syc,
+                    "strength_unit": material.strength_unit,
+                    "governing_strength_names": ["Sut", "Suc"],
+                    "note": "For brittle-material paths, Sut and Suc are the governing strengths. Syt and Syc are retained as internal compatibility aliases.",
+                },
             },
             "meta": {
                 "solve_path": self.solve_path,
@@ -824,6 +852,7 @@ class Example55BrittleFailureStrengthSolver:
                 "critical_section": {
                     "label": normalized.get("label", "brittle_failure_strength_case"),
                     "description": normalized.get("description", "Critical plane-stress section for brittle failure."),
+                    "resolved_stress_representation": "plane_stress",
                     "normalized_stress_state_per_unit_force": {
                         "sigma_x_per_force": normalized["sigma_x"],
                         "sigma_y_per_force": normalized["sigma_y"],
