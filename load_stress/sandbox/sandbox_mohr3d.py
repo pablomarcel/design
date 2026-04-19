@@ -4,10 +4,11 @@ sandbox_mohr3d.py
 
 CLI sandbox for 3D stress-state calculations and Mohr-circle plotting.
 
-This sandbox now includes:
+This sandbox includes:
 - automatic plot persistence in the same directory as this script
 - richer plane-stress visualization inspired by Shigley's Figure 3-11
 - principal-stress and maximum-shear stress-element sketches for plane stress
+- optional arbitrary-angle stress transformation for plane stress via --phi-deg
 - fallback 3D Mohr-circle plot for general 3D stress states
 
 Notes
@@ -59,6 +60,16 @@ class PlaneStressResults:
     point_y: tuple[float, float]
 
 
+@dataclass
+class RotatedPlaneStressResults:
+    phi_deg_ccw: float
+    sigma_x_prime: float
+    sigma_y_prime: float
+    tau_x_prime_y_prime: float
+    point_x_prime: tuple[float, float]
+    point_y_prime: tuple[float, float]
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="3D stress tensor sandbox with Mohr-circle plotting."
@@ -75,6 +86,12 @@ def build_parser() -> argparse.ArgumentParser:
         type=float,
         default=0.0,
         help="Shear stress τxz (legacy alias --tzx also accepted)",
+    )
+    parser.add_argument(
+        "--phi-deg",
+        type=float,
+        default=None,
+        help="Optional arbitrary in-plane rotation angle φ in degrees, positive ccw from x to x'. Plane-stress mode only.",
     )
     parser.add_argument(
         "--show-plot",
@@ -191,7 +208,6 @@ def analyze_plane_stress(stress: np.ndarray) -> PlaneStressResults:
     sigma2 = sigma_avg - radius
     tau_max = radius
 
-    # Standard tensor sign convention / transformation equations.
     theta_p_rad = 0.5 * math.atan2(2.0 * txy, sxx - syy)
     theta_s_rad = theta_p_rad + math.pi / 4.0
 
@@ -208,6 +224,34 @@ def analyze_plane_stress(stress: np.ndarray) -> PlaneStressResults:
         theta_s_deg_ccw=math.degrees(theta_s_rad),
         point_x=point_x,
         point_y=point_y,
+    )
+
+
+def analyze_rotated_plane_stress(stress: np.ndarray, phi_deg_ccw: float) -> RotatedPlaneStressResults:
+    sxx = float(stress[0, 0])
+    syy = float(stress[1, 1])
+    txy = float(stress[0, 1])
+
+    phi_rad = math.radians(phi_deg_ccw)
+    c2 = math.cos(2.0 * phi_rad)
+    s2 = math.sin(2.0 * phi_rad)
+    avg = 0.5 * (sxx + syy)
+    half_diff = 0.5 * (sxx - syy)
+
+    sigma_x_prime = avg + half_diff * c2 + txy * s2
+    sigma_y_prime = avg - half_diff * c2 - txy * s2
+    tau_x_prime_y_prime = -half_diff * s2 + txy * c2
+
+    point_x_prime = (sigma_x_prime, -tau_x_prime_y_prime)
+    point_y_prime = (sigma_y_prime, tau_x_prime_y_prime)
+
+    return RotatedPlaneStressResults(
+        phi_deg_ccw=phi_deg_ccw,
+        sigma_x_prime=sigma_x_prime,
+        sigma_y_prime=sigma_y_prime,
+        tau_x_prime_y_prime=tau_x_prime_y_prime,
+        point_x_prime=point_x_prime,
+        point_y_prime=point_y_prime,
     )
 
 
@@ -255,88 +299,140 @@ def draw_arrow(ax: plt.Axes, start: tuple[float, float], end: tuple[float, float
     )
 
 
-def draw_input_element(ax: plt.Axes, sxx: float, syy: float, txy: float) -> None:
-    ax.set_title("Input stress element")
+def _vec(angle_deg: float) -> np.ndarray:
+    ang = math.radians(angle_deg)
+    return np.array([math.cos(ang), math.sin(ang)], dtype=float)
+
+
+def draw_stress_element_generic(
+    ax: plt.Axes,
+    *,
+    title: str,
+    angle_deg: float,
+    sigma_x: float,
+    sigma_y: float,
+    tau_xy: float,
+    footer_lines: list[str],
+    extra_text: Optional[list[tuple[float, float, str]]] = None,
+) -> None:
+    ax.set_title(title)
     ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
-    draw_rotated_square(ax, center=(0, 0), size=1.8, angle_deg=0.0)
 
-    # Axes
+    draw_rotated_square(ax, center=(0.0, 0.0), size=1.8, angle_deg=angle_deg)
+
     draw_arrow(ax, (0.0, 0.0), (1.8, 0.0))
     draw_arrow(ax, (0.0, 0.0), (0.0, 1.8))
     ax.text(1.95, -0.05, "x", fontsize=10)
     ax.text(-0.08, 1.95, "y", fontsize=10)
 
-    # Normal stress arrows
-    if abs(sxx) > 1e-12:
-        draw_arrow(ax, (0.9, 0.0), (1.5, 0.0) if sxx > 0 else (0.3, 0.0))
-        draw_arrow(ax, (-0.9, 0.0), (-1.5, 0.0) if sxx > 0 else (-0.3, 0.0))
-        ax.text(1.55, 0.08, f"σx={sxx:.3g}")
-    if abs(syy) > 1e-12:
-        draw_arrow(ax, (0.0, 0.9), (0.0, 1.5) if syy > 0 else (0.0, 0.3))
-        draw_arrow(ax, (0.0, -0.9), (0.0, -1.5) if syy > 0 else (0.0, -0.3))
-        ax.text(0.08, 1.55, f"σy={syy:.3g}")
+    ex = _vec(angle_deg)
+    ey = _vec(angle_deg + 90.0)
+    h = 0.9
+    normal_len = 0.55
+    shear_len = 0.55
 
-    # Shear stress arrows following standard tensor sign convention.
-    if abs(txy) > 1e-12:
-        if txy > 0:
-            draw_arrow(ax, (0.55, 0.9), (-0.55, 0.9))
-            draw_arrow(ax, (-0.55, -0.9), (0.55, -0.9))
-            draw_arrow(ax, (0.9, -0.55), (0.9, 0.55))
-            draw_arrow(ax, (-0.9, 0.55), (-0.9, -0.55))
-        else:
-            draw_arrow(ax, (-0.55, 0.9), (0.55, 0.9))
-            draw_arrow(ax, (0.55, -0.9), (-0.55, -0.9))
-            draw_arrow(ax, (0.9, 0.55), (0.9, -0.55))
-            draw_arrow(ax, (-0.9, -0.55), (-0.9, 0.55))
-        ax.text(-1.8, 1.4, f"τxy={txy:.3g}")
+    face_centers = {
+        "+x": h * ex,
+        "-x": -h * ex,
+        "+y": h * ey,
+        "-y": -h * ey,
+    }
 
-    ax.set_xlim(-2.2, 2.4)
-    ax.set_ylim(-2.0, 2.2)
+    # Normal stress arrows.
+    sign_x = 1.0 if sigma_x >= 0.0 else -1.0
+    sign_y = 1.0 if sigma_y >= 0.0 else -1.0
+    draw_arrow(ax, tuple(face_centers["+x"]), tuple(face_centers["+x"] + sign_x * normal_len * ex))
+    draw_arrow(ax, tuple(face_centers["-x"]), tuple(face_centers["-x"] - sign_x * normal_len * ex))
+    draw_arrow(ax, tuple(face_centers["+y"]), tuple(face_centers["+y"] + sign_y * normal_len * ey))
+    draw_arrow(ax, tuple(face_centers["-y"]), tuple(face_centers["-y"] - sign_y * normal_len * ey))
+
+    # Shear stress arrows in standard tensor sign convention.
+    sign_tau = 1.0 if tau_xy >= 0.0 else -1.0
+    draw_arrow(ax, tuple(face_centers["+x"]), tuple(face_centers["+x"] + sign_tau * shear_len * ey))
+    draw_arrow(ax, tuple(face_centers["-x"]), tuple(face_centers["-x"] - sign_tau * shear_len * ey))
+    draw_arrow(ax, tuple(face_centers["+y"]), tuple(face_centers["+y"] + sign_tau * shear_len * ex))
+    draw_arrow(ax, tuple(face_centers["-y"]), tuple(face_centers["-y"] - sign_tau * shear_len * ex))
+
+    # Labels.
+    ax.text(*(1.02 * face_centers["+x"] + np.array([0.35, 0.15])), f"σx={sigma_x:.3f}")
+    ax.text(*(-1.12 * face_centers["+x"] + np.array([-0.15, 0.15])), f"σx={sigma_x:.3f}")
+    ax.text(*(1.00 * face_centers["+y"] + np.array([0.12, 0.28])), f"σy={sigma_y:.3f}")
+    ax.text(*(-1.00 * face_centers["+y"] + np.array([0.12, -0.40])), f"σy={sigma_y:.3f}")
+    ax.text(-2.1, 1.45, f"τxy={tau_xy:.3f}")
+
+    if extra_text:
+        for x, y, txt in extra_text:
+            ax.text(x, y, txt)
+
+    base_y = -2.1
+    for i, line in enumerate(footer_lines):
+        ax.text(0.65, base_y - 0.28 * i, line)
+
+    ax.set_xlim(-2.4, 2.6)
+    ax.set_ylim(-2.45, 2.3)
+
+
+def draw_input_element(ax: plt.Axes, sxx: float, syy: float, txy: float) -> None:
+    draw_stress_element_generic(
+        ax,
+        title="Input stress element",
+        angle_deg=0.0,
+        sigma_x=sxx,
+        sigma_y=syy,
+        tau_xy=txy,
+        footer_lines=[],
+        extra_text=None,
+    )
 
 
 def draw_principal_element(ax: plt.Axes, plane: PlaneStressResults) -> None:
-    ax.set_title("Principal stress element")
-    ax.set_aspect("equal", adjustable="box")
-    ax.axis("off")
-
-    angle_plot_deg = plane.theta_p_deg_ccw
-    draw_rotated_square(ax, center=(0, 0), size=1.8, angle_deg=angle_plot_deg)
-
-    draw_arrow(ax, (0.0, 0.0), (1.8, 0.0))
-    draw_arrow(ax, (0.0, 0.0), (0.0, 1.8))
-    ax.text(1.95, -0.05, "x", fontsize=10)
-    ax.text(-0.08, 1.95, "y", fontsize=10)
-
-    ax.text(1.1, -1.55, f"θp={plane.theta_p_deg_ccw:.2f}° ccw")
-    ax.text(0.95, -1.85, f"σ1={plane.sigma1:.3f}")
-    ax.text(-1.85, 1.45, f"σ2={plane.sigma2:.3f}")
-
-    ax.set_xlim(-2.2, 2.4)
-    ax.set_ylim(-2.1, 2.2)
+    draw_stress_element_generic(
+        ax,
+        title="Principal stress element",
+        angle_deg=plane.theta_p_deg_ccw,
+        sigma_x=plane.sigma1,
+        sigma_y=plane.sigma2,
+        tau_xy=0.0,
+        footer_lines=[
+            f"θp={plane.theta_p_deg_ccw:.2f}° ccw",
+            f"σ1={plane.sigma1:.3f}",
+            f"σ2={plane.sigma2:.3f}",
+        ],
+    )
 
 
 def draw_max_shear_element(ax: plt.Axes, plane: PlaneStressResults) -> None:
-    ax.set_title("Maximum in-plane shear element")
-    ax.set_aspect("equal", adjustable="box")
-    ax.axis("off")
+    draw_stress_element_generic(
+        ax,
+        title="Maximum in-plane shear element",
+        angle_deg=plane.theta_s_deg_ccw,
+        sigma_x=plane.sigma_avg,
+        sigma_y=plane.sigma_avg,
+        tau_xy=plane.tau_max_in_plane,
+        footer_lines=[
+            f"θs={plane.theta_s_deg_ccw:.2f}° ccw",
+            f"σ={plane.sigma_avg:.3f}",
+            f"τmax={plane.tau_max_in_plane:.3f}",
+        ],
+    )
 
-    angle_plot_deg = plane.theta_s_deg_ccw
-    draw_rotated_square(ax, center=(0, 0), size=1.8, angle_deg=angle_plot_deg)
 
-    draw_arrow(ax, (0.0, 0.0), (1.8, 0.0))
-    draw_arrow(ax, (0.0, 0.0), (0.0, 1.8))
-    ax.text(1.95, -0.05, "x", fontsize=10)
-    ax.text(-0.08, 1.95, "y", fontsize=10)
-
-    sigma_avg = plane.sigma_avg
-    tau = plane.tau_max_in_plane
-    ax.text(0.95, -1.55, f"θs={plane.theta_s_deg_ccw:.2f}° ccw")
-    ax.text(1.0, 1.45, f"σ={sigma_avg:.3f}")
-    ax.text(-1.75, 1.45, f"τmax={tau:.3f}")
-
-    ax.set_xlim(-2.2, 2.4)
-    ax.set_ylim(-2.1, 2.2)
+def draw_arbitrary_angle_element(ax: plt.Axes, rotated: RotatedPlaneStressResults) -> None:
+    draw_stress_element_generic(
+        ax,
+        title="Arbitrary-angle stress element",
+        angle_deg=rotated.phi_deg_ccw,
+        sigma_x=rotated.sigma_x_prime,
+        sigma_y=rotated.sigma_y_prime,
+        tau_xy=rotated.tau_x_prime_y_prime,
+        footer_lines=[
+            f"φ={rotated.phi_deg_ccw:.2f}° ccw",
+            f"σx'={rotated.sigma_x_prime:.3f}",
+            f"σy'={rotated.sigma_y_prime:.3f}",
+            f"τx'y'={rotated.tau_x_prime_y_prime:.3f}",
+        ],
+    )
 
 
 def annotate_angle_arc(
@@ -359,6 +455,7 @@ def annotate_angle_arc(
 def plot_plane_stress_dashboard(
     stress: np.ndarray,
     plane: PlaneStressResults,
+    rotated: Optional[RotatedPlaneStressResults],
     outfile: Path,
     show_plot: bool,
 ) -> None:
@@ -366,19 +463,45 @@ def plot_plane_stress_dashboard(
     syy = float(stress[1, 1])
     txy = float(stress[0, 1])
 
-    fig = plt.figure(figsize=(14, 10))
-    gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 1.45], height_ratios=[1.0, 1.0])
-
-    ax_input = fig.add_subplot(gs[0, 0])
-    ax_mohr = fig.add_subplot(gs[0, 1])
-    ax_principal = fig.add_subplot(gs[1, 0])
-    ax_shear = fig.add_subplot(gs[1, 1])
+    if rotated is None:
+        fig = plt.figure(figsize=(14, 10))
+        gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 1.45], height_ratios=[1.0, 1.0])
+        ax_input = fig.add_subplot(gs[0, 0])
+        ax_mohr = fig.add_subplot(gs[0, 1])
+        ax_principal = fig.add_subplot(gs[1, 0])
+        ax_shear = fig.add_subplot(gs[1, 1])
+        ax_rot = None
+    else:
+        fig = plt.figure(figsize=(17, 10))
+        gs = fig.add_gridspec(2, 3, width_ratios=[1.0, 1.45, 1.0], height_ratios=[1.0, 1.0])
+        ax_input = fig.add_subplot(gs[0, 0])
+        ax_mohr = fig.add_subplot(gs[0, 1])
+        ax_rot = fig.add_subplot(gs[0, 2])
+        ax_principal = fig.add_subplot(gs[1, 0])
+        ax_shear = fig.add_subplot(gs[1, 1])
+        ax_blank = fig.add_subplot(gs[1, 2])
+        ax_blank.axis("off")
+        ax_blank.text(
+            0.02,
+            0.98,
+            "Optional arbitrary-angle mode\n\n"
+            "Reported values:\n"
+            "• σx'\n"
+            "• σy'\n"
+            "• τx'y'\n\n"
+            "Mohr-circle point pair:\n"
+            "• Pφ = (σx', -τx'y')\n"
+            "• Qφ = (σy',  τx'y')",
+            va="top",
+            fontsize=11,
+        )
 
     draw_input_element(ax_input, sxx=sxx, syy=syy, txy=txy)
     draw_principal_element(ax_principal, plane)
     draw_max_shear_element(ax_shear, plane)
+    if ax_rot is not None and rotated is not None:
+        draw_arbitrary_angle_element(ax_rot, rotated)
 
-    # Mohr circle panel
     ax_mohr.set_title("Plane-stress Mohr circle")
     ax_mohr.set_aspect("equal", adjustable="box")
     theta = np.linspace(0.0, 2.0 * np.pi, 800)
@@ -386,7 +509,6 @@ def plot_plane_stress_dashboard(
     y = plane.radius * np.sin(theta)
     ax_mohr.plot(x, y, linewidth=2.0)
 
-    # Key points matching the book narrative.
     A = plane.point_x
     B = plane.point_y
     C = (plane.sigma_avg, 0.0)
@@ -418,9 +540,8 @@ def plot_plane_stress_dashboard(
     ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linestyle="--", linewidth=1.1)
     ax_mohr.plot([D[0], D[0]], [0.0, A[1]], linestyle="--", linewidth=0.9)
     ax_mohr.plot([C[0], C[0]], [F[1], E[1]], linestyle="--", linewidth=0.9)
-
-    # Radius line from center to A.
     ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.2)
+
     angle_CA = math.degrees(math.atan2(A[1] - C[1], A[0] - C[0]))
     annotate_angle_arc(
         ax_mohr,
@@ -431,7 +552,33 @@ def plot_plane_stress_dashboard(
         text=f"2θp={angle_CA:.2f}°",
     )
 
-    # Helpful coordinate labels.
+    if rotated is not None:
+        Pphi = rotated.point_x_prime
+        Qphi = rotated.point_y_prime
+        ax_mohr.plot(Pphi[0], Pphi[1], marker="o")
+        ax_mohr.plot(Qphi[0], Qphi[1], marker="o")
+        ax_mohr.annotate("Pφ", xy=Pphi, xytext=(6, 6), textcoords="offset points")
+        ax_mohr.annotate("Qφ", xy=Qphi, xytext=(6, -14), textcoords="offset points")
+        ax_mohr.plot([C[0], Pphi[0]], [C[1], Pphi[1]], linestyle=":", linewidth=1.3)
+        angle_CP = math.degrees(math.atan2(Pphi[1] - C[1], Pphi[0] - C[0]))
+        annotate_angle_arc(
+            ax_mohr,
+            center=C,
+            radius=max(plane.radius * 0.30, 8.0),
+            theta1_deg=angle_CA,
+            theta2_deg=angle_CP,
+            text=f"2φ={2.0 * rotated.phi_deg_ccw:.2f}°",
+            text_radius_scale=1.22,
+        )
+        ax_mohr.annotate(
+            f"σx'={rotated.sigma_x_prime:.3f}\nσy'={rotated.sigma_y_prime:.3f}\nτx'y'={rotated.tau_x_prime_y_prime:.3f}",
+            xy=Pphi,
+            xytext=(12, -48),
+            textcoords="offset points",
+            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.9),
+            fontsize=10,
+        )
+
     ax_mohr.annotate(f"({A[0]:.3f}, {A[1]:.3f})", xy=A, xytext=(8, 8), textcoords="offset points")
     ax_mohr.annotate(f"({B[0]:.3f}, {B[1]:.3f})", xy=B, xytext=(-60, -18), textcoords="offset points")
     ax_mohr.text(C[0], -0.10 * plane.radius, f"σavg={plane.sigma_avg:.3f}", ha="center")
@@ -499,7 +646,12 @@ def plot_mohr_3d(principal: np.ndarray, outfile: Path, show_plot: bool) -> None:
         plt.close(fig)
 
 
-def pretty_print(results: StressResults, digits: int, plane: Optional[PlaneStressResults]) -> None:
+def pretty_print(
+    results: StressResults,
+    digits: int,
+    plane: Optional[PlaneStressResults],
+    rotated: Optional[RotatedPlaneStressResults],
+) -> None:
     p = results.principal_stresses
     inv = results.invariants
     fmt = f"{{:.{digits}f}}"
@@ -533,6 +685,14 @@ def pretty_print(results: StressResults, digits: int, plane: Optional[PlaneStres
         print(f"θs (ccw)            = {fmt.format(plane.theta_s_deg_ccw)} deg")
         print("Note: for Shigley Example 3-4, θp is often discussed by magnitude and orientation on the element sketch.")
 
+    if rotated is not None:
+        print("\nARBITRARY-ANGLE SUMMARY")
+        print(f"φ (ccw)             = {fmt.format(rotated.phi_deg_ccw)} deg")
+        print(f"σ(phi)_x'           = {fmt.format(rotated.sigma_x_prime)}")
+        print(f"σ(phi)_y'           = {fmt.format(rotated.sigma_y_prime)}")
+        print(f"τ(phi)_x'y'         = {fmt.format(rotated.tau_x_prime_y_prime)}")
+        print("Note: these values are computed with the standard plane-stress transformation equations.")
+
 
 def main() -> None:
     parser = build_parser()
@@ -549,12 +709,18 @@ def main() -> None:
 
     results = analyze_stress(stress)
     plane = analyze_plane_stress(stress) if is_plane_stress_case(stress) else None
-    pretty_print(results, digits=args.digits, plane=plane)
+    rotated = None
+    if args.phi_deg is not None:
+        if plane is None:
+            raise SystemExit("--phi-deg is only supported for plane-stress cases in this sandbox release.")
+        rotated = analyze_rotated_plane_stress(stress, args.phi_deg)
+
+    pretty_print(results, digits=args.digits, plane=plane, rotated=rotated)
 
     if args.show_plot or args.save_plot == "":
         outfile = resolve_plot_path(args.save_plot)
         if plane is not None:
-            plot_plane_stress_dashboard(stress, plane, outfile=outfile, show_plot=args.show_plot)
+            plot_plane_stress_dashboard(stress, plane, rotated=rotated, outfile=outfile, show_plot=args.show_plot)
         else:
             plot_mohr_3d(results.principal_stresses, outfile=outfile, show_plot=args.show_plot)
 

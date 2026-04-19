@@ -15,3 +15,13 @@ python -m sandbox.sandbox_mohr3d \
   --txy -50 --tyz 0 --txz 0 \
   --show-plot
 ```
+
+## sandbox - Example 3-4 - Optional Phi
+
+```bash
+python -m sandbox.sandbox_mohr3d \
+  --sxx 80 --syy 0 --szz 0 \
+  --txy -50 --tyz 0 --txz 0 \
+  --phi-deg 15 \
+  --show-plot
+```
