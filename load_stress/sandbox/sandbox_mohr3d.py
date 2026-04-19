@@ -18,23 +18,25 @@ Features
 Usage examples
 --------------
 1) General 3D stress state:
-    python sandbox_mohr3d.py \
+    python -m sandbox.sandbox_mohr3d \
         --sxx 12 --syy 20 --szz -8 \
-        --txy 6 --tyz -3 --tzx 4 \
+        --txy 6 --tyz -3 --txz 4 \
         --show-plot
 
 2) Example with output only:
-    python sandbox_mohr3d.py \
+    python -m sandbox.sandbox_mohr3d \
         --sxx 80 --syy 20 --szz 0 \
-        --txy 30 --tyz 0 --tzx 0
+        --txy 30 --tyz 0 --txz 0
 
 Notes
 -----
-- Sign convention: positive tension
-- Tensor assumed symmetric:
-      [ sxx  txy  tzx ]
+- Sign convention: positive tension for normal stress
+- Tensor assumed symmetric
+- Notation follows Shigley-style component names:
+      [ sxx  txy  txz ]
       [ txy  syy  tyz ]
-      [ tzx  tyz  szz ]
+      [ txz  tyz  szz ]
+- Backward-compatible alias: --tzx is still accepted and mapped to --txz
 """
 
 from __future__ import annotations
@@ -43,8 +45,8 @@ import argparse
 import math
 from dataclasses import dataclass
 
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 @dataclass
@@ -66,23 +68,30 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--szz", type=float, required=True, help="Normal stress σzz")
     parser.add_argument("--txy", type=float, default=0.0, help="Shear stress τxy")
     parser.add_argument("--tyz", type=float, default=0.0, help="Shear stress τyz")
-    parser.add_argument("--tzx", type=float, default=0.0, help="Shear stress τzx")
+    parser.add_argument(
+        "--txz",
+        "--tzx",
+        dest="txz",
+        type=float,
+        default=0.0,
+        help="Shear stress τxz (legacy alias --tzx also accepted)",
+    )
     parser.add_argument(
         "--show-plot",
         action="store_true",
-        help="Display the Mohr-circle plot."
+        help="Display the Mohr-circle plot.",
     )
     parser.add_argument(
         "--save-plot",
         type=str,
         default="",
-        help="Optional file path to save the plot, e.g. mohr3d.png"
+        help="Optional file path to save the plot, e.g. mohr3d.png",
     )
     parser.add_argument(
         "--digits",
         type=int,
         default=6,
-        help="Number of decimal places for text output."
+        help="Number of decimal places for text output.",
     )
     return parser
 
@@ -93,13 +102,13 @@ def make_stress_tensor(
     szz: float,
     txy: float,
     tyz: float,
-    tzx: float,
+    txz: float,
 ) -> np.ndarray:
     return np.array(
         [
-            [sxx, txy, tzx],
+            [sxx, txy, txz],
             [txy, syy, tyz],
-            [tzx, tyz, szz],
+            [txz, tyz, szz],
         ],
         dtype=float,
     )
@@ -121,13 +130,14 @@ def compute_invariants(stress: np.ndarray) -> dict[str, float]:
 
 def compute_von_mises(stress: np.ndarray) -> float:
     sxx, syy, szz = stress[0, 0], stress[1, 1], stress[2, 2]
-    txy, tyz, tzx = stress[0, 1], stress[1, 2], stress[0, 2]
+    txy, tyz, txz = stress[0, 1], stress[1, 2], stress[0, 2]
     vm = math.sqrt(
-        0.5 * (
+        0.5
+        * (
             (sxx - syy) ** 2
             + (syy - szz) ** 2
             + (szz - sxx) ** 2
-            + 6.0 * (txy**2 + tyz**2 + tzx**2)
+            + 6.0 * (txy**2 + tyz**2 + txz**2)
         )
     )
     return float(vm)
@@ -136,9 +146,9 @@ def compute_von_mises(stress: np.ndarray) -> float:
 def analyze_stress(stress: np.ndarray) -> StressResults:
     eigenvalues, _ = np.linalg.eigh(stress)
     principal = np.sort(eigenvalues)[::-1]  # σ1 >= σ2 >= σ3
-    sigma1, sigma2, sigma3 = principal
+    sigma1, _, sigma3 = principal
 
-    mean_stress = float((sigma1 + sigma2 + sigma3) / 3.0)
+    mean_stress = float(np.mean(principal))
     max_shear = float((sigma1 - sigma3) / 2.0)
     von_mises = compute_von_mises(stress)
     invariants = compute_invariants(stress)
@@ -181,6 +191,7 @@ def plot_mohr_3d(principal: np.ndarray, outfile: str = "") -> None:
     circles = mohr_circle_data(principal)
 
     fig, ax = plt.subplots(figsize=(8, 6))
+    ax.set_aspect("equal", adjustable="box")
 
     theta = np.linspace(0.0, 2.0 * np.pi, 800)
 
@@ -196,7 +207,7 @@ def plot_mohr_3d(principal: np.ndarray, outfile: str = "") -> None:
         [sigma1, sigma2, sigma3],
         [0.0, 0.0, 0.0],
         marker="o",
-        label="Principal stresses"
+        label="Principal stresses",
     )
 
     ax.axhline(0.0, linewidth=1.0)
@@ -257,7 +268,7 @@ def main() -> None:
         szz=args.szz,
         txy=args.txy,
         tyz=args.tyz,
-        tzx=args.tzx,
+        txz=args.txz,
     )
 
     results = analyze_stress(stress)
