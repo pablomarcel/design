@@ -91,7 +91,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--phi-deg",
         type=float,
         default=None,
-        help="Optional arbitrary in-plane rotation angle φ in degrees, positive ccw from x to x'. Plane-stress mode only.",
+        help=(
+            "Optional arbitrary in-plane rotation angle φ in degrees, positive ccw "
+            "from x to x'. Plane-stress mode only."
+        ),
     )
     parser.add_argument(
         "--show-plot",
@@ -178,7 +181,6 @@ def analyze_stress(stress: np.ndarray) -> StressResults:
     eigenvalues, _ = np.linalg.eigh(stress)
     principal = np.sort(eigenvalues)[::-1]
     sigma1, _, sigma3 = principal
-
     return StressResults(
         tensor=stress,
         principal_stresses=principal,
@@ -276,6 +278,11 @@ def mohr_circle_data(principal: np.ndarray) -> list[dict[str, float]]:
     return circles
 
 
+def _vec(angle_deg: float) -> np.ndarray:
+    ang = math.radians(angle_deg)
+    return np.array([math.cos(ang), math.sin(ang)], dtype=float)
+
+
 def draw_rotated_square(ax: plt.Axes, center: tuple[float, float], size: float, angle_deg: float) -> None:
     lower_left = (center[0] - size / 2.0, center[1] - size / 2.0)
     rect = patches.Rectangle(
@@ -285,23 +292,35 @@ def draw_rotated_square(ax: plt.Axes, center: tuple[float, float], size: float, 
         angle=angle_deg,
         rotation_point=center,
         fill=False,
-        linewidth=1.8,
+        linewidth=2.0,
+        edgecolor="black",
     )
     ax.add_patch(rect)
 
 
-def draw_arrow(ax: plt.Axes, start: tuple[float, float], end: tuple[float, float], lw: float = 1.5) -> None:
+def draw_arrow(
+    ax: plt.Axes,
+    start: tuple[float, float],
+    end: tuple[float, float],
+    lw: float = 1.6,
+) -> None:
     ax.annotate(
         "",
         xy=end,
         xytext=start,
-        arrowprops=dict(arrowstyle="->", linewidth=lw),
+        arrowprops=dict(arrowstyle="->", linewidth=lw, shrinkA=0.0, shrinkB=0.0),
     )
 
 
-def _vec(angle_deg: float) -> np.ndarray:
-    ang = math.radians(angle_deg)
-    return np.array([math.cos(ang), math.sin(ang)], dtype=float)
+def add_axes_marker(ax: plt.Axes) -> None:
+    draw_arrow(ax, (0.0, 0.0), (1.75, 0.0), lw=1.8)
+    draw_arrow(ax, (0.0, 0.0), (0.0, 1.75), lw=1.8)
+    ax.text(1.92, -0.06, "x", fontsize=10)
+    ax.text(-0.08, 1.92, "y", fontsize=10)
+
+
+def _stress_label(value: float) -> str:
+    return f"{value:.3f}"
 
 
 def draw_stress_element_generic(
@@ -312,25 +331,21 @@ def draw_stress_element_generic(
     sigma_x: float,
     sigma_y: float,
     tau_xy: float,
-    footer_lines: list[str],
-    extra_text: Optional[list[tuple[float, float, str]]] = None,
+    subtitle_lines: list[str],
+    notation_prime: bool = False,
 ) -> None:
-    ax.set_title(title)
+    ax.set_title(title, fontsize=12, pad=8)
     ax.set_aspect("equal", adjustable="box")
     ax.axis("off")
 
     draw_rotated_square(ax, center=(0.0, 0.0), size=1.8, angle_deg=angle_deg)
-
-    draw_arrow(ax, (0.0, 0.0), (1.8, 0.0))
-    draw_arrow(ax, (0.0, 0.0), (0.0, 1.8))
-    ax.text(1.95, -0.05, "x", fontsize=10)
-    ax.text(-0.08, 1.95, "y", fontsize=10)
+    add_axes_marker(ax)
 
     ex = _vec(angle_deg)
     ey = _vec(angle_deg + 90.0)
     h = 0.9
-    normal_len = 0.55
-    shear_len = 0.55
+    normal_len = 0.48
+    shear_len = 0.42
 
     face_centers = {
         "+x": h * ex,
@@ -339,38 +354,41 @@ def draw_stress_element_generic(
         "-y": -h * ey,
     }
 
-    # Normal stress arrows.
     sign_x = 1.0 if sigma_x >= 0.0 else -1.0
     sign_y = 1.0 if sigma_y >= 0.0 else -1.0
+
     draw_arrow(ax, tuple(face_centers["+x"]), tuple(face_centers["+x"] + sign_x * normal_len * ex))
     draw_arrow(ax, tuple(face_centers["-x"]), tuple(face_centers["-x"] - sign_x * normal_len * ex))
     draw_arrow(ax, tuple(face_centers["+y"]), tuple(face_centers["+y"] + sign_y * normal_len * ey))
     draw_arrow(ax, tuple(face_centers["-y"]), tuple(face_centers["-y"] - sign_y * normal_len * ey))
 
-    # Shear stress arrows in standard tensor sign convention.
-    sign_tau = 1.0 if tau_xy >= 0.0 else -1.0
-    draw_arrow(ax, tuple(face_centers["+x"]), tuple(face_centers["+x"] + sign_tau * shear_len * ey))
-    draw_arrow(ax, tuple(face_centers["-x"]), tuple(face_centers["-x"] - sign_tau * shear_len * ey))
-    draw_arrow(ax, tuple(face_centers["+y"]), tuple(face_centers["+y"] + sign_tau * shear_len * ex))
-    draw_arrow(ax, tuple(face_centers["-y"]), tuple(face_centers["-y"] - sign_tau * shear_len * ex))
+    if abs(tau_xy) > 1e-12:
+        sign_tau = 1.0 if tau_xy >= 0.0 else -1.0
+        draw_arrow(ax, tuple(face_centers["+x"]), tuple(face_centers["+x"] + sign_tau * shear_len * ey))
+        draw_arrow(ax, tuple(face_centers["-x"]), tuple(face_centers["-x"] - sign_tau * shear_len * ey))
+        draw_arrow(ax, tuple(face_centers["+y"]), tuple(face_centers["+y"] + sign_tau * shear_len * ex))
+        draw_arrow(ax, tuple(face_centers["-y"]), tuple(face_centers["-y"] - sign_tau * shear_len * ex))
 
-    # Labels.
-    ax.text(*(1.02 * face_centers["+x"] + np.array([0.35, 0.15])), f"σx={sigma_x:.3f}")
-    ax.text(*(-1.12 * face_centers["+x"] + np.array([-0.15, 0.15])), f"σx={sigma_x:.3f}")
-    ax.text(*(1.00 * face_centers["+y"] + np.array([0.12, 0.28])), f"σy={sigma_y:.3f}")
-    ax.text(*(-1.00 * face_centers["+y"] + np.array([0.12, -0.40])), f"σy={sigma_y:.3f}")
-    ax.text(-2.1, 1.45, f"τxy={tau_xy:.3f}")
+    sigx_name = "σ_x'" if notation_prime else "σ_x"
+    sigy_name = "σ_y'" if notation_prime else "σ_y"
+    tauxy_name = "τ_x'y'" if notation_prime else "τ_xy"
 
-    if extra_text:
-        for x, y, txt in extra_text:
-            ax.text(x, y, txt)
+    ax.text(*(1.02 * face_centers["+x"] + np.array([0.28, 0.12])), f"{sigx_name}={_stress_label(sigma_x)}", fontsize=10)
+    ax.text(*(-1.07 * face_centers["+x"] + np.array([-0.30, 0.10])), f"{sigx_name}={_stress_label(sigma_x)}", fontsize=10)
+    ax.text(*(1.01 * face_centers["+y"] + np.array([0.06, 0.30])), f"{sigy_name}={_stress_label(sigma_y)}", fontsize=10)
+    ax.text(*(-1.01 * face_centers["+y"] + np.array([0.06, -0.34])), f"{sigy_name}={_stress_label(sigma_y)}", fontsize=10)
 
-    base_y = -2.1
-    for i, line in enumerate(footer_lines):
-        ax.text(0.65, base_y - 0.28 * i, line)
+    if abs(tau_xy) > 1e-12:
+        ax.text(-2.10, 1.38, f"{tauxy_name}={_stress_label(tau_xy)}", fontsize=10)
+    else:
+        ax.text(-2.10, 1.38, f"{tauxy_name}=0", fontsize=10)
 
-    ax.set_xlim(-2.4, 2.6)
-    ax.set_ylim(-2.45, 2.3)
+    base_y = -2.12
+    for i, line in enumerate(subtitle_lines):
+        ax.text(0.58, base_y - 0.24 * i, line, fontsize=10)
+
+    ax.set_xlim(-2.35, 2.55)
+    ax.set_ylim(-2.35, 2.25)
 
 
 def draw_input_element(ax: plt.Axes, sxx: float, syy: float, txy: float) -> None:
@@ -381,8 +399,7 @@ def draw_input_element(ax: plt.Axes, sxx: float, syy: float, txy: float) -> None
         sigma_x=sxx,
         sigma_y=syy,
         tau_xy=txy,
-        footer_lines=[],
-        extra_text=None,
+        subtitle_lines=[],
     )
 
 
@@ -394,10 +411,11 @@ def draw_principal_element(ax: plt.Axes, plane: PlaneStressResults) -> None:
         sigma_x=plane.sigma1,
         sigma_y=plane.sigma2,
         tau_xy=0.0,
-        footer_lines=[
-            f"θp={plane.theta_p_deg_ccw:.2f}° ccw",
-            f"σ1={plane.sigma1:.3f}",
-            f"σ2={plane.sigma2:.3f}",
+        subtitle_lines=[
+            f"θ_p={plane.theta_p_deg_ccw:.2f}° ccw",
+            f"σ_1={plane.sigma1:.3f}",
+            f"σ_2={plane.sigma2:.3f}",
+            "shear = 0",
         ],
     )
 
@@ -410,10 +428,11 @@ def draw_max_shear_element(ax: plt.Axes, plane: PlaneStressResults) -> None:
         sigma_x=plane.sigma_avg,
         sigma_y=plane.sigma_avg,
         tau_xy=plane.tau_max_in_plane,
-        footer_lines=[
-            f"θs={plane.theta_s_deg_ccw:.2f}° ccw",
-            f"σ={plane.sigma_avg:.3f}",
-            f"τmax={plane.tau_max_in_plane:.3f}",
+        subtitle_lines=[
+            f"θ_s={plane.theta_s_deg_ccw:.2f}° ccw",
+            f"σ_avg={plane.sigma_avg:.3f}",
+            f"τ_max={plane.tau_max_in_plane:.3f}",
+            "equal normal stress on all faces",
         ],
     )
 
@@ -426,12 +445,13 @@ def draw_arbitrary_angle_element(ax: plt.Axes, rotated: RotatedPlaneStressResult
         sigma_x=rotated.sigma_x_prime,
         sigma_y=rotated.sigma_y_prime,
         tau_xy=rotated.tau_x_prime_y_prime,
-        footer_lines=[
+        subtitle_lines=[
             f"φ={rotated.phi_deg_ccw:.2f}° ccw",
-            f"σx'={rotated.sigma_x_prime:.3f}",
-            f"σy'={rotated.sigma_y_prime:.3f}",
-            f"τx'y'={rotated.tau_x_prime_y_prime:.3f}",
+            f"σ_x'={rotated.sigma_x_prime:.3f}",
+            f"σ_y'={rotated.sigma_y_prime:.3f}",
+            f"τ_x'y'={rotated.tau_x_prime_y_prime:.3f}",
         ],
+        notation_prime=True,
     )
 
 
@@ -442,14 +462,73 @@ def annotate_angle_arc(
     theta1_deg: float,
     theta2_deg: float,
     text: str,
-    text_radius_scale: float = 1.12,
+    text_radius_scale: float = 1.10,
 ) -> None:
-    arc = patches.Arc(center, 2 * radius, 2 * radius, angle=0, theta1=theta1_deg, theta2=theta2_deg, linewidth=1.2)
+    arc = patches.Arc(
+        center,
+        2 * radius,
+        2 * radius,
+        angle=0,
+        theta1=theta1_deg,
+        theta2=theta2_deg,
+        linewidth=1.1,
+        linestyle="-",
+    )
     ax.add_patch(arc)
     theta_mid = math.radians(0.5 * (theta1_deg + theta2_deg))
     tx = center[0] + text_radius_scale * radius * math.cos(theta_mid)
     ty = center[1] + text_radius_scale * radius * math.sin(theta_mid)
-    ax.text(tx, ty, text)
+    ax.text(tx, ty, text, fontsize=10)
+
+
+def draw_results_panel(
+    ax: plt.Axes,
+    plane: PlaneStressResults,
+    rotated: Optional[RotatedPlaneStressResults],
+) -> None:
+    ax.axis("off")
+    ax.set_title("Results summary", fontsize=12, pad=8)
+
+    lines = [
+        ("σ_avg", f"{plane.sigma_avg:.3f}"),
+        ("radius", f"{plane.radius:.3f}"),
+        ("σ_1", f"{plane.sigma1:.3f}"),
+        ("σ_2", f"{plane.sigma2:.3f}"),
+        ("τ_max", f"{plane.tau_max_in_plane:.3f}"),
+        ("θ_p (ccw)", f"{plane.theta_p_deg_ccw:.2f}°"),
+        ("θ_s (ccw)", f"{plane.theta_s_deg_ccw:.2f}°"),
+    ]
+
+    if rotated is not None:
+        lines += [
+            ("", ""),
+            ("φ (ccw)", f"{rotated.phi_deg_ccw:.2f}°"),
+            ("σ_x'", f"{rotated.sigma_x_prime:.3f}"),
+            ("σ_y'", f"{rotated.sigma_y_prime:.3f}"),
+            ("τ_x'y'", f"{rotated.tau_x_prime_y_prime:.3f}"),
+            ("Pφ", f"({rotated.point_x_prime[0]:.3f}, {-rotated.tau_x_prime_y_prime:.3f})"),
+            ("Qφ", f"({rotated.point_y_prime[0]:.3f}, {rotated.tau_x_prime_y_prime:.3f})"),
+        ]
+
+    y = 0.96
+    for label, value in lines:
+        if not label and not value:
+            y -= 0.05
+            continue
+        ax.text(0.02, y, label, fontweight="bold", fontsize=10, va="top")
+        ax.text(0.50, y, value, fontsize=10, va="top")
+        y -= 0.075
+
+    notes = [
+        "Design intent:",
+        "• principal element emphasizes zero shear",
+        "• max-shear element emphasizes equal normal stress",
+        "• φ mode is optional and does not affect the base solution",
+    ]
+    y -= 0.06
+    for line in notes:
+        ax.text(0.02, y, line, fontsize=10, va="top")
+        y -= 0.07
 
 
 def plot_plane_stress_dashboard(
@@ -461,53 +540,43 @@ def plot_plane_stress_dashboard(
 ) -> None:
     sxx = float(stress[0, 0])
     syy = float(stress[1, 1])
-    txy = float(stress[0, 1])
 
-    if rotated is None:
-        fig = plt.figure(figsize=(14, 10))
-        gs = fig.add_gridspec(2, 2, width_ratios=[1.0, 1.45], height_ratios=[1.0, 1.0])
-        ax_input = fig.add_subplot(gs[0, 0])
-        ax_mohr = fig.add_subplot(gs[0, 1])
-        ax_principal = fig.add_subplot(gs[1, 0])
-        ax_shear = fig.add_subplot(gs[1, 1])
-        ax_rot = None
-    else:
-        fig = plt.figure(figsize=(17, 10))
-        gs = fig.add_gridspec(2, 3, width_ratios=[1.0, 1.45, 1.0], height_ratios=[1.0, 1.0])
-        ax_input = fig.add_subplot(gs[0, 0])
-        ax_mohr = fig.add_subplot(gs[0, 1])
-        ax_rot = fig.add_subplot(gs[0, 2])
-        ax_principal = fig.add_subplot(gs[1, 0])
-        ax_shear = fig.add_subplot(gs[1, 1])
-        ax_blank = fig.add_subplot(gs[1, 2])
-        ax_blank.axis("off")
-        ax_blank.text(
-            0.02,
-            0.98,
-            "Optional arbitrary-angle mode\n\n"
-            "Reported values:\n"
-            "• σx'\n"
-            "• σy'\n"
-            "• τx'y'\n\n"
-            "Mohr-circle point pair:\n"
-            "• Pφ = (σx', -τx'y')\n"
-            "• Qφ = (σy',  τx'y')",
-            va="top",
-            fontsize=11,
-        )
+    fig = plt.figure(figsize=(17, 10))
+    gs = fig.add_gridspec(2, 3, width_ratios=[1.0, 1.45, 1.0], height_ratios=[1.0, 1.0])
+    ax_input = fig.add_subplot(gs[0, 0])
+    ax_mohr = fig.add_subplot(gs[0, 1])
+    ax_right_top = fig.add_subplot(gs[0, 2])
+    ax_principal = fig.add_subplot(gs[1, 0])
+    ax_shear = fig.add_subplot(gs[1, 1])
+    ax_results = fig.add_subplot(gs[1, 2])
 
-    draw_input_element(ax_input, sxx=sxx, syy=syy, txy=txy)
+    draw_input_element(ax_input, sxx=float(stress[0, 0]), syy=float(stress[1, 1]), txy=float(stress[0, 1]))
     draw_principal_element(ax_principal, plane)
     draw_max_shear_element(ax_shear, plane)
-    if ax_rot is not None and rotated is not None:
-        draw_arbitrary_angle_element(ax_rot, rotated)
+    if rotated is not None:
+        draw_arbitrary_angle_element(ax_right_top, rotated)
+    else:
+        ax_right_top.axis("off")
+        ax_right_top.set_title("Optional arbitrary-angle mode", fontsize=12, pad=8)
+        ax_right_top.text(
+            0.02,
+            0.90,
+            "Pass --phi-deg <value> to add:\n\n"
+            "• transformed stresses σ_x', σ_y'\n"
+            "• transformed shear τ_x'y'\n"
+            "• the point pair Pφ / Qφ on Mohr's circle\n"
+            "• the rotated stress-element sketch",
+            fontsize=11,
+            va="top",
+        )
+    draw_results_panel(ax_results, plane, rotated)
 
-    ax_mohr.set_title("Plane-stress Mohr circle")
+    ax_mohr.set_title("Plane-stress Mohr circle", fontsize=12, pad=8)
     ax_mohr.set_aspect("equal", adjustable="box")
     theta = np.linspace(0.0, 2.0 * np.pi, 800)
     x = plane.sigma_avg + plane.radius * np.cos(theta)
     y = plane.radius * np.sin(theta)
-    ax_mohr.plot(x, y, linewidth=2.0)
+    ax_mohr.plot(x, y, linewidth=2.2, color="black")
 
     A = plane.point_x
     B = plane.point_y
@@ -518,29 +587,57 @@ def plot_plane_stress_dashboard(
     P1 = (plane.sigma1, 0.0)
     P2 = (plane.sigma2, 0.0)
 
-    for label, point, dx, dy in [
-        ("A", A, 2.0, 2.0),
-        ("B", B, 2.0, -3.0),
-        ("C", C, 1.5, 2.0),
-        ("D", D, 1.5, -5.0),
-        ("E", E, 1.5, 2.0),
-        ("F", F, 1.5, -5.0),
-    ]:
-        ax_mohr.plot(point[0], point[1], "o")
-        ax_mohr.annotate(label, xy=point, xytext=(dx, dy), textcoords="offset points")
+    ax_mohr.axhline(0.0, linewidth=1.0, color="black")
+    ax_mohr.axvline(0.0, linewidth=1.0, color="black")
+    ax_mohr.grid(True, alpha=0.45)
+    ax_mohr.set_xlabel("Normal stress, σ", fontsize=11)
+    ax_mohr.set_ylabel("Shear stress, τ", fontsize=11)
 
-    ax_mohr.plot([P1[0], P2[0]], [0.0, 0.0], "o")
-    ax_mohr.annotate(f"σ1={plane.sigma1:.3f}", xy=P1, xytext=(6, -16), textcoords="offset points")
-    ax_mohr.annotate(f"σ2={plane.sigma2:.3f}", xy=P2, xytext=(-6, -16), textcoords="offset points")
-    ax_mohr.annotate(f"τmax={plane.tau_max_in_plane:.3f}", xy=E, xytext=(8, 12), textcoords="offset points")
+    point_style = dict(marker="o", linestyle="None", markersize=5, color="black")
+    for point in [A, B, C, D, E, F, P1, P2]:
+        ax_mohr.plot(point[0], point[1], **point_style)
 
-    ax_mohr.axhline(0.0, linewidth=1.0)
-    ax_mohr.axvline(0.0, linewidth=1.0)
-    ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linestyle="--", linewidth=1.1)
-    ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linestyle="--", linewidth=1.1)
-    ax_mohr.plot([D[0], D[0]], [0.0, A[1]], linestyle="--", linewidth=0.9)
-    ax_mohr.plot([C[0], C[0]], [F[1], E[1]], linestyle="--", linewidth=0.9)
-    ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.2)
+    ax_mohr.annotate("A", xy=A, xytext=(4, 4), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("B", xy=B, xytext=(4, -14), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("C", xy=C, xytext=(4, 4), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("D", xy=D, xytext=(4, -14), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("E", xy=E, xytext=(4, 4), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("F", xy=F, xytext=(4, -14), textcoords="offset points", fontsize=10)
+
+    ax_mohr.annotate("σ_1", xy=P1, xytext=(8, -16), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("σ_2", xy=P2, xytext=(-16, -16), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("τ_1", xy=E, xytext=(8, 12), textcoords="offset points", fontsize=10)
+    ax_mohr.annotate("τ_2", xy=F, xytext=(8, -18), textcoords="offset points", fontsize=10)
+
+    ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.1, color="0.25")
+    ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linewidth=1.1, color="0.55", linestyle="--")
+    ax_mohr.plot([D[0], D[0]], [0.0, A[1]], linewidth=0.9, color="0.4", linestyle="--")
+    ax_mohr.plot([C[0], C[0]], [F[1], E[1]], linewidth=0.9, color="0.4", linestyle="--")
+
+    ax_mohr.text(C[0] - 7.5, -7.5, "σ_avg", fontsize=10)
+    ax_mohr.text(C[0] - 2.0, -11.5, f"{plane.sigma_avg:.0f}" if abs(plane.sigma_avg - round(plane.sigma_avg)) < 1e-9 else f"{plane.sigma_avg:.3f}", fontsize=10)
+
+    if abs(sxx) > 1e-12:
+        ax_mohr.text(D[0] - 2.0, -11.5, f"σ_x={sxx:.0f}" if abs(sxx - round(sxx)) < 1e-9 else f"σ_x={sxx:.3f}", fontsize=10)
+    if abs(syy) > 1e-12:
+        ax_mohr.text(B[0] + 10.0, 2.0, f"σ_y={syy:.0f}" if abs(syy - round(syy)) < 1e-9 else f"σ_y={syy:.3f}", fontsize=10)
+    else:
+        ax_mohr.text(B[0] + 10.0, 2.0, "σ_y=0", fontsize=10)
+
+    ax_mohr.annotate(
+        f"({A[0]:.3f}, {abs(A[1]):.3f} cw)",
+        xy=A,
+        xytext=(10, 8),
+        textcoords="offset points",
+        fontsize=10,
+    )
+    ax_mohr.annotate(
+        f"({B[0]:.3f}, {abs(B[1]):.3f} ccw)",
+        xy=B,
+        xytext=(-64, -18),
+        textcoords="offset points",
+        fontsize=10,
+    )
 
     angle_CA = math.degrees(math.atan2(A[1] - C[1], A[0] - C[0]))
     annotate_angle_arc(
@@ -549,17 +646,17 @@ def plot_plane_stress_dashboard(
         radius=max(plane.radius * 0.18, 5.0),
         theta1_deg=0.0,
         theta2_deg=angle_CA,
-        text=f"2θp={angle_CA:.2f}°",
+        text=f"2θ_p={angle_CA:.2f}°",
     )
 
     if rotated is not None:
         Pphi = rotated.point_x_prime
         Qphi = rotated.point_y_prime
-        ax_mohr.plot(Pphi[0], Pphi[1], marker="o")
-        ax_mohr.plot(Qphi[0], Qphi[1], marker="o")
-        ax_mohr.annotate("Pφ", xy=Pphi, xytext=(6, 6), textcoords="offset points")
-        ax_mohr.annotate("Qφ", xy=Qphi, xytext=(6, -14), textcoords="offset points")
-        ax_mohr.plot([C[0], Pphi[0]], [C[1], Pphi[1]], linestyle=":", linewidth=1.3)
+        ax_mohr.plot(Pphi[0], Pphi[1], marker="o", linestyle="None", markersize=6, color="tab:red")
+        ax_mohr.plot(Qphi[0], Qphi[1], marker="o", linestyle="None", markersize=6, color="tab:purple")
+        ax_mohr.annotate("Pφ", xy=Pphi, xytext=(4, 6), textcoords="offset points", fontsize=10)
+        ax_mohr.annotate("Qφ", xy=Qphi, xytext=(4, -14), textcoords="offset points", fontsize=10)
+        ax_mohr.plot([C[0], Pphi[0]], [C[1], Pphi[1]], linestyle=":", linewidth=1.2, color="0.35")
         angle_CP = math.degrees(math.atan2(Pphi[1] - C[1], Pphi[0] - C[0]))
         annotate_angle_arc(
             ax_mohr,
@@ -568,20 +665,8 @@ def plot_plane_stress_dashboard(
             theta1_deg=angle_CA,
             theta2_deg=angle_CP,
             text=f"2φ={2.0 * rotated.phi_deg_ccw:.2f}°",
-            text_radius_scale=1.22,
+            text_radius_scale=1.20,
         )
-        ax_mohr.annotate(
-            f"σx'={rotated.sigma_x_prime:.3f}\nσy'={rotated.sigma_y_prime:.3f}\nτx'y'={rotated.tau_x_prime_y_prime:.3f}",
-            xy=Pphi,
-            xytext=(12, -48),
-            textcoords="offset points",
-            bbox=dict(boxstyle="round,pad=0.25", fc="white", ec="0.7", alpha=0.9),
-            fontsize=10,
-        )
-
-    ax_mohr.annotate(f"({A[0]:.3f}, {A[1]:.3f})", xy=A, xytext=(8, 8), textcoords="offset points")
-    ax_mohr.annotate(f"({B[0]:.3f}, {B[1]:.3f})", xy=B, xytext=(-60, -18), textcoords="offset points")
-    ax_mohr.text(C[0], -0.10 * plane.radius, f"σavg={plane.sigma_avg:.3f}", ha="center")
 
     pad_x = max(10.0, 0.18 * max(abs(plane.sigma1), abs(plane.sigma2), abs(sxx), abs(syy), 1.0))
     pad_y = max(8.0, 0.18 * plane.radius)
@@ -591,11 +676,8 @@ def plot_plane_stress_dashboard(
     ymax = plane.radius + pad_y
     ax_mohr.set_xlim(xmin, xmax)
     ax_mohr.set_ylim(ymin, ymax)
-    ax_mohr.grid(True)
-    ax_mohr.set_xlabel("Normal stress, σ")
-    ax_mohr.set_ylabel("Shear stress, τ")
 
-    fig.suptitle("Mohr circle dashboard", fontsize=18)
+    fig.suptitle("Mohr circle dashboard", fontsize=20)
     fig.tight_layout(rect=(0.0, 0.0, 1.0, 0.97))
     outfile.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(outfile, dpi=180, bbox_inches="tight")
@@ -617,16 +699,16 @@ def plot_mohr_3d(principal: np.ndarray, outfile: Path, show_plot: bool) -> None:
         r = circle["radius"]
         x = c + r * np.cos(theta)
         y = r * np.sin(theta)
-        ax.plot(x, y, label=f'{circle["label"]}: c={c:.3f}, r={r:.3f}')
+        ax.plot(x, y, linewidth=2.0, label=f'{circle["label"]}: c={c:.3f}, r={r:.3f}')
 
     sigma1, sigma2, sigma3 = principal
     ax.scatter([sigma1, sigma2, sigma3], [0.0, 0.0, 0.0], marker="o", label="Principal stresses")
-    ax.axhline(0.0, linewidth=1.0)
-    ax.axvline(0.0, linewidth=1.0)
+    ax.axhline(0.0, linewidth=1.0, color="black")
+    ax.axvline(0.0, linewidth=1.0, color="black")
     ax.set_xlabel("Normal stress, σ")
     ax.set_ylabel("Shear stress, τ")
     ax.set_title("3D Mohr circles")
-    ax.grid(True)
+    ax.grid(True, alpha=0.45)
     ax.legend()
 
     all_sigmas = [sigma1, sigma2, sigma3]
