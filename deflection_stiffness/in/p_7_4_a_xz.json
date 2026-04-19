@@ -1,0 +1,102 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "p_7_4_a_xz",
+    "note": "Shigley Problem 7-4, part (a), xz-plane concentrated-load model. Model y is used to represent physical z in this separate 2D plane. The roll friction force is modeled as a single concentrated force at C, and the tangential gear force is applied at B."
+  },
+  "units": {
+    "length": "in",
+    "force": "lbf",
+    "moment": "lbf*in"
+  },
+  "nodes": [
+    {
+      "id": "O",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "id": "C",
+      "x": 5.75,
+      "y": 0.0
+    },
+    {
+      "id": "A",
+      "x": 11.5,
+      "y": 0.0
+    },
+    {
+      "id": "B",
+      "x": 14.25,
+      "y": 0.0
+    }
+  ],
+  "elements": [
+    {
+      "id": "E1",
+      "n1": "O",
+      "n2": "C",
+      "EA": 10000000.0,
+      "EI": 10000.0
+    },
+    {
+      "id": "E2",
+      "n1": "C",
+      "n2": "A",
+      "EA": 10000000.0,
+      "EI": 10000.0
+    },
+    {
+      "id": "E3",
+      "n1": "A",
+      "n2": "B",
+      "EA": 10000000.0,
+      "EI": 10000.0
+    }
+  ],
+  "supports": [
+    {
+      "node": "O",
+      "type": "hinged"
+    },
+    {
+      "node": "A",
+      "type": "roller",
+      "dof": "uy"
+    }
+  ],
+  "loads": [
+    {
+      "type": "point",
+      "node": "C",
+      "Fx": 0.0,
+      "Fy": -96.0
+    },
+    {
+      "type": "point",
+      "node": "B",
+      "Fx": 0.0,
+      "Fy": -128.0
+    }
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 10.0,
+    "anastruct_plots": [
+      "structure",
+      "reaction_force",
+      "shear_force",
+      "bending_moment",
+      "displacement"
+    ],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [
+      12.0,
+      8.0
+    ],
+    "anastruct_zip": false
+  }
+}

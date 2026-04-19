@@ -1,0 +1,59 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "shaft_xz",
+    "note": "Shigley Ex. 7-3 stepped shaft, xz plane model using tangential gear loads only. Units are inch-lbf. Supports at A and B. Positive/negative point-load signs chosen to reproduce the opposing tangential forces from gears 3 and 4.",
+    "reference": "Based on Fig. 7-10 / Fig. 7-11 geometry and Ex. 7-2 reaction setup."
+  },
+  "units": {
+    "length": "in",
+    "force": "lbf",
+    "moment": "lbf*in"
+  },
+  "nodes": [
+    {"id": "S0", "x": 0.0, "y": 0.0},
+    {"id": "A",  "x": 0.75, "y": 0.0},
+    {"id": "D",  "x": 1.25, "y": 0.0},
+    {"id": "F",  "x": 2.0, "y": 0.0},
+    {"id": "G",  "x": 2.75, "y": 0.0},
+    {"id": "H",  "x": 3.5, "y": 0.0},
+    {"id": "I",  "x": 7.5, "y": 0.0},
+    {"id": "J",  "x": 8.5, "y": 0.0},
+    {"id": "K",  "x": 9.5, "y": 0.0},
+    {"id": "M",  "x": 10.25, "y": 0.0},
+    {"id": "B",  "x": 10.75, "y": 0.0},
+    {"id": "S1", "x": 11.5, "y": 0.0}
+  ],
+  "elements": [
+    {"id": "E01", "n1": "S0", "n2": "A",  "EA": 23561944.901923448, "EI": 1472621.5563702155},
+    {"id": "E02", "n1": "A",  "n2": "D",  "EA": 23561944.901923448, "EI": 1472621.5563702155},
+    {"id": "E03", "n1": "D",  "n2": "F",  "EA": 46181412.00776995,  "EI": 5657222.970951819},
+    {"id": "E04", "n1": "F",  "n2": "G",  "EA": 62218260.75664161,  "EI": 10268443.42565667},
+    {"id": "E05", "n1": "G",  "n2": "H",  "EA": 62218260.75664161,  "EI": 10268443.42565667},
+    {"id": "E06", "n1": "H",  "n2": "I",  "EA": 94247779.60769379,  "EI": 23561944.901923448},
+    {"id": "E07", "n1": "I",  "n2": "J",  "EA": 62218260.75664161,  "EI": 10268443.42565667},
+    {"id": "E08", "n1": "J",  "n2": "K",  "EA": 62218260.75664161,  "EI": 10268443.42565667},
+    {"id": "E09", "n1": "K",  "n2": "M",  "EA": 46181412.00776995,  "EI": 5657222.970951819},
+    {"id": "E10", "n1": "M",  "n2": "B",  "EA": 23561944.901923448, "EI": 1472621.5563702155},
+    {"id": "E11", "n1": "B",  "n2": "S1", "EA": 23561944.901923448, "EI": 1472621.5563702155}
+  ],
+  "supports": [
+    {"node": "A", "type": "hinged"},
+    {"node": "B", "type": "roller", "dof": "uy"}
+  ],
+  "loads": [
+    {"type": "point", "node": "G", "Fx": 0.0, "Fy": 540.0},
+    {"type": "point", "node": "J", "Fx": 0.0, "Fy": -2431.0}
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 100.0,
+    "anastruct_plots": ["structure", "reaction_force", "shear_force", "bending_moment", "displacement"],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [12.0, 8.0],
+    "anastruct_zip": false
+  }
+}

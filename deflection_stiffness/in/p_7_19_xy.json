@@ -1,0 +1,186 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "p_7_19_xy",
+    "note": "Shigley Problem 7-19 / Problem 3-72 geometry. xy-plane beam model for shaft diagrams. Uses the stepped shaft dimensions from Prob. 7-19 and the vertical-plane gear-force components from Prob. 3-72. Important readout stations include the gear center at A, the bearing center at C, and the shoulders immediately left and right of C."
+  },
+  "units": {
+    "length": "in",
+    "force": "lbf",
+    "moment": "lbf*in"
+  },
+  "nodes": [
+    {
+      "id": "O",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "id": "O_sh",
+      "x": 0.5,
+      "y": 0.0
+    },
+    {
+      "id": "A_L",
+      "x": 15.0,
+      "y": 0.0
+    },
+    {
+      "id": "A",
+      "x": 16.0,
+      "y": 0.0
+    },
+    {
+      "id": "A_R",
+      "x": 17.0,
+      "y": 0.0
+    },
+    {
+      "id": "C_L",
+      "x": 29.5,
+      "y": 0.0
+    },
+    {
+      "id": "C",
+      "x": 30.0,
+      "y": 0.0
+    },
+    {
+      "id": "C_R",
+      "x": 30.5,
+      "y": 0.0
+    },
+    {
+      "id": "B",
+      "x": 39.0,
+      "y": 0.0
+    },
+    {
+      "id": "END_STEP",
+      "x": 40.0,
+      "y": 0.0
+    },
+    {
+      "id": "END",
+      "x": 41.0,
+      "y": 0.0
+    }
+  ],
+  "elements": [
+    {
+      "id": "E1",
+      "n1": "O",
+      "n2": "O_sh",
+      "EA": 23561944.901923448,
+      "EI": 1472621.5563702155
+    },
+    {
+      "id": "E2",
+      "n1": "O_sh",
+      "n2": "A_L",
+      "EA": 39819686.884250626,
+      "EI": 4205954.427148974
+    },
+    {
+      "id": "E3",
+      "n1": "A_L",
+      "n2": "A",
+      "EA": 72158456.26214056,
+      "EI": 13811579.518925343
+    },
+    {
+      "id": "E4",
+      "n1": "A",
+      "n2": "A_R",
+      "EA": 72158456.26214056,
+      "EI": 13811579.518925343
+    },
+    {
+      "id": "E5",
+      "n1": "A_R",
+      "n2": "C_L",
+      "EA": 147262155.63702157,
+      "EI": 57524279.54571155
+    },
+    {
+      "id": "E6",
+      "n1": "C_L",
+      "n2": "C",
+      "EA": 72158456.26214056,
+      "EI": 13811579.518925343
+    },
+    {
+      "id": "E7",
+      "n1": "C",
+      "n2": "C_R",
+      "EA": 72158456.26214056,
+      "EI": 13811579.518925343
+    },
+    {
+      "id": "E8",
+      "n1": "C_R",
+      "n2": "B",
+      "EA": 39819686.884250626,
+      "EI": 4205954.427148974
+    },
+    {
+      "id": "E9",
+      "n1": "B",
+      "n2": "END_STEP",
+      "EA": 39819686.884250626,
+      "EI": 4205954.427148974
+    },
+    {
+      "id": "E10",
+      "n1": "END_STEP",
+      "n2": "END",
+      "EA": 23561944.901923448,
+      "EI": 1472621.5563702155
+    }
+  ],
+  "supports": [
+    {
+      "node": "O",
+      "type": "hinged"
+    },
+    {
+      "node": "C",
+      "type": "roller",
+      "dof": "uy"
+    }
+  ],
+  "loads": [
+    {
+      "type": "point",
+      "node": "A",
+      "Fx": 0.0,
+      "Fy": 281.9
+    },
+    {
+      "type": "point",
+      "node": "B",
+      "Fx": 0.0,
+      "Fy": -256.5
+    }
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 100.0,
+    "anastruct_plots": [
+      "structure",
+      "reaction_force",
+      "shear_force",
+      "bending_moment",
+      "displacement"
+    ],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [
+      12.0,
+      8.0
+    ],
+    "anastruct_zip": false
+  }
+}

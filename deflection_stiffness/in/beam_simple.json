@@ -1,0 +1,36 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "beam_simple",
+    "note": "Matches beam_simple.py intent (cantilever with UDL)"
+  },
+  "units": {
+    "length": "m",
+    "force": "N",
+    "moment": "N*m"
+  },
+  "nodes": [
+    {"id": "A", "x": 0.0, "y": 0.0},
+    {"id": "B", "x": 5.0, "y": 0.0}
+  ],
+  "elements": [
+    {"id": "E1", "n1": "A", "n2": "B", "EA": 10000000.0, "EI": 10000.0}
+  ],
+  "supports": [
+    {"node": "A", "type": "fixed"}
+  ],
+  "loads": [
+    {"type": "distributed", "element": "E1", "q": -10.0, "direction": "y"}
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 10.0,
+    "anastruct_plots": ["structure", "reaction_force", "axial_force", "shear_force", "bending_moment", "displacement"],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [12.0, 8.0],
+    "anastruct_zip": false
+  }
+}

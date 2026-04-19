@@ -1,0 +1,144 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "p_7_17",
+    "note": "Shigley Problem 7-17, shaft a. Single-plane beam model using the resultant gear force W = sqrt(Wt^2 + Wr^2) = 1330 lbf applied at the gear station, following the textbook part (b) simplification. Axial geometry and diameters are based on the proposed shaft dimensions shown in part (e), approximated as stepped circular beam segments for deflection/slope comparison."
+  },
+  "units": {
+    "length": "in",
+    "force": "lbf",
+    "moment": "lbf*in"
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "id": "S1",
+      "x": 0.35,
+      "y": 0.0
+    },
+    {
+      "id": "G1",
+      "x": 8.0,
+      "y": 0.0
+    },
+    {
+      "id": "G",
+      "x": 9.0,
+      "y": 0.0
+    },
+    {
+      "id": "G2",
+      "x": 10.0,
+      "y": 0.0
+    },
+    {
+      "id": "B",
+      "x": 11.0,
+      "y": 0.0
+    },
+    {
+      "id": "S2",
+      "x": 11.45,
+      "y": 0.0
+    },
+    {
+      "id": "END",
+      "x": 17.0,
+      "y": 0.0
+    }
+  ],
+  "elements": [
+    {
+      "id": "E1",
+      "n1": "A",
+      "n2": "S1",
+      "EA": 36815538.90925539,
+      "EI": 3595267.4716069717
+    },
+    {
+      "id": "E2",
+      "n1": "S1",
+      "n2": "G1",
+      "EA": 57340349.11332091,
+      "EI": 8721467.10013611
+    },
+    {
+      "id": "E3",
+      "n1": "G1",
+      "n2": "G",
+      "EA": 58077837.988751106,
+      "EI": 8947253.928654538
+    },
+    {
+      "id": "E4",
+      "n1": "G",
+      "n2": "G2",
+      "EA": 58077837.988751106,
+      "EI": 8947253.928654538
+    },
+    {
+      "id": "E5",
+      "n1": "G2",
+      "n2": "B",
+      "EA": 40434653.64619084,
+      "EI": 4336869.320139256
+    },
+    {
+      "id": "E6",
+      "n1": "B",
+      "n2": "S2",
+      "EA": 40434653.64619084,
+      "EI": 4336869.320139256
+    },
+    {
+      "id": "E7",
+      "n1": "S2",
+      "n2": "END",
+      "EA": 36815538.90925539,
+      "EI": 3595267.4716069717
+    }
+  ],
+  "supports": [
+    {
+      "node": "A",
+      "type": "hinged"
+    },
+    {
+      "node": "B",
+      "type": "roller",
+      "dof": "uy"
+    }
+  ],
+  "loads": [
+    {
+      "type": "point",
+      "node": "G",
+      "Fx": 0.0,
+      "Fy": -1330.0
+    }
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 100.0,
+    "anastruct_plots": [
+      "structure",
+      "reaction_force",
+      "shear_force",
+      "bending_moment",
+      "displacement"
+    ],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [
+      12.0,
+      8.0
+    ],
+    "anastruct_zip": false
+  }
+}

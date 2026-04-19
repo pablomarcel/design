@@ -1,0 +1,84 @@
+{
+  "schema": "beams.v1",
+  "meta": {
+    "name": "ex_11_18_xz",
+    "note": "Shigley Example 11-8, xz-plane reaction model for the helical-gear shaft. Uses only the tangential force at the gear pitch cylinder. Geometry kept intentionally minimal: support A at x = 0 mm, gear center G at x = 100 mm, support B at x = 150 mm. Stiffness values are chosen only to keep the beam numerically well-scaled for plotting in mm units; reactions remain governed by statics.",
+    "reference": "Based on Shigley Example 11-8. Tangential force Ft = 3980 N at x = 100 mm on a 150 mm span. Textbook reactions in the xz plane are RzA = 1327 N and RzB = 2653 N."
+  },
+  "units": {
+    "length": "mm",
+    "force": "N",
+    "moment": "N*mm"
+  },
+  "nodes": [
+    {
+      "id": "A",
+      "x": 0.0,
+      "y": 0.0
+    },
+    {
+      "id": "G",
+      "x": 100.0,
+      "y": 0.0
+    },
+    {
+      "id": "B",
+      "x": 150.0,
+      "y": 0.0
+    }
+  ],
+  "elements": [
+    {
+      "id": "E1",
+      "n1": "A",
+      "n2": "G",
+      "EA": 100000000.0,
+      "EI": 5000000000.0
+    },
+    {
+      "id": "E2",
+      "n1": "G",
+      "n2": "B",
+      "EA": 100000000.0,
+      "EI": 5000000000.0
+    }
+  ],
+  "supports": [
+    {
+      "node": "A",
+      "type": "hinged"
+    },
+    {
+      "node": "B",
+      "type": "roller",
+      "dof": "uy"
+    }
+  ],
+  "loads": [
+    {
+      "type": "point",
+      "node": "G",
+      "Fx": 0.0,
+      "Fy": -3980.0
+    }
+  ],
+  "options": {
+    "solver": "anastruct",
+    "plots": true,
+    "plot_backend": "anastruct",
+    "plot_format": "png",
+    "deform_scale": 1.0,
+    "anastruct_plots": [
+      "structure",
+      "reaction_force",
+      "shear_force",
+      "bending_moment"
+    ],
+    "anastruct_dpi": 150,
+    "anastruct_figsize": [
+      12.0,
+      8.0
+    ],
+    "anastruct_zip": false
+  }
+}
