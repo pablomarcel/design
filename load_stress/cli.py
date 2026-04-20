@@ -15,9 +15,11 @@ except ImportError:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description='CLI app for stress, strain, strain-rosette, and isotropic Hooke-law analysis.')
     subparsers = parser.add_subparsers(dest='command', required=True)
+
     run_parser = subparsers.add_parser('run', help='Run a solve path using CLI flags.')
     run_parser.add_argument('--solve-path', default='general_3d_stress', help='Solver route.')
 
+    # Stress tensor inputs
     run_parser.add_argument('--sxx', type=float, default=None)
     run_parser.add_argument('--syy', type=float, default=None)
     run_parser.add_argument('--szz', type=float, default=None)
@@ -25,6 +27,7 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument('--tyz', type=float, default=0.0)
     run_parser.add_argument('--txz', '--tzx', dest='txz', type=float, default=0.0)
 
+    # Strain tensor inputs
     run_parser.add_argument('--exx', type=float, default=None)
     run_parser.add_argument('--eyy', type=float, default=None)
     run_parser.add_argument('--ezz', type=float, default=None)
@@ -32,24 +35,31 @@ def build_parser() -> argparse.ArgumentParser:
     run_parser.add_argument('--gyz', '--gzy', dest='gyz', type=float, default=0.0)
     run_parser.add_argument('--gxz', '--gzx', dest='gxz', type=float, default=0.0)
 
+    # Rosette inputs
     run_parser.add_argument('--ea', type=float, default=None, help='Rosette strain a')
     run_parser.add_argument('--eb', type=float, default=None, help='Rosette strain b')
     run_parser.add_argument('--ec', type=float, default=None, help='Rosette strain c')
-    run_parser.add_argument('--theta-a-deg', type=float, default=None)
-    run_parser.add_argument('--theta-b-deg', type=float, default=None)
-    run_parser.add_argument('--theta-c-deg', type=float, default=None)
+    run_parser.add_argument('--theta-a-deg', '--theta-a', dest='theta_a_deg', type=float, default=None)
+    run_parser.add_argument('--theta-b-deg', '--theta-b', dest='theta_b_deg', type=float, default=None)
+    run_parser.add_argument('--theta-c-deg', '--theta-c', dest='theta_c_deg', type=float, default=None)
 
-    run_parser.add_argument('--epsilon-theta', type=float, default=None, help='Single-gage measured normal strain along theta')
+    # Single-gage inverse path
+    run_parser.add_argument('--epsilon-theta', '--eg', dest='epsilon_theta', type=float, default=None, help='Single-gage measured normal strain along theta')
     run_parser.add_argument('--theta-deg', type=float, default=None, help='Single-gage measurement angle from +x, ccw')
-    run_parser.add_argument('--known-sigma-x', type=float, default=None, help='Known biaxial plane-stress sigma_x for the single-gage solve path')
+    run_parser.add_argument('--known-sigma-x', '--sigma-x', dest='known_sigma_x', type=float, default=None, help='Known biaxial plane-stress sigma_x for the single-gage solve path')
 
+    # Material constants
     run_parser.add_argument('--E', type=float, default=None, help='Young modulus')
     run_parser.add_argument('--nu', type=float, default=None, help='Poisson ratio')
     run_parser.add_argument('--G', type=float, default=None, help='Shear modulus')
 
     run_parser.add_argument('--phi-deg', type=float, default=None)
-    run_parser.add_argument('--unit', '--strain-unit', '--stress-unit', dest='unit', default='')
-    run_parser.add_argument('--stress-output-unit', dest='stress_unit', default='')
+
+    # Units: keep backward compatibility but separate strain and stress units cleanly
+    run_parser.add_argument('--unit', default='', help='Legacy convenience unit; used as fallback for strain/stress units when specific flags are omitted.')
+    run_parser.add_argument('--strain-unit', dest='strain_unit', default='')
+    run_parser.add_argument('--stress-unit', dest='stress_unit', default='')
+
     run_parser.add_argument('--title', default='')
     run_parser.add_argument('--outfile', default='')
     run_parser.add_argument('--plotfile', default='')
@@ -77,6 +87,9 @@ def main() -> None:
                 print(f'- {item}')
         return
 
+    strain_unit = args.strain_unit or args.unit
+    stress_unit = args.stress_unit or args.unit
+
     app = LoadStressApp()
     try:
         payload = app.solve_flags(
@@ -88,7 +101,7 @@ def main() -> None:
             epsilon_theta=args.epsilon_theta, theta_deg=args.theta_deg, known_sigma_x=args.known_sigma_x,
             E=args.E, nu=args.nu, G=args.G,
             phi_deg=args.phi_deg,
-            unit=args.unit, stress_unit=args.stress_unit, title=args.title,
+            unit=args.unit, strain_unit=strain_unit, stress_unit=stress_unit, title=args.title,
             outfile=args.outfile or None, plotfile=args.plotfile or None,
             pretty=args.pretty, make_plot=not args.no_plot, show_plot=args.show_plot,
         )

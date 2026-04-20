@@ -404,6 +404,17 @@ class StrainMath:
         s = math.sin(theta)
         return exx * c * c + eyy * s * s + gxy * s * c
 
+    @staticmethod
+    def make_in_plane_tensor(exx: float, eyy: float, gxy: float) -> np.ndarray:
+        return np.array(
+            [
+                [exx, 0.5 * gxy, 0.0],
+                [0.5 * gxy, eyy, 0.0],
+                [0.0, 0.0, 0.0],
+            ],
+            dtype=float,
+        )
+
 
 class HookeMath:
     @staticmethod
@@ -478,17 +489,20 @@ def _build_strain_result(
     meta_notes: list[str],
     rosette: Optional[dict[str, Any]] = None,
     recovered_plane_stress: Optional[dict[str, Any]] = None,
+    in_plane_tensor: Optional[np.ndarray] = None,
 ) -> StrainAnalysisResult:
     principal = StrainMath.principal_strains(strain_tensor)
     e1, _, e3 = principal
     invariants = StrainMath.compute_invariants(strain_tensor)
     is_plane = StrainMath.is_plane_strain_case(strain_tensor)
-    plane = StrainMath.analyze_plane_strain(strain_tensor) if is_plane else None
+
+    plane_source = in_plane_tensor if in_plane_tensor is not None else (strain_tensor if is_plane else None)
+    plane = StrainMath.analyze_plane_strain(plane_source) if plane_source is not None else None
     rotated = None
     if phi_deg is not None:
-        if not is_plane:
-            raise ValueError('--phi-deg is only supported for plane strain/in-plane strain states in this release.')
-        rotated = StrainMath.analyze_rotated_plane_strain(strain_tensor, phi_deg)
+        if plane_source is None:
+            raise ValueError('--phi-deg is only supported for in-plane strain states in this release.')
+        rotated = StrainMath.analyze_rotated_plane_strain(plane_source, phi_deg)
 
     gamma_abs_max_3d = float(e1 - e3)
     gamma_abs_max_tensor_3d = float(0.5 * (e1 - e3))
@@ -612,7 +626,8 @@ class General3DStrainSolver(SolverBase):
             strain_tensor=strain_tensor,
             unit=inputs.unit,
             phi_deg=inputs.phi_deg,
-            meta_notes=['User-facing shear inputs are engineering shear strains γxy, γyz, γxz.', 'Internal tensor off-diagonal entries use γ/2.', 'Plane-strain Mohr circle is plotted with γ/2 on the vertical axis to match common machine design textbook conventions.'],
+            meta_notes=['User-facing shear inputs are engineering shear strains γxy, γyz, γxz.', 'Internal tensor off-diagonal entries use γ/2.', 'In-plane Mohr circle is plotted with γ/2 on the vertical axis to match common machine design textbook conventions.'],
+            in_plane_tensor=(StrainMath.make_in_plane_tensor(inputs.exx, inputs.eyy, inputs.gxy) if abs(inputs.gyz) <= 1e-12 and abs(inputs.gxz) <= 1e-12 else None),
         )
 
 
@@ -634,7 +649,30 @@ class StrainRosetteRectangularSolver(SolverBase):
         if not isinstance(inputs, RosetteInput):
             raise TypeError('strain_rosette_rectangular requires RosetteInput.')
         solved = RosetteMath.solve_general(inputs.ea, inputs.eb, inputs.ec, inputs.theta_a_deg, inputs.theta_b_deg, inputs.theta_c_deg)
-        strain_tensor = StrainMath.make_tensor(StrainTensorInput(exx=solved['exx'], eyy=solved['eyy'], ezz=0.0, gxy=solved['gxy'], unit=inputs.unit, phi_deg=inputs.phi_deg, title=inputs.title))
+        in_plane_tensor = StrainMath.make_in_plane_tensor(solved['exx'], solved['eyy'], solved['gxy'])
+        ezz_effective = 0.0
+        recovered = None
+        notes = [
+            'Three gage strains are inverted through the general rosette transformation equations εθ = εx cos²θ + εy sin²θ + γxy sinθ cosθ.',
+            'The reconstructed in-plane strain state is then analyzed with the same Mohr-circle strain path used elsewhere in the app.',
+        ]
+        if inputs.nu is not None:
+            ezz_effective = float(-(inputs.nu / (1.0 - inputs.nu)) * (solved['exx'] + solved['eyy']))
+            notes.append('Because the rosette is bonded to a free surface, the strain state is interpreted as plane stress; εz is recovered from εz = -ν(εx + εy)/(1-ν) when ν is available.')
+        else:
+            notes.append('Without ν, εz cannot be recovered for the free-surface plane-stress case, so the out-of-plane strain is left at zero as a display fallback only.')
+        if inputs.E is not None and (inputs.nu is not None or inputs.G is not None):
+            recovered = HookeMath.plane_stress_from_strain(solved['exx'], solved['eyy'], solved['gxy'], E=inputs.E, nu=inputs.nu, G=inputs.G)
+            recovered['stress_unit'] = inputs.stress_unit or ''
+            recovered['stress_along_gages'] = [
+                {'name': 'a', 'theta_deg': inputs.theta_a_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_a_deg).sigma_x_prime},
+                {'name': 'b', 'theta_deg': inputs.theta_b_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_b_deg).sigma_x_prime},
+                {'name': 'c', 'theta_deg': inputs.theta_c_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_c_deg).sigma_x_prime},
+            ]
+            ezz_effective = float(recovered['epsilon_z_plane_stress'])
+            notes.append('When E and ν (or E and G) are supplied, plane-stress Hooke-law recovery is performed to obtain σx, σy, τxy, principal stresses, and maximum shear stresses on the free surface.')
+
+        strain_tensor = StrainMath.make_tensor(StrainTensorInput(exx=solved['exx'], eyy=solved['eyy'], ezz=ezz_effective, gxy=solved['gxy'], unit=inputs.unit, phi_deg=inputs.phi_deg, title=inputs.title))
         rosette = {
             'rosette_type': 'rectangular',
             'gages': [
@@ -647,28 +685,20 @@ class StrainRosetteRectangularSolver(SolverBase):
             'reconstructed_exx': solved['exx'],
             'reconstructed_eyy': solved['eyy'],
             'reconstructed_gxy': solved['gxy'],
+            'plane_stress_free_surface': bool(recovered is not None),
+            'effective_ezz': ezz_effective,
         }
-        recovered = None
-        notes = ['Three gage strains are inverted through the general rosette transformation equations εθ = εx cos²θ + εy sin²θ + γxy sinθ cosθ.', 'The reconstructed in-plane strain state is then analyzed with the same Mohr-circle strain path used elsewhere in the app.']
-        if inputs.E is not None and (inputs.nu is not None or inputs.G is not None):
-            recovered = HookeMath.plane_stress_from_strain(solved['exx'], solved['eyy'], solved['gxy'], E=inputs.E, nu=inputs.nu, G=inputs.G)
-            recovered['stress_unit'] = inputs.stress_unit or ''
-            recovered['stress_along_gages'] = [
-                {'name': 'a', 'theta_deg': inputs.theta_a_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_a_deg).sigma_x_prime},
-                {'name': 'b', 'theta_deg': inputs.theta_b_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_b_deg).sigma_x_prime},
-                {'name': 'c', 'theta_deg': inputs.theta_c_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], recovered['tau_xy'], 0.0], [recovered['tau_xy'], recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_c_deg).sigma_x_prime},
-            ]
-            notes.append('When E and ν (or E and G) are supplied, plane-stress Hooke-law recovery is performed to obtain σx, σy, τxy, principal stresses, and maximum shear stresses on the free surface.')
         return _build_strain_result(
             solve_path=self.solve_path,
             title=inputs.title or 'Rectangular strain rosette analysis',
-            inputs_dict={'ea': inputs.ea, 'eb': inputs.eb, 'ec': inputs.ec, 'theta_a_deg': inputs.theta_a_deg, 'theta_b_deg': inputs.theta_b_deg, 'theta_c_deg': inputs.theta_c_deg, 'unit': inputs.unit, 'phi_deg': inputs.phi_deg, 'E': inputs.E, 'nu': inputs.nu, 'G': inputs.G, 'stress_unit': inputs.stress_unit},
+            inputs_dict={'ea': inputs.ea, 'eb': inputs.eb, 'ec': inputs.ec, 'theta_a_deg': inputs.theta_a_deg, 'theta_b_deg': inputs.theta_b_deg, 'theta_c_deg': inputs.theta_c_deg, 'unit': inputs.unit, 'phi_deg': inputs.phi_deg, 'E': inputs.E, 'nu': inputs.nu, 'G': inputs.G, 'strain_unit': inputs.unit, 'stress_unit': inputs.stress_unit},
             strain_tensor=strain_tensor,
             unit=inputs.unit,
             phi_deg=inputs.phi_deg,
             meta_notes=notes,
             rosette=rosette,
             recovered_plane_stress=recovered,
+            in_plane_tensor=in_plane_tensor,
         )
 
 
@@ -720,7 +750,7 @@ class Hooke3DFromStrainSolver(SolverBase):
             solve_path=self.solve_path,
             title=inputs.title or 'Generalized Hooke law: 3D stress from strain',
             analysis_type='stress',
-            inputs={'exx': inputs.exx, 'eyy': inputs.eyy, 'ezz': inputs.ezz, 'gxy': inputs.gxy, 'gyz': inputs.gyz, 'gxz': inputs.gxz, 'E': E, 'nu': nu, 'G': G, 'unit': inputs.unit, 'stress_unit': inputs.stress_unit},
+            inputs={'exx': inputs.exx, 'eyy': inputs.eyy, 'ezz': inputs.ezz, 'gxy': inputs.gxy, 'gyz': inputs.gyz, 'gxz': inputs.gxz, 'E': E, 'nu': nu, 'G': G, 'unit': inputs.unit, 'strain_unit': inputs.unit, 'stress_unit': inputs.stress_unit},
             tensor=stress.tolist(),
             principal_stresses=[float(x) for x in principal],
             mean_stress=float(np.mean(principal)),
@@ -751,11 +781,15 @@ class SingleGaugeBiaxialPlaneStressSolver(SolverBase):
         sigma_y = (E * inputs.epsilon_theta - inputs.sigma_x_known * (c2 - nu * s2)) / denom
         exx = (inputs.sigma_x_known - nu * sigma_y) / E
         eyy = (sigma_y - nu * inputs.sigma_x_known) / E
-        strain_tensor = StrainMath.make_tensor(StrainTensorInput(exx=exx, eyy=eyy, ezz=0.0, gxy=0.0, unit=inputs.unit, phi_deg=inputs.phi_deg, title=inputs.title))
         recovered = HookeMath.plane_stress_from_strain(exx, eyy, 0.0, E=E, nu=nu, G=G)
         recovered['stress_unit'] = inputs.stress_unit or ''
         recovered['known_sigma_x'] = inputs.sigma_x_known
-        recovered['stress_along_gages'] = [{'name': 'measurement_axis', 'theta_deg': inputs.theta_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], 0.0, 0.0], [0.0, recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_deg).sigma_x_prime}]
+        recovered['stress_along_gages'] = [
+            {'name': 'measurement_axis', 'theta_deg': inputs.theta_deg, 'sigma_normal': StressMath.analyze_rotated_plane_stress(np.array([[recovered['sigma_x'], 0.0, 0.0], [0.0, recovered['sigma_y'], 0.0], [0.0, 0.0, 0.0]], dtype=float), inputs.theta_deg).sigma_x_prime}
+        ]
+        ezz_effective = float(recovered['epsilon_z_plane_stress'])
+        strain_tensor = StrainMath.make_tensor(StrainTensorInput(exx=exx, eyy=eyy, ezz=ezz_effective, gxy=0.0, unit=inputs.unit, phi_deg=inputs.phi_deg, title=inputs.title))
+        in_plane_tensor = StrainMath.make_in_plane_tensor(exx, eyy, 0.0)
         return _build_strain_result(
             solve_path=self.solve_path,
             title=inputs.title or 'Single-gage biaxial plane-stress analysis',
@@ -763,7 +797,8 @@ class SingleGaugeBiaxialPlaneStressSolver(SolverBase):
             strain_tensor=strain_tensor,
             unit=inputs.unit,
             phi_deg=inputs.phi_deg,
-            meta_notes=['A single measured normal strain at angle θ is combined with a known σx under the assumptions of biaxial plane stress and τxy = 0.', 'The missing σy is solved from the strain-transformation equation and isotropic plane-stress Hooke-law relations.'],
-            rosette={'rosette_type': 'single_gauge', 'gages': [{'name': 'measurement_axis', 'theta_deg': inputs.theta_deg, 'strain': inputs.epsilon_theta}]},
+            meta_notes=['A single measured normal strain at angle θ is combined with a known σx under the assumptions of biaxial plane stress and τxy = 0.', 'Because the measurement is on a free surface, εz is recovered from plane-stress Hooke-law relations instead of being assumed zero.', 'The missing σy is solved from the strain-transformation equation and isotropic plane-stress Hooke-law relations.'],
+            rosette={'rosette_type': 'single_gauge', 'gages': [{'name': 'measurement_axis', 'theta_deg': inputs.theta_deg, 'strain': inputs.epsilon_theta}], 'plane_stress_free_surface': True, 'effective_ezz': ezz_effective},
             recovered_plane_stress=recovered,
+            in_plane_tensor=in_plane_tensor,
         )

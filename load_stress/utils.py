@@ -495,13 +495,16 @@ def _save_or_show(fig: plt.Figure, outfile: Path, show_plot: bool) -> None:
 
 def render_dashboard(result: dict, outfile: Path, show_plot: bool = False) -> Path:
     analysis_type = result.get("analysis_type")
+    solve_path = result.get("solve_path", "")
     if analysis_type == "stress":
-        if result.get("is_plane_stress"):
+        if solve_path == 'hooke_3d_from_strain':
+            _render_hooke_3d_from_strain_dashboard(result, outfile, show_plot)
+        elif result.get("is_plane_stress"):
             _render_plane_stress_dashboard(result, outfile, show_plot)
         else:
             _render_mohr_3d(result, outfile, show_plot, family="stress")
     elif analysis_type == "strain":
-        if result.get("is_plane_strain"):
+        if result.get("plane_strain") is not None:
             _render_plane_strain_dashboard(result, outfile, show_plot)
         else:
             _render_mohr_3d(result, outfile, show_plot, family="strain")
@@ -570,6 +573,8 @@ def _render_plane_stress_dashboard(result: dict, outfile: Path, show_plot: bool)
 
     ax_results.axis("off")
     ax_results.set_title("Results summary", fontsize=12, pad=8, fontweight="bold")
+    principal_strains = [float(x) for x in result.get('principal_strains', [])]
+    epsilon3 = principal_strains[2] if len(principal_strains) >= 3 else 0.0
     rows = [(r"$\sigma_{avg}$", f"{sigma_avg:.3f}"), ("Radius", f"{radius:.3f}"), (r"$\sigma_1$", f"{sigma1:.3f}"), (r"$\sigma_2$", f"{sigma2:.3f}"), (r"$\tau_{max}$", f"{tau_max:.3f}"), (r"$\theta_p$", f"{theta_p:.2f}° ccw"), (r"$\theta_s$", f"{theta_s:.2f}° ccw")]
     if result.get('source_strains'):
         src = result['source_strains']
@@ -663,7 +668,7 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix
     )
 
-    textbook_angle_cw = theta_e1_cw if abs(epsilon1) >= abs(epsilon2) else theta_e2_cw
+    textbook_angle_cw = plane.get("theta_epsilon2_deg_cw", theta_e2_cw) if abs(epsilon1) < abs(epsilon2) else theta_e1_cw
 
     draw_state_element_generic(
         ax_principal, title="Principal strain deformation", family="strain", angle_deg=theta_p,
@@ -745,11 +750,11 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
             if recovered_stress:
                 ax_right_top.text(0.04, y_text - 0.02, "Plane-stress recovery enabled", fontsize=10.8, fontweight="bold", va="top")
                 y_text -= 0.14
-                stress_suffix = str((recovered_stress.get('stress_unit') or ''))
+                stress_suffix = str((recovered_stress.get('stress_unit') or '')).strip()
                 s_prec = 3
-                ax_right_top.text(0.08, y_text, f"σx = {_format_number(recovered_stress.get('sigma_x', 0.0), s_prec)} {stress_suffix}", fontsize=10.3, va="top")
+                ax_right_top.text(0.08, y_text, f"σx = {_format_number(recovered_stress.get('sigma_x', 0.0), s_prec)}{(' ' + stress_suffix) if stress_suffix else ''}", fontsize=10.3, va="top")
                 y_text -= 0.10
-                ax_right_top.text(0.08, y_text, f"σy = {_format_number(recovered_stress.get('sigma_y', 0.0), s_prec)} {stress_suffix}", fontsize=10.3, va="top")
+                ax_right_top.text(0.08, y_text, f"σy = {_format_number(recovered_stress.get('sigma_y', 0.0), s_prec)}{(' ' + stress_suffix) if stress_suffix else ''}", fontsize=10.3, va="top")
             else:
                 ax_right_top.text(0.04, y_text - 0.02, "Pass E and ν (or G) to recover stresses", fontsize=10.6, fontweight="bold", va="top")
         else:
@@ -765,6 +770,8 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
 
     ax_results.axis("off")
     ax_results.set_title("Results summary", fontsize=12, pad=8, fontweight="bold")
+    principal_strains = [float(x) for x in result.get('principal_strains', [])]
+    epsilon3 = principal_strains[2] if len(principal_strains) >= 3 else 0.0
     rows = [
         (r"$\varepsilon_{avg}$", _format_scaled(epsilon_avg, scale=sc, precision=prec, suffix=n_suffix)),
         ("Radius", _format_scaled(radius, scale=sc, precision=prec, suffix=s2_suffix)),
@@ -772,11 +779,13 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         (r"$\varepsilon_2$", _format_scaled(epsilon2, scale=sc, precision=prec, suffix=n_suffix)),
         (r"$\gamma_{max,\ in\text{-}plane}$", _format_scaled(gamma_max, scale=sc, precision=prec, suffix=s_suffix)),
         (r"$\gamma_{abs,\ 3D}$", _format_scaled(gamma_abs_max_3d, scale=sc, precision=prec, suffix=s_suffix)),
-        ("major principal dir.", f"{textbook_angle_cw:.2f}° cw"),
-        (r"$\varepsilon_2$ dir.", f"{theta_e2_ccw:.2f}° ccw"),
+        (r"$\varepsilon_1$ dir.", f"{plane.get('theta_epsilon1_deg_ccw', theta_p):.2f}° ccw / {plane.get('theta_epsilon1_deg_cw', textbook_angle_cw):.2f}° cw"),
+        (r"$\varepsilon_2$ dir.", f"{theta_e2_ccw:.2f}° ccw / {plane.get('theta_epsilon2_deg_cw', theta_e2_ccw):.2f}° cw"),
         (r"$\theta_s$", f"{theta_s:.2f}° ccw"),
         ("3D note", "abs max = in-plane" if abs_eq_in_plane else "abs max differs from in-plane"),
     ]
+    if abs(epsilon3) > 1e-12:
+        rows.insert(4, (r"$\varepsilon_3$", _format_scaled(epsilon3, scale=sc, precision=prec, suffix=n_suffix)))
     if result.get('rosette'):
         rows.append(('rosette', str(result['rosette'].get('rosette_type', 'general'))))
         for g in result['rosette'].get('gages', [])[:3]:
@@ -806,7 +815,7 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         ])
     _write_summary_rows(ax_results, rows)
 
-    ax_mohr.set_title("Plane-strain Mohr circle", fontsize=12, pad=8, fontweight="bold")
+    ax_mohr.set_title("In-plane strain Mohr circle", fontsize=12, pad=8, fontweight="bold")
     _plot_plane_circle_base(ax_mohr, C, radius * sc, xlabel=str(disp["normal_axis"]), ylabel=str(disp["shear_axis_plane"]))
     ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.2, color="tab:blue", linestyle="--", alpha=0.85)
     ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linewidth=1.2, color="tab:orange", linestyle="--", alpha=0.85)
@@ -844,10 +853,10 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
     _save_or_show(fig, outfile, show_plot)
 
 
-def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str) -> None:
+
+def _plot_mohr_3d_on_ax(ax: plt.Axes, result: dict, *, family: str) -> None:
     if family == "stress":
         principal = np.array(result["principal_stresses"], dtype=float)
-        title = result.get("title") or "3D Mohr circles"
         xlabel = r"Normal stress, $\sigma$"
         ylabel = r"Shear stress, $\tau$"
         point_label = "Principal stresses"
@@ -858,7 +867,6 @@ def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str
         principal = np.array(result["principal_strains"], dtype=float)
         disp = _strain_display(result.get("inputs", {}).get("unit", ""))
         scale = float(disp["scale"])
-        title = result.get("title") or "3D Mohr circles"
         xlabel = str(disp["normal_axis"])
         ylabel = str(disp["shear_axis_3d"])
         point_label = "Principal strains"
@@ -875,7 +883,6 @@ def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str
         {"label": "(1, 3)", "center": 0.5 * (s1 + s3), "radius": 0.5 * abs(s1 - s3)},
     ]
 
-    fig, ax = plt.subplots(figsize=(10, 8), constrained_layout=True)
     ax.set_aspect("equal", adjustable="box")
     theta = np.linspace(0.0, 2.0 * np.pi, 800)
     for circle in circles:
@@ -886,8 +893,8 @@ def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str
     ax.scatter([s1, s2, s3], [0.0, 0.0, 0.0], marker="o", label=point_label)
     ax.axhline(0.0, linewidth=1.0, color="black")
     ax.axvline(0.0, linewidth=1.0, color="black")
-    ax.set_xlabel(xlabel); ax.set_ylabel(ylabel); ax.set_title(title, fontweight="bold")
-    ax.grid(True, alpha=0.45); ax.legend()
+    ax.set_xlabel(xlabel); ax.set_ylabel(ylabel)
+    ax.grid(True, alpha=0.45); ax.legend(fontsize=9)
 
     max_radius = max(c["radius"] for c in circles)
     scale_plot = _data_scale([s1, s2, s3], max_radius)
@@ -895,4 +902,93 @@ def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str
     pad_y = max(0.18 * max(max_radius, 0.35 * scale_plot), 1e-12)
     ax.set_xlim(min(s1, s2, s3) - pad_x, max(s1, s2, s3) + pad_x)
     ax.set_ylim(-max_radius - pad_y, max_radius + pad_y)
+
+
+def _render_hooke_3d_from_strain_dashboard(result: dict, outfile: Path, show_plot: bool) -> None:
+    principal = np.array(result.get('principal_stresses', []), dtype=float)
+    stress_unit = (result.get('inputs', {}).get('stress_unit') or '').strip()
+    strain_unit = result.get('source_strains', {}).get('strain_unit', '')
+
+    fig = plt.figure(figsize=(15, 8.8), constrained_layout=True)
+    gs = fig.add_gridspec(2, 3, width_ratios=[0.95, 1.35, 1.0], height_ratios=[1.0, 0.75])
+    ax_in = fig.add_subplot(gs[0, 0])
+    ax_mohr = fig.add_subplot(gs[:, 1])
+    ax_sum = fig.add_subplot(gs[0, 2])
+    ax_note = fig.add_subplot(gs[1, 0])
+    ax_extra = fig.add_subplot(gs[1, 2])
+
+    for ax in [ax_in, ax_sum, ax_note, ax_extra]:
+        ax.axis('off')
+
+    ax_in.set_title('Input strains', fontsize=12, pad=8, fontweight='bold')
+    src = result.get('source_strains', {})
+    disp = _strain_display(strain_unit)
+    sc = float(disp['scale']); prec = int(disp['precision']); n_suffix = str(disp['normal_suffix']); s_suffix = str(disp['shear_suffix'])
+    lines = [
+        (r'$\varepsilon_x$', _format_scaled(src.get('exx', 0.0), scale=sc, precision=prec, suffix=n_suffix)),
+        (r'$\varepsilon_y$', _format_scaled(src.get('eyy', 0.0), scale=sc, precision=prec, suffix=n_suffix)),
+        (r'$\varepsilon_z$', _format_scaled(src.get('ezz', 0.0), scale=sc, precision=prec, suffix=n_suffix)),
+        (r'$\gamma_{xy}$', _format_scaled(src.get('gxy', 0.0), scale=sc, precision=prec, suffix=s_suffix)),
+        (r'$\gamma_{yz}$', _format_scaled(src.get('gyz', 0.0), scale=sc, precision=prec, suffix=s_suffix)),
+        (r'$\gamma_{xz}$', _format_scaled(src.get('gxz', 0.0), scale=sc, precision=prec, suffix=s_suffix)),
+    ]
+    _write_summary_rows(ax_in, lines)
+
+    ax_sum.set_title('Recovered stresses', fontsize=12, pad=8, fontweight='bold')
+    suffix_stress = f' {stress_unit}' if stress_unit else ''
+    rows = [
+        (r'$\sigma_1$', f"{result['principal_stresses'][0]:.3f}{suffix_stress}"),
+        (r'$\sigma_2$', f"{result['principal_stresses'][1]:.3f}{suffix_stress}"),
+        (r'$\sigma_3$', f"{result['principal_stresses'][2]:.3f}{suffix_stress}"),
+        (r'$\sigma_{avg}$', f"{result['mean_stress']:.3f}{suffix_stress}"),
+        (r'$\tau_{max}$', f"{result['max_shear_tresca']:.3f}{suffix_stress}"),
+        (r'$\sigma_{VM}$', f"{result['von_mises']:.3f}{suffix_stress}"),
+    ]
+    tensor = np.array(result.get('tensor', []), dtype=float)
+    rows.extend([
+        (r'$\sigma_x$', f"{tensor[0,0]:.3f}{suffix_stress}"),
+        (r'$\sigma_y$', f"{tensor[1,1]:.3f}{suffix_stress}"),
+        (r'$\sigma_z$', f"{tensor[2,2]:.3f}{suffix_stress}"),
+    ])
+    _write_summary_rows(ax_sum, rows)
+
+    ax_note.set_title('Hooke-law notes', fontsize=12, pad=8, fontweight='bold')
+    E = result.get('inputs', {}).get('E', 0.0)
+    nu = result.get('inputs', {}).get('nu', None)
+    G = result.get('inputs', {}).get('G', None)
+    note_lines = [
+        f"E = {E:.3f}{suffix_stress}",
+        f"ν = {nu:.5g}" if nu is not None else 'ν not supplied',
+        f"G = {G:.3f}{suffix_stress}" if G is not None else 'G derived internally',
+        'σ = 2Gε + λ tr(ε) I',
+    ]
+    ax_note.text(0.02, 0.95, '\n'.join(note_lines), va='top', fontsize=11, transform=ax_note.transAxes)
+
+    ax_extra.set_title('Mohr-circle interpretation', fontsize=12, pad=8, fontweight='bold')
+    equal12 = abs(principal[0] - principal[1]) <= 1e-9
+    equal23 = abs(principal[1] - principal[2]) <= 1e-9
+    extra_lines = []
+    if equal12 or equal23:
+        extra_lines.append('Degenerate 3D case detected:')
+        if equal12:
+            extra_lines.append('• σ1 ≈ σ2, so one Mohr circle collapses.')
+        if equal23:
+            extra_lines.append('• σ2 ≈ σ3, so one Mohr circle collapses.')
+        extra_lines.append('• Two circles may lie on top of each other.')
+    else:
+        extra_lines.append('Three distinct principal stresses produce three distinct circles.')
+    extra_lines.append('The plot is correct even when it looks visually simple.')
+    ax_extra.text(0.02, 0.95, '\n'.join(extra_lines), va='top', fontsize=10.8, transform=ax_extra.transAxes)
+
+    ax_mohr.set_title('3D stress Mohr circles', fontsize=12, pad=8, fontweight='bold')
+    _plot_mohr_3d_on_ax(ax_mohr, result, family='stress')
+
+    fig.suptitle(result.get('title') or 'Generalized Hooke law: 3D stress from strain', fontsize=22, fontweight='bold')
+    _save_or_show(fig, outfile, show_plot)
+
+
+def _render_mohr_3d(result: dict, outfile: Path, show_plot: bool, *, family: str) -> None:
+    fig, ax = plt.subplots(figsize=(10, 8), constrained_layout=True)
+    ax.set_title(result.get("title") or "3D Mohr circles", fontweight="bold")
+    _plot_mohr_3d_on_ax(ax, result, family=family)
     _save_or_show(fig, outfile, show_plot)
