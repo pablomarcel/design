@@ -1,3 +1,4 @@
+
 from __future__ import annotations
 
 import math
@@ -64,6 +65,39 @@ def draw_arrow(ax: plt.Axes, start: tuple[float, float], end: tuple[float, float
     )
 
 
+def draw_rotated_rectangle(
+    ax: plt.Axes,
+    *,
+    center: tuple[float, float],
+    width: float,
+    height: float,
+    angle_deg: float,
+    linewidth: float = 2.0,
+    edgecolor: str = "black",
+    linestyle: str = "-",
+    fill: bool = False,
+    facecolor: str = "none",
+    alpha: float = 1.0,
+    zorder: float = 1.0,
+) -> None:
+    lower_left = (center[0] - width / 2.0, center[1] - height / 2.0)
+    rect = patches.Rectangle(
+        lower_left,
+        width,
+        height,
+        angle=angle_deg,
+        rotation_point=center,
+        fill=fill,
+        facecolor=facecolor,
+        linewidth=linewidth,
+        edgecolor=edgecolor,
+        linestyle=linestyle,
+        alpha=alpha,
+        zorder=zorder,
+    )
+    ax.add_patch(rect)
+
+
 def draw_rotated_square(
     ax: plt.Axes,
     center: tuple[float, float],
@@ -76,22 +110,61 @@ def draw_rotated_square(
     fill: bool = False,
     facecolor: str = "none",
     alpha: float = 1.0,
+    zorder: float = 1.0,
 ) -> None:
-    lower_left = (center[0] - size / 2.0, center[1] - size / 2.0)
-    rect = patches.Rectangle(
-        lower_left,
-        size,
-        size,
-        angle=angle_deg,
-        rotation_point=center,
-        fill=fill,
-        facecolor=facecolor,
+    draw_rotated_rectangle(
+        ax,
+        center=center,
+        width=size,
+        height=size,
+        angle_deg=angle_deg,
         linewidth=linewidth,
         edgecolor=edgecolor,
         linestyle=linestyle,
+        fill=fill,
+        facecolor=facecolor,
         alpha=alpha,
+        zorder=zorder,
     )
-    ax.add_patch(rect)
+
+
+def add_principal_deformation_overlay(
+    ax: plt.Axes,
+    *,
+    angle_deg: float,
+    e1_value: float,
+    e2_value: float,
+) -> None:
+    mags = [abs(e1_value), abs(e2_value), 1e-18]
+    ref = max(mags)
+    n1 = min(abs(e1_value) / ref, 1.0)
+    n2 = min(abs(e2_value) / ref, 1.0)
+
+    def _delta(val: float, norm: float) -> float:
+        if val >= 0.0:
+            return 0.24 * norm
+        return -0.18 * norm
+
+    base = 1.02
+    width = base + _delta(e1_value, n1)
+    height = base + _delta(e2_value, n2)
+    width = max(width, 0.52)
+    height = max(height, 0.52)
+
+    draw_rotated_rectangle(
+        ax,
+        center=(0.0, 0.0),
+        width=width,
+        height=height,
+        angle_deg=angle_deg,
+        linewidth=1.2,
+        edgecolor="0.35",
+        linestyle="--",
+        fill=True,
+        facecolor="#d9c0df",
+        alpha=0.55,
+        zorder=0.6,
+    )
 
 
 def add_principal_deformation_arrows(
@@ -124,8 +197,8 @@ def add_principal_deformation_arrows(
     label1 = rf"$\varepsilon_1$ = {_format_scaled(e1_value, scale=scale, precision=precision, suffix=suffix)}"
     label2 = rf"$\varepsilon_2$ = {_format_scaled(e2_value, scale=scale, precision=precision, suffix=suffix)}"
 
-    _label_box(ax, *(1.55 * ex + np.array([0.10, -0.02])), label1, fontsize=10)
-    _label_box(ax, *(1.55 * ey + np.array([0.02, 0.08])), label2, fontsize=10)
+    _label_box(ax, *(1.56 * ex + np.array([0.12, -0.03])), label1, fontsize=10)
+    _label_box(ax, *(1.48 * ey + np.array([0.06, 0.10])), label2, fontsize=10)
 
 
 def add_max_shear_diamond(
@@ -133,9 +206,11 @@ def add_max_shear_diamond(
     *,
     angle_deg: float,
     gamma_value: float,
+    epsilon_avg: float,
     scale: float,
     precision: int,
-    suffix: str,
+    strain_suffix: str,
+    shear_suffix: str,
 ) -> None:
     ex = _vec(angle_deg)
     ey = _vec(angle_deg + 90.0)
@@ -148,8 +223,8 @@ def add_max_shear_diamond(
         fill=True,
         facecolor="#d9c0df",
         edgecolor="none",
-        alpha=0.55,
-        zorder=0.5,
+        alpha=0.62,
+        zorder=0.55,
     )
     dashed = patches.Polygon(
         diamond,
@@ -158,13 +233,23 @@ def add_max_shear_diamond(
         linewidth=1.8,
         linestyle="--",
         edgecolor="0.35",
-        zorder=1.0,
+        zorder=0.95,
     )
     ax.add_patch(filled)
     ax.add_patch(dashed)
 
-    label = rf"$\pi/2$ - {_format_scaled(abs(gamma_value), scale=scale, precision=precision, suffix=suffix)}"
-    _label_box(ax, *(0.72 * ex - 0.08 * ey), label, fontsize=10)
+    gamma_text = rf"$\gamma_{{xy}}$ = {_format_scaled(gamma_value, scale=scale, precision=precision, suffix=shear_suffix)}"
+    eps_text = rf"$\varepsilon_{{avg}}$ = {_format_scaled(epsilon_avg, scale=scale, precision=precision, suffix=strain_suffix)}"
+    acute_text = rf"$\pi/2$ - {_format_scaled(abs(gamma_value), scale=scale, precision=precision, suffix=shear_suffix)}"
+
+    _label_box(ax, -1.62, 1.36, gamma_text, fontsize=10)
+    _label_box(ax, 0.30, 1.10, eps_text, fontsize=10)
+    _label_box(ax, *(0.88 * ex + 0.10 * ey), acute_text, fontsize=10)
+
+    # subtle arc inside the acute corner region
+    arc_center = 0.38 * ex + 0.02 * ey
+    arc = patches.Arc(tuple(arc_center), 0.55, 0.55, angle=angle_deg, theta1=-22, theta2=18, linewidth=1.0, color="0.35")
+    ax.add_patch(arc)
 
 
 def add_axes_marker(ax: plt.Axes) -> None:
@@ -545,7 +630,6 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
     epsilon_avg = plane["epsilon_avg"]; radius = plane["radius"]; epsilon1 = plane["epsilon1"]; epsilon2 = plane["epsilon2"]
     theta_p = plane["theta_p_deg_ccw"]; theta_s = plane["theta_s_deg_ccw"]; gamma_max = plane["gamma_max_in_plane"]
     gamma_abs_max_3d = plane.get("gamma_abs_max_3d", result.get("max_engineering_shear_strain_3d", gamma_max))
-    theta_e1_ccw = plane.get("theta_epsilon1_deg_ccw", theta_p)
     theta_e2_ccw = plane.get("theta_epsilon2_deg_ccw", theta_p + 90.0)
     theta_e1_cw = plane.get("theta_epsilon1_deg_cw", abs(theta_p))
     theta_e2_cw = plane.get("theta_epsilon2_deg_cw", abs(theta_p + 90.0))
@@ -587,7 +671,16 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
             "inward arrows = contraction",
         ],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix,
-        show_component_labels=False
+        show_component_labels=False,
+        square_linewidth=1.7,
+        square_edgecolor="0.15",
+        square_alpha=0.95,
+    )
+    add_principal_deformation_overlay(
+        ax_principal,
+        angle_deg=theta_p,
+        e1_value=epsilon1,
+        e2_value=epsilon2,
     )
     add_principal_deformation_arrows(
         ax_principal,
@@ -609,15 +702,18 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
             "diamond shows midpoint distortion",
         ],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix,
-        square_linewidth=1.4, square_edgecolor="0.20", square_alpha=0.90
+        show_component_labels=False,
+        square_linewidth=1.2, square_edgecolor="0.30", square_alpha=0.75
     )
     add_max_shear_diamond(
         ax_shear,
         angle_deg=theta_s,
         gamma_value=gamma_max,
+        epsilon_avg=epsilon_avg,
         scale=sc,
         precision=prec,
-        suffix=s_suffix,
+        strain_suffix=n_suffix,
+        shear_suffix=s_suffix,
     )
 
     if rotated is not None:
