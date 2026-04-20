@@ -8,6 +8,10 @@ Run these commands from inside the `load_stress` package directory.
 python -m cli list
 ```
 
+```bash
+python -m cli list --json
+```
+
 ## sandbox - Mohr circle
 
 ```bash
@@ -83,7 +87,7 @@ python -m cli run \
   --pretty
 ```
 
-## No-plot run
+## Plane-stress - No-plot run
 
 ```bash
 python -m cli run \
@@ -96,4 +100,196 @@ python -m cli run \
   --txz -7 \
   --no-plot \
   --pretty
+```
+
+## 2D Strain
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0
+```
+
+## 2D strain, no arbitrary angle
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --unit microstrain \
+  --pretty \
+  --show
+```
+
+## 2D strain with arbitrary angle
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --phi-deg 20 \
+  --strain-unit "microstrain" \
+  --pretty \
+  --show
+```
+
+## Dedicated 2D rotation route
+
+```bash
+python -m cli run \
+  --solve-path plane_strain_rotation \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --phi-deg 20 \
+  --unit microstrain \
+  --pretty \
+  --show
+```
+
+## 2D Strain
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --phi-deg 17
+```
+
+## 2D strain with custom output files
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --phi-deg 20 \
+  --unit microstrain \
+  --outfile out/plane_strain_phi20.json \
+  --plotfile out/plane_strain_phi20.png \
+  --pretty
+```
+
+## 2D strain without generating a plot
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --unit microstrain \
+  --pretty \
+  --no-plot \
+  --show
+```
+
+## 2D strain with displayed plot window
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy 642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --phi-deg 20 \
+  --unit microstrain \
+  --show-plot \
+  --pretty
+```
+
+## Same 2D case, but using plain decimal strain values
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 0.000435 \
+  --eyy -0.000135 \
+  --ezz 0.0 \
+  --gxy 0.000642 \
+  --gyz 0.0 \
+  --gxz 0.0 \
+  --phi-deg 20 \
+  --unit strain \
+  --pretty \
+  --show
+```
+
+## 3D general strain
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 420e-6 \
+  --eyy -180e-6 \
+  --ezz 90e-6 \
+  --gxy 300e-6 \
+  --gyz -120e-6 \
+  --gxz 210e-6 \
+  --unit microstrain \
+  --pretty \
+  --show
+```
+
+## 3D general strain with custom output files
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 420e-6 \
+  --eyy -180e-6 \
+  --ezz 90e-6 \
+  --gxy 300e-6 \
+  --gyz -120e-6 \
+  --gxz 210e-6 \
+  --unit microstrain \
+  --outfile out/general_3d_strain_case_01.json \
+  --plotfile out/general_3d_strain_case_01.png \
+  --pretty
+```
+
+## 3D Strain
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 420e-6 \
+  --eyy -180e-6 \
+  --ezz 90e-6 \
+  --gxy 300e-6 \
+  --gyz -120e-6 \
+  --gxz 210e-6
 ```

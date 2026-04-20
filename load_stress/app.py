@@ -6,12 +6,12 @@ from typing import Optional
 
 try:
     from .apis import SolverAPI, SolverRequest
-    from .core import StressTensorInput
+    from .core import StrainTensorInput, StressTensorInput
     from .in_out import write_json
     from .utils import default_json_output_path, default_plot_output_path, render_dashboard
 except ImportError:
     from apis import SolverAPI, SolverRequest
-    from core import StressTensorInput
+    from core import StrainTensorInput, StressTensorInput
     from in_out import write_json
     from utils import default_json_output_path, default_plot_output_path, render_dashboard
 
@@ -24,12 +24,18 @@ class LoadStressApp:
         self,
         *,
         solve_path: str,
-        sxx: float,
-        syy: float,
-        szz: float,
+        sxx: Optional[float] = None,
+        syy: Optional[float] = None,
+        szz: Optional[float] = None,
         txy: float = 0.0,
         tyz: float = 0.0,
         txz: float = 0.0,
+        exx: Optional[float] = None,
+        eyy: Optional[float] = None,
+        ezz: Optional[float] = None,
+        gxy: float = 0.0,
+        gyz: float = 0.0,
+        gxz: float = 0.0,
         phi_deg: Optional[float] = None,
         unit: str = "",
         title: str = "",
@@ -39,20 +45,38 @@ class LoadStressApp:
         make_plot: bool = True,
         show_plot: bool = False,
     ) -> dict:
-        request = SolverRequest(
-            solve_path=solve_path,
-            inputs=StressTensorInput(
-                sxx=sxx,
-                syy=syy,
-                szz=szz,
-                txy=txy,
-                tyz=tyz,
-                txz=txz,
+        if "strain" in solve_path:
+            missing = [name for name, value in {"exx": exx, "eyy": eyy, "ezz": ezz}.items() if value is None]
+            if missing:
+                raise ValueError(f"Missing required strain flags for {solve_path}: {', '.join(missing)}")
+            inputs = StrainTensorInput(
+                exx=float(exx),
+                eyy=float(eyy),
+                ezz=float(ezz),
+                gxy=float(gxy),
+                gyz=float(gyz),
+                gxz=float(gxz),
                 phi_deg=phi_deg,
                 unit=unit,
                 title=title,
-            ),
-        )
+            )
+        else:
+            missing = [name for name, value in {"sxx": sxx, "syy": syy, "szz": szz}.items() if value is None]
+            if missing:
+                raise ValueError(f"Missing required stress flags for {solve_path}: {', '.join(missing)}")
+            inputs = StressTensorInput(
+                sxx=float(sxx),
+                syy=float(syy),
+                szz=float(szz),
+                txy=float(txy),
+                tyz=float(tyz),
+                txz=float(txz),
+                phi_deg=phi_deg,
+                unit=unit,
+                title=title,
+            )
+
+        request = SolverRequest(solve_path=solve_path, inputs=inputs)
         result = self.api.solve(request)
         payload = asdict(result)
 

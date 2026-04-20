@@ -4,26 +4,39 @@ from dataclasses import dataclass
 from typing import Dict, Type
 
 try:
-    from .core import General3DStressSolver, PlaneStressRotationSolver, StressSolverBase, StressTensorInput
+    from .core import (
+        General3DStrainSolver,
+        General3DStressSolver,
+        PlaneStrainRotationSolver,
+        PlaneStressRotationSolver,
+        SolverBase,
+        SolverInput,
+    )
 except ImportError:
-    from core import General3DStressSolver, PlaneStressRotationSolver, StressSolverBase, StressTensorInput
-
+    from core import (
+        General3DStrainSolver,
+        General3DStressSolver,
+        PlaneStrainRotationSolver,
+        PlaneStressRotationSolver,
+        SolverBase,
+        SolverInput,
+    )
 
 
 @dataclass
 class SolverRequest:
     solve_path: str
-    inputs: StressTensorInput
+    inputs: SolverInput
 
 
 class SolverRegistry:
     def __init__(self) -> None:
-        self._registry: Dict[str, Type[StressSolverBase]] = {}
+        self._registry: Dict[str, Type[SolverBase]] = {}
 
-    def register(self, solver_cls: Type[StressSolverBase]) -> None:
+    def register(self, solver_cls: Type[SolverBase]) -> None:
         self._registry[solver_cls.solve_path] = solver_cls
 
-    def create(self, solve_path: str) -> StressSolverBase:
+    def create(self, solve_path: str) -> SolverBase:
         try:
             solver_cls = self._registry[solve_path]
         except KeyError as exc:
@@ -40,6 +53,8 @@ class SolverAPI:
         self.registry = SolverRegistry()
         self.registry.register(General3DStressSolver)
         self.registry.register(PlaneStressRotationSolver)
+        self.registry.register(General3DStrainSolver)
+        self.registry.register(PlaneStrainRotationSolver)
 
     def solve(self, request: SolverRequest):
         solver = self.registry.create(request.solve_path)
