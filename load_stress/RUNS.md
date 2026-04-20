@@ -327,3 +327,264 @@ python -m cli run \
   --show-plot \
   --show
 ```
+
+## Example 13.4 equiangular rosette + principal strains
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_equiangular \
+  --ea -600e-6 \
+  --eb -900e-6 \
+  --ec 700e-6 \
+  --nu 0.30 \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Example 13.4 - Same rosette commands with custom output files
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_general \
+  --ea 350e-6 \
+  --eb 990e-6 \
+  --ec 900e-6 \
+  --theta-a 45 \
+  --theta-b 90 \
+  --theta-c 135 \
+  --E 115000 \
+  --nu 0.307 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --outfile out/example_13_9.json \
+  --plotfile out/example_13_9.png \
+  --pretty
+```
+
+## Example 13.4 - General 3-gage rosette with arbitrary angles
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_general \
+  --ea -600e-6 \
+  --eb -900e-6 \
+  --ec 700e-6 \
+  --theta-a 0 \
+  --theta-b 135 \
+  --theta-c 225 \
+  --E 200000 \
+  --nu 0.3 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+
+## Example 13.6
+
+```bash
+python -m cli run \
+  --solve-path hooke_3d_from_strain \
+  --exx -650e-6 \
+  --eyy -370e-6 \
+  --ezz -370e-6 \
+  --gxy 0 \
+  --gyz 0 \
+  --gxz 0 \
+  --E 55000 \
+  --nu 0.22 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Example 13.6 - output files named explicitly
+
+```bash
+python -m cli run \
+  --solve-path hooke_3d_from_strain \
+  --exx -650e-6 \
+  --eyy -370e-6 \
+  --ezz -370e-6 \
+  --gxy 0 \
+  --gyz 0 \
+  --gxz 0 \
+  --E 55000 \
+  --nu 0.22 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --outfile out/example_13_6.json \
+  --plotfile out/example_13_6.png \
+  --pretty \
+  --show
+```
+
+## Example 13.7 likely rectangular rosette + stress along gage b
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_rectangular \
+  --ea -420e-6 \
+  --eb 380e-6 \
+  --ec 240e-6 \
+  --E 10000 \
+  --nu 0.33 \
+  --stress-unit ksi \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Example 13.8 - Single gage on a biaxial plane-stress state 
+
+```bash
+python -m cli run \
+  --solve-path single_gauge_biaxial_plane_stress \
+  --sxx 70 \
+  --E 210000 \
+  --G 80000 \
+  --eg 230e-6 \
+  --theta-deg 60 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Example 13.9 full rosette + stress recovery
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_general \
+  --ea 350e-6 \
+  --eb 990e-6 \
+  --ec 900e-6 \
+  --theta-a 45 \
+  --theta-b 90 \
+  --theta-c 135 \
+  --E 115000 \
+  --nu 0.307 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Rectangular rosette (0, 45, 90)
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_rectangular \
+  --ea -420e-6 \
+  --eb 380e-6 \
+  --ec 240e-6 \
+  --E 10000 \
+  --nu 0.33 \
+  --unit microstrain \
+  --pretty \
+  --show
+```
+
+## Rectangular rosette (0, 45, 90) - stress units
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_rectangular \
+  --ea -420e-6 \
+  --eb 380e-6 \
+  --ec 240e-6 \
+  --E 10000 \
+  --nu 0.33 \
+  --stress-unit ksi \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Equiangular rosette (0, 120, 240)
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_equiangular \
+  --ea -600e-6 \
+  --eb -900e-6 \
+  --ec 700e-6 \
+  --nu 0.30 \
+  --unit microstrain \
+  --pretty \
+  --show
+```
+
+## Equiangular rosette (0, 120, 240) - recovered stresses from isotropic Hooke’s law
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_equiangular \
+  --ea -600e-6 \
+  --eb -900e-6 \
+  --ec 700e-6 \
+  --E 210000 \
+  --nu 0.30 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## General 3-gage rosette with arbitrary angles
+
+```bash
+python -m cli run \
+  --solve-path strain_rosette_general \
+  --ea 350e-6 \
+  --eb 990e-6 \
+  --ec 900e-6 \
+  --theta-a 45 \
+  --theta-b 90 \
+  --theta-c 135 \
+  --E 115000 \
+  --nu 0.307 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+
+## Single gage on a biaxial plane-stress state - nu instead of G
+
+```bash
+python -m cli run \
+  --solve-path single_gauge_biaxial_plane_stress \
+  --sigma-x 70 \
+  --E 210000 \
+  --nu 0.3125 \
+  --eg 230e-6 \
+  --theta-deg 60 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```
+
+## Generalized Hooke’s law, 3D, from strain
+
+```bash
+python -m cli run \
+  --solve-path hooke_3d_from_strain \
+  --exx -650e-6 \
+  --eyy -370e-6 \
+  --ezz -370e-6 \
+  --gxy 0 \
+  --gyz 0 \
+  --gxz 0 \
+  --E 55000 \
+  --nu 0.22 \
+  --stress-unit MPa \
+  --strain-unit microstrain \
+  --pretty \
+  --show
+```

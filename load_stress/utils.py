@@ -571,6 +571,9 @@ def _render_plane_stress_dashboard(result: dict, outfile: Path, show_plot: bool)
     ax_results.axis("off")
     ax_results.set_title("Results summary", fontsize=12, pad=8, fontweight="bold")
     rows = [(r"$\sigma_{avg}$", f"{sigma_avg:.3f}"), ("Radius", f"{radius:.3f}"), (r"$\sigma_1$", f"{sigma1:.3f}"), (r"$\sigma_2$", f"{sigma2:.3f}"), (r"$\tau_{max}$", f"{tau_max:.3f}"), (r"$\theta_p$", f"{theta_p:.2f}° ccw"), (r"$\theta_s$", f"{theta_s:.2f}° ccw")]
+    if result.get('source_strains'):
+        src = result['source_strains']
+        rows.extend([(r"$\varepsilon_x$", f"{src['exx']:.6f}"), (r"$\varepsilon_y$", f"{src['eyy']:.6f}"), (r"$\varepsilon_z$", f"{src['ezz']:.6f}")])
     if rotated is not None:
         rows.extend([(r"$\phi$", f"{rotated.phi_deg_ccw:.2f}° ccw"), (r"$\sigma_{x'}$", f"{rotated.sigma_x_prime:.3f}"), (r"$\sigma_{y'}$", f"{rotated.sigma_y_prime:.3f}"), (r"$\tau_{x'y'}$", f"{rotated.tau_x_prime_y_prime:.3f}")])
     _write_summary_rows(ax_results, rows)
@@ -716,6 +719,8 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         shear_suffix=s_suffix,
     )
 
+    rosette_info = result.get("rosette") or {}
+    recovered_stress = result.get("recovered_plane_stress") or {}
     if rotated is not None:
         draw_state_element_generic(
             ax_right_top, title="Arbitrary-angle strain element", family="strain", angle_deg=rotated.phi_deg_ccw,
@@ -730,15 +735,33 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         )
     else:
         ax_right_top.axis("off")
-        ax_right_top.set_title("Optional arbitrary-angle mode", fontsize=12, pad=8, fontweight="bold")
-        ax_right_top.text(0.04, 0.92, "Pass --phi-deg <value> to add:", fontsize=11.5, va="top", fontweight="bold")
-        for i, line in enumerate([
-            r"transformed strains $\varepsilon_{x'}$ and $\varepsilon_{y'}$",
-            r"transformed engineering shear strain $\gamma_{x'y'}$",
-            r"the point pair $P_\phi$ and $Q_\phi$ on Mohr's circle",
-            r"the rotated strain-element sketch",
-        ]):
-            ax_right_top.text(0.08, 0.80 - i * 0.13, "• " + line, fontsize=10.8, va="top")
+        if rosette_info:
+            ax_right_top.set_title("Rosette / constitutive notes", fontsize=12, pad=8, fontweight="bold")
+            ax_right_top.text(0.04, 0.92, f"Rosette type: {rosette_info.get('rosette_type', 'general')}", fontsize=11.3, va="top", fontweight="bold")
+            y_text = 0.79
+            for g in rosette_info.get('gages', [])[:3]:
+                ax_right_top.text(0.08, y_text, f"• gage {g['name']}: θ={g['theta_deg']:.1f}°, ε={_format_scaled(g['strain'], scale=sc, precision=prec, suffix=n_suffix)}", fontsize=10.4, va="top")
+                y_text -= 0.11
+            if recovered_stress:
+                ax_right_top.text(0.04, y_text - 0.02, "Plane-stress recovery enabled", fontsize=10.8, fontweight="bold", va="top")
+                y_text -= 0.14
+                stress_suffix = str((recovered_stress.get('stress_unit') or ''))
+                s_prec = 3
+                ax_right_top.text(0.08, y_text, f"σx = {_format_number(recovered_stress.get('sigma_x', 0.0), s_prec)} {stress_suffix}", fontsize=10.3, va="top")
+                y_text -= 0.10
+                ax_right_top.text(0.08, y_text, f"σy = {_format_number(recovered_stress.get('sigma_y', 0.0), s_prec)} {stress_suffix}", fontsize=10.3, va="top")
+            else:
+                ax_right_top.text(0.04, y_text - 0.02, "Pass E and ν (or G) to recover stresses", fontsize=10.6, fontweight="bold", va="top")
+        else:
+            ax_right_top.set_title("Optional arbitrary-angle mode", fontsize=12, pad=8, fontweight="bold")
+            ax_right_top.text(0.04, 0.92, "Pass --phi-deg <value> to add:", fontsize=11.5, va="top", fontweight="bold")
+            for i, line in enumerate([
+                r"transformed strains $\varepsilon_{x'}$ and $\varepsilon_{y'}$",
+                r"transformed engineering shear strain $\gamma_{x'y'}$",
+                r"the point pair $P_\phi$ and $Q_\phi$ on Mohr's circle",
+                r"the rotated strain-element sketch",
+            ]):
+                ax_right_top.text(0.08, 0.80 - i * 0.13, "• " + line, fontsize=10.8, va="top")
 
     ax_results.axis("off")
     ax_results.set_title("Results summary", fontsize=12, pad=8, fontweight="bold")
@@ -754,6 +777,25 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         (r"$\theta_s$", f"{theta_s:.2f}° ccw"),
         ("3D note", "abs max = in-plane" if abs_eq_in_plane else "abs max differs from in-plane"),
     ]
+    if result.get('rosette'):
+        rows.append(('rosette', str(result['rosette'].get('rosette_type', 'general'))))
+        for g in result['rosette'].get('gages', [])[:3]:
+            rows.append((f"gage {g['name']}", f"θ={g['theta_deg']:.1f}°, ε={_format_scaled(g['strain'], scale=sc, precision=prec, suffix=n_suffix)}"))
+    if result.get('recovered_plane_stress'):
+        rec = result['recovered_plane_stress']
+        s_unit = (rec.get('stress_unit') or '').strip()
+        suffix_stress = f' {s_unit}' if s_unit else ''
+        rows.extend([
+            (r"$\sigma_x$", f"{rec['sigma_x']:.3f}{suffix_stress}"),
+            (r"$\sigma_y$", f"{rec['sigma_y']:.3f}{suffix_stress}"),
+            (r"$\tau_{xy}$", f"{rec['tau_xy']:.3f}{suffix_stress}"),
+            (r"$\sigma_1$", f"{rec['sigma1']:.3f}{suffix_stress}"),
+            (r"$\sigma_2$", f"{rec['sigma2']:.3f}{suffix_stress}"),
+            (r"$\tau_{max}$", f"{rec['tau_max_in_plane']:.3f}{suffix_stress}"),
+            (r"$\tau_{abs}$", f"{rec['tau_abs_max_3d']:.3f}{suffix_stress}"),
+        ])
+        for item in rec.get('stress_along_gages', [])[:3]:
+            rows.append((f"σ along {item['name']}", f"{item['sigma_normal']:.3f}{suffix_stress}"))
     if rotated is not None:
         rows.extend([
             (r"$\phi$", f"{rotated.phi_deg_ccw:.2f}° ccw"),

@@ -7,19 +7,29 @@ try:
     from .core import (
         General3DStrainSolver,
         General3DStressSolver,
+        Hooke3DFromStrainSolver,
         PlaneStrainRotationSolver,
         PlaneStressRotationSolver,
+        SingleGaugeBiaxialPlaneStressSolver,
         SolverBase,
         SolverInput,
+        StrainRosetteEquiangularSolver,
+        StrainRosetteGeneralSolver,
+        StrainRosetteRectangularSolver,
     )
 except ImportError:
     from core import (
         General3DStrainSolver,
         General3DStressSolver,
+        Hooke3DFromStrainSolver,
         PlaneStrainRotationSolver,
         PlaneStressRotationSolver,
+        SingleGaugeBiaxialPlaneStressSolver,
         SolverBase,
         SolverInput,
+        StrainRosetteEquiangularSolver,
+        StrainRosetteGeneralSolver,
+        StrainRosetteRectangularSolver,
     )
 
 
@@ -51,10 +61,18 @@ class SolverRegistry:
 class SolverAPI:
     def __init__(self) -> None:
         self.registry = SolverRegistry()
-        self.registry.register(General3DStressSolver)
-        self.registry.register(PlaneStressRotationSolver)
-        self.registry.register(General3DStrainSolver)
-        self.registry.register(PlaneStrainRotationSolver)
+        for solver_cls in [
+            General3DStressSolver,
+            PlaneStressRotationSolver,
+            General3DStrainSolver,
+            PlaneStrainRotationSolver,
+            StrainRosetteRectangularSolver,
+            StrainRosetteEquiangularSolver,
+            StrainRosetteGeneralSolver,
+            Hooke3DFromStrainSolver,
+            SingleGaugeBiaxialPlaneStressSolver,
+        ]:
+            self.registry.register(solver_cls)
 
     def solve(self, request: SolverRequest):
         solver = self.registry.create(request.solve_path)
