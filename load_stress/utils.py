@@ -79,6 +79,62 @@ def draw_rotated_square(ax: plt.Axes, center: tuple[float, float], size: float, 
     ax.add_patch(rect)
 
 
+def add_principal_deformation_arrows(
+    ax: plt.Axes,
+    *,
+    angle_deg: float,
+    e1_value: float,
+    e2_value: float,
+    scale: float,
+    precision: int,
+    suffix: str,
+) -> None:
+    """Overlay textbook-style elongation/contraction arrows on the principal strain sketch."""
+    ex = _vec(angle_deg)
+    ey = _vec(angle_deg + 90.0)
+
+    def _principal_arrow(direction: np.ndarray, positive: bool) -> None:
+        base = 1.18 * direction
+        tail = base * (0.88 if positive else 1.18)
+        head = base * (1.25 if positive else 0.82)
+        draw_arrow(ax, tuple(tail), tuple(head), lw=2.0)
+
+    sign1_positive = e1_value >= 0.0
+    _principal_arrow(ex, sign1_positive)
+    _principal_arrow(-ex, sign1_positive)
+
+    sign2_positive = e2_value >= 0.0
+    _principal_arrow(ey, sign2_positive)
+    _principal_arrow(-ey, sign2_positive)
+
+    label1 = rf"$\varepsilon_1$ = {_format_scaled(e1_value, scale=scale, precision=precision, suffix=suffix)}"
+    label2 = rf"$\varepsilon_2$ = {_format_scaled(e2_value, scale=scale, precision=precision, suffix=suffix)}"
+
+    _label_box(ax, *(1.55 * ex + np.array([0.10, -0.02])), label1, fontsize=10)
+    _label_box(ax, *(1.55 * ey + np.array([0.02, 0.08])), label2, fontsize=10)
+
+
+def add_max_shear_diamond(
+    ax: plt.Axes,
+    *,
+    angle_deg: float,
+    gamma_value: float,
+    scale: float,
+    precision: int,
+    suffix: str,
+) -> None:
+    """Overlay a midpoint-connected diamond to make the max-shear panel look like a distortion sketch."""
+    ex = _vec(angle_deg)
+    ey = _vec(angle_deg + 90.0)
+    h = 0.9
+    diamond = np.vstack([h * ex, h * ey, -h * ex, -h * ey])
+    poly = patches.Polygon(diamond, closed=True, fill=False, linewidth=1.6, linestyle="--", edgecolor="0.35")
+    ax.add_patch(poly)
+
+    label = rf"$\pi/2$ - {_format_scaled(abs(gamma_value), scale=scale, precision=precision, suffix=suffix)}"
+    _label_box(ax, *(0.62 * ex - 0.12 * ey), label, fontsize=10)
+
+
 def add_axes_marker(ax: plt.Axes) -> None:
     draw_arrow(ax, (0.0, 0.0), (1.75, 0.0), lw=1.8)
     draw_arrow(ax, (0.0, 0.0), (0.0, 1.75), lw=1.8)
@@ -468,27 +524,48 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         x_value=exx, y_value=eyy, shear_value=gxy, subtitle_lines=[],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix
     )
+    textbook_angle_cw = theta_e1_cw if abs(epsilon1) >= abs(epsilon2) else theta_e2_cw
+    textbook_angle_ccw = theta_e1_ccw if abs(epsilon1) >= abs(epsilon2) else theta_e2_ccw
+
     draw_state_element_generic(
-        ax_principal, title="Principal strain element", family="strain", angle_deg=theta_p,
+        ax_principal, title="Principal strain deformation", family="strain", angle_deg=theta_p,
         x_value=epsilon1, y_value=epsilon2, shear_value=0.0,
         subtitle_lines=[
-            rf"$\theta_{{\varepsilon_1}} = {theta_e1_ccw:.2f}^\circ$ ccw",
-            rf"$\theta_{{\varepsilon_2}} = {theta_e2_ccw:.2f}^\circ$ ccw",
-            f"ε1 = {_format_scaled(epsilon1, scale=sc, precision=prec, suffix=n_suffix)}",
-            f"ε2 = {_format_scaled(epsilon2, scale=sc, precision=prec, suffix=n_suffix)}",
+            f"major principal direction: {textbook_angle_cw:.2f}° cw",
+            f"equivalently {textbook_angle_ccw:.2f}° ccw",
+            "outward arrows = elongation",
+            "inward arrows = contraction",
         ],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix
     )
+    add_principal_deformation_arrows(
+        ax_principal,
+        angle_deg=theta_p,
+        e1_value=epsilon1,
+        e2_value=epsilon2,
+        scale=sc,
+        precision=prec,
+        suffix=n_suffix,
+    )
+
     draw_state_element_generic(
-        ax_shear, title="Maximum in-plane shear element", family="strain", angle_deg=theta_s,
+        ax_shear, title="Maximum in-plane shear distortion", family="strain", angle_deg=theta_s,
         x_value=epsilon_avg, y_value=epsilon_avg, shear_value=gamma_max,
         subtitle_lines=[
             rf"$\theta_s = {theta_s:.2f}^\circ$ ccw",
             f"εavg = {_format_scaled(epsilon_avg, scale=sc, precision=prec, suffix=n_suffix)}",
             f"γmax,in-plane = {_format_scaled(gamma_max, scale=sc, precision=prec, suffix=s_suffix)}",
-            "equal normal strain on all faces",
+            "diamond shows midpoint distortion",
         ],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix
+    )
+    add_max_shear_diamond(
+        ax_shear,
+        angle_deg=theta_s,
+        gamma_value=gamma_max,
+        scale=sc,
+        precision=prec,
+        suffix=s_suffix,
     )
 
     if rotated is not None:
@@ -524,8 +601,8 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         (r"$\varepsilon_2$", _format_scaled(epsilon2, scale=sc, precision=prec, suffix=n_suffix)),
         (r"$\gamma_{max,\ in\text{-}plane}$", _format_scaled(gamma_max, scale=sc, precision=prec, suffix=s_suffix)),
         (r"$\gamma_{abs,\ 3D}$", _format_scaled(gamma_abs_max_3d, scale=sc, precision=prec, suffix=s_suffix)),
-        (r"$\theta_{\varepsilon_1}$", f"{theta_e1_ccw:.2f}° ccw / {theta_e1_cw:.2f}° cw"),
-        (r"$\theta_{\varepsilon_2}$", f"{theta_e2_ccw:.2f}° ccw / {theta_e2_cw:.2f}° cw"),
+        ("major principal dir.", f"{textbook_angle_cw:.2f}° cw  (= {textbook_angle_ccw:.2f}° ccw)"),
+        (r"$\varepsilon_2$ dir.", f"{theta_e2_cw:.2f}° cw  (= {theta_e2_ccw:.2f}° ccw)"),
         (r"$\theta_s$", f"{theta_s:.2f}° ccw"),
         ("3D note", "abs max = in-plane" if abs_eq_in_plane else "abs max differs from in-plane"),
     ]
