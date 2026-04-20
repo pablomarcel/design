@@ -65,6 +65,10 @@ class PlaneStrainResults:
     gamma_max_in_plane: float
     theta_p_deg_ccw: float
     theta_s_deg_ccw: float
+    theta_epsilon1_deg_ccw: float
+    theta_epsilon2_deg_ccw: float
+    theta_epsilon1_deg_cw: float
+    theta_epsilon2_deg_cw: float
     point_x: tuple[float, float]
     point_y: tuple[float, float]
 
@@ -120,6 +124,18 @@ class StrainAnalysisResult:
 
 SolverInput = Union[StressTensorInput, StrainTensorInput]
 SolverResult = Union[StressAnalysisResult, StrainAnalysisResult]
+
+
+def _normalize_angle_ccw_0_180(angle_deg: float) -> float:
+    angle = angle_deg % 180.0
+    if angle < 0.0:
+        angle += 180.0
+    return angle
+
+
+def _smallest_cw_angle_from_x(angle_deg: float) -> float:
+    ccw_0_180 = _normalize_angle_ccw_0_180(angle_deg)
+    return min(ccw_0_180, 180.0 - ccw_0_180)
 
 
 class StressMath:
@@ -288,6 +304,9 @@ class StrainMath:
 
         theta_p_rad = 0.5 * math.atan2(2.0 * gxy_over_2, exx - eyy)
         theta_s_rad = theta_p_rad + math.pi / 4.0
+        theta_p_deg = math.degrees(theta_p_rad)
+        theta_e1_ccw = _normalize_angle_ccw_0_180(theta_p_deg)
+        theta_e2_ccw = _normalize_angle_ccw_0_180(theta_p_deg + 90.0)
 
         point_x = (exx, -gxy_over_2)
         point_y = (eyy, gxy_over_2)
@@ -298,8 +317,12 @@ class StrainMath:
             epsilon1=epsilon1,
             epsilon2=epsilon2,
             gamma_max_in_plane=gamma_max_in_plane,
-            theta_p_deg_ccw=math.degrees(theta_p_rad),
+            theta_p_deg_ccw=theta_p_deg,
             theta_s_deg_ccw=math.degrees(theta_s_rad),
+            theta_epsilon1_deg_ccw=theta_e1_ccw,
+            theta_epsilon2_deg_ccw=theta_e2_ccw,
+            theta_epsilon1_deg_cw=_smallest_cw_angle_from_x(theta_e1_ccw),
+            theta_epsilon2_deg_cw=_smallest_cw_angle_from_x(theta_e2_ccw),
             point_x=point_x,
             point_y=point_y,
         )
@@ -449,6 +472,43 @@ class General3DStrainSolver(SolverBase):
                 raise ValueError("--phi-deg is only supported for plane-strain states in this release.")
             rotated = StrainMath.analyze_rotated_plane_strain(strain_tensor, inputs.phi_deg)
 
+        gamma_abs_max_3d = float(e1 - e3)
+        gamma_abs_max_tensor_3d = float(0.5 * (e1 - e3))
+
+        plane_payload = None
+        if plane is not None:
+            plane_payload = {
+                "epsilon_avg": plane.epsilon_avg,
+                "radius": plane.radius,
+                "epsilon1": plane.epsilon1,
+                "epsilon2": plane.epsilon2,
+                "gamma_max_in_plane": plane.gamma_max_in_plane,
+                "gamma_max_in_plane_over_2": plane.gamma_max_in_plane / 2.0,
+                "gamma_abs_max_3d": gamma_abs_max_3d,
+                "gamma_abs_max_3d_over_2": gamma_abs_max_tensor_3d,
+                "abs_max_equals_in_plane": bool(abs(gamma_abs_max_3d - plane.gamma_max_in_plane) <= 1e-12),
+                "theta_p_deg_ccw": plane.theta_p_deg_ccw,
+                "theta_s_deg_ccw": plane.theta_s_deg_ccw,
+                "theta_epsilon1_deg_ccw": plane.theta_epsilon1_deg_ccw,
+                "theta_epsilon2_deg_ccw": plane.theta_epsilon2_deg_ccw,
+                "theta_epsilon1_deg_cw": plane.theta_epsilon1_deg_cw,
+                "theta_epsilon2_deg_cw": plane.theta_epsilon2_deg_cw,
+                "point_x": list(plane.point_x),
+                "point_y": list(plane.point_y),
+            }
+
+        rotated_payload = None
+        if rotated is not None:
+            rotated_payload = {
+                "phi_deg_ccw": rotated.phi_deg_ccw,
+                "epsilon_x_prime": rotated.epsilon_x_prime,
+                "epsilon_y_prime": rotated.epsilon_y_prime,
+                "gamma_x_prime_y_prime": rotated.gamma_x_prime_y_prime,
+                "gamma_x_prime_y_prime_over_2": rotated.gamma_x_prime_y_prime_over_2,
+                "point_x_prime": list(rotated.point_x_prime),
+                "point_y_prime": list(rotated.point_y_prime),
+            }
+
         return StrainAnalysisResult(
             problem="load_stress",
             solve_path=self.solve_path,
@@ -467,45 +527,19 @@ class General3DStrainSolver(SolverBase):
             tensor=strain_tensor.tolist(),
             principal_strains=[float(x) for x in principal],
             mean_strain=float(np.mean(principal)),
-            max_tensor_shear_strain_3d=float((e1 - e3) / 2.0),
-            max_engineering_shear_strain_3d=float(e1 - e3),
+            max_tensor_shear_strain_3d=gamma_abs_max_tensor_3d,
+            max_engineering_shear_strain_3d=gamma_abs_max_3d,
             invariants=invariants,
             is_plane_strain=bool(is_plane),
-            plane_strain=(
-                {
-                    "epsilon_avg": plane.epsilon_avg,
-                    "radius": plane.radius,
-                    "epsilon1": plane.epsilon1,
-                    "epsilon2": plane.epsilon2,
-                    "gamma_max_in_plane": plane.gamma_max_in_plane,
-                    "gamma_max_in_plane_over_2": plane.gamma_max_in_plane / 2.0,
-                    "theta_p_deg_ccw": plane.theta_p_deg_ccw,
-                    "theta_s_deg_ccw": plane.theta_s_deg_ccw,
-                    "point_x": list(plane.point_x),
-                    "point_y": list(plane.point_y),
-                }
-                if plane is not None
-                else None
-            ),
-            rotated_plane_strain=(
-                {
-                    "phi_deg_ccw": rotated.phi_deg_ccw,
-                    "epsilon_x_prime": rotated.epsilon_x_prime,
-                    "epsilon_y_prime": rotated.epsilon_y_prime,
-                    "gamma_x_prime_y_prime": rotated.gamma_x_prime_y_prime,
-                    "gamma_x_prime_y_prime_over_2": rotated.gamma_x_prime_y_prime_over_2,
-                    "point_x_prime": list(rotated.point_x_prime),
-                    "point_y_prime": list(rotated.point_y_prime),
-                }
-                if rotated is not None
-                else None
-            ),
+            plane_strain=plane_payload,
+            rotated_plane_strain=rotated_payload,
             meta={
                 "applicability": "General symmetric 3D strain tensor analysis using engineering shear strain inputs and γ/2 for plane-strain Mohr-circle plotting.",
                 "notes": [
                     "User-facing shear inputs are engineering shear strains γxy, γyz, γxz.",
                     "Internal tensor off-diagonal entries use γ/2.",
                     "Plane-strain Mohr circle is plotted with γ/2 on the vertical axis to match common machine design textbook conventions.",
+                    "Plane-strain results now report both principal-direction angles and absolute-vs-in-plane maximum shear strain quantities.",
                 ],
             },
         )

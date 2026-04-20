@@ -293,3 +293,37 @@ python -m cli run \
   --gyz -120e-6 \
   --gxz 210e-6
 ```
+
+## Philpot Example 13.2
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx -680e-6 \
+  --eyy 320e-6 \
+  --ezz 0 \
+  --gxy -980e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --unit microstrain \
+  --pretty \
+  --show-plot \
+  --show
+```
+
+## Philpot Example 13.3
+
+```bash
+python -m cli run \
+  --solve-path general_3d_strain \
+  --exx 435e-6 \
+  --eyy -135e-6 \
+  --ezz 0 \
+  --gxy -642e-6 \
+  --gyz 0 \
+  --gxz 0 \
+  --unit microstrain \
+  --pretty \
+  --show-plot \
+  --show
+```
