@@ -148,6 +148,7 @@ class StressAnalysisResult:
     plane_stress: Optional[dict[str, Any]] = None
     rotated_plane_stress: Optional[dict[str, Any]] = None
     source_strains: Optional[dict[str, Any]] = None
+    stress_components: Optional[dict[str, float]] = None
     meta: dict[str, Any] = field(default_factory=dict)
 
 
@@ -183,9 +184,16 @@ def _normalize_angle_ccw_0_180(angle_deg: float) -> float:
     return angle
 
 
-def _smallest_cw_angle_from_x(angle_deg: float) -> float:
+def _cw_equivalent_from_ccw_line(angle_deg: float) -> float:
     ccw_0_180 = _normalize_angle_ccw_0_180(angle_deg)
-    return min(ccw_0_180, 180.0 - ccw_0_180)
+    cw = (180.0 - ccw_0_180) % 180.0
+    if abs(cw - 180.0) <= 1e-12:
+        cw = 0.0
+    return cw
+
+
+def _smallest_cw_angle_from_x(angle_deg: float) -> float:
+    return _cw_equivalent_from_ccw_line(angle_deg)
 
 
 def _resolve_isotropic_constants(E: float, nu: Optional[float], G: Optional[float]) -> tuple[float, float, float]:
@@ -597,6 +605,7 @@ class General3DStressSolver(SolverBase):
             is_plane_stress=bool(is_plane),
             plane_stress=({'sigma_avg': plane.sigma_avg, 'radius': plane.radius, 'sigma1': plane.sigma1, 'sigma2': plane.sigma2, 'tau_max_in_plane': plane.tau_max_in_plane, 'theta_p_deg_ccw': plane.theta_p_deg_ccw, 'theta_s_deg_ccw': plane.theta_s_deg_ccw, 'point_x': list(plane.point_x), 'point_y': list(plane.point_y)} if plane else None),
             rotated_plane_stress=({'phi_deg_ccw': rotated.phi_deg_ccw, 'sigma_x_prime': rotated.sigma_x_prime, 'sigma_y_prime': rotated.sigma_y_prime, 'tau_x_prime_y_prime': rotated.tau_x_prime_y_prime, 'point_x_prime': list(rotated.point_x_prime), 'point_y_prime': list(rotated.point_y_prime)} if rotated else None),
+            stress_components={'sigma_x': float(stress[0, 0]), 'sigma_y': float(stress[1, 1]), 'sigma_z': float(stress[2, 2]), 'tau_xy': float(stress[0, 1]), 'tau_yz': float(stress[1, 2]), 'tau_xz': float(stress[0, 2])},
             meta={'applicability': 'General symmetric 3D stress tensor analysis with optional plane-stress rotation.', 'notes': ['Positive tension sign convention for normal stress.', 'Tensor is assumed symmetric.']},
         )
 
@@ -761,7 +770,8 @@ class Hooke3DFromStrainSolver(SolverBase):
             plane_stress=({'sigma_avg': plane.sigma_avg, 'radius': plane.radius, 'sigma1': plane.sigma1, 'sigma2': plane.sigma2, 'tau_max_in_plane': plane.tau_max_in_plane, 'theta_p_deg_ccw': plane.theta_p_deg_ccw, 'theta_s_deg_ccw': plane.theta_s_deg_ccw, 'point_x': list(plane.point_x), 'point_y': list(plane.point_y)} if plane else None),
             rotated_plane_stress=None,
             source_strains={'exx': inputs.exx, 'eyy': inputs.eyy, 'ezz': inputs.ezz, 'gxy': inputs.gxy, 'gyz': inputs.gyz, 'gxz': inputs.gxz, 'strain_unit': inputs.unit},
-            meta={'applicability': 'Generalized Hooke law for isotropic materials in full 3D using σ = 2Gε + λ tr(ε) I.', 'notes': ['Provide E with ν or G. When both ν and G are supplied, consistency is checked.', 'Stress off-diagonal terms are recovered from τij = G γij.']},
+            stress_components={'sigma_x': float(stress[0, 0]), 'sigma_y': float(stress[1, 1]), 'sigma_z': float(stress[2, 2]), 'tau_xy': float(stress[0, 1]), 'tau_yz': float(stress[1, 2]), 'tau_xz': float(stress[0, 2])},
+            meta={'applicability': 'Generalized Hooke law for isotropic materials in full 3D using σ = 2Gε + λ tr(ε) I.', 'notes': ['Provide E with ν or G. When both ν and G are supplied, consistency is checked.', 'Stress off-diagonal terms are recovered from τij = G γij.', 'For full 3D Hooke-law recovery, σx, σy, and σz remain the primary reported component stresses even when principal stresses are also listed as derived quantities.']},
         )
 
 

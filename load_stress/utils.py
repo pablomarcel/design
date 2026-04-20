@@ -316,6 +316,34 @@ def _format_scaled(value: float, *, scale: float, precision: int, suffix: str = 
     return f"{_format_number(value * scale, precision)}{suffix}"
 
 
+def _cw_equivalent_for_line(angle_ccw_deg: float) -> float:
+    angle = angle_ccw_deg % 180.0
+    if angle < 0.0:
+        angle += 180.0
+    cw = (180.0 - angle) % 180.0
+    if abs(cw - 180.0) <= 1e-12:
+        cw = 0.0
+    return cw
+
+
+def _format_preferred_line_direction(angle_ccw_deg: float) -> str:
+    angle_ccw = angle_ccw_deg % 180.0
+    if angle_ccw < 0.0:
+        angle_ccw += 180.0
+    angle_cw = _cw_equivalent_for_line(angle_ccw)
+    if angle_ccw <= angle_cw:
+        return f"{angle_ccw:.2f}° ccw"
+    return f"{angle_cw:.2f}° cw"
+
+
+def _format_line_direction_with_equivalent(angle_ccw_deg: float) -> str:
+    angle_ccw = angle_ccw_deg % 180.0
+    if angle_ccw < 0.0:
+        angle_ccw += 180.0
+    angle_cw = _cw_equivalent_for_line(angle_ccw)
+    return f"{_format_preferred_line_direction(angle_ccw)} (= {angle_ccw:.2f}° ccw)"
+
+
 def draw_state_element_generic(
     ax: plt.Axes,
     *,
@@ -573,9 +601,15 @@ def _render_plane_stress_dashboard(result: dict, outfile: Path, show_plot: bool)
 
     ax_results.axis("off")
     ax_results.set_title("Results summary", fontsize=12, pad=8, fontweight="bold")
-    principal_strains = [float(x) for x in result.get('principal_strains', [])]
-    epsilon3 = principal_strains[2] if len(principal_strains) >= 3 else 0.0
-    rows = [(r"$\sigma_{avg}$", f"{sigma_avg:.3f}"), ("Radius", f"{radius:.3f}"), (r"$\sigma_1$", f"{sigma1:.3f}"), (r"$\sigma_2$", f"{sigma2:.3f}"), (r"$\tau_{max}$", f"{tau_max:.3f}"), (r"$\theta_p$", f"{theta_p:.2f}° ccw"), (r"$\theta_s$", f"{theta_s:.2f}° ccw")]
+    rows = [
+        (r"$\sigma_{avg}$", f"{sigma_avg:.3f}"),
+        ("Radius", f"{radius:.3f}"),
+        (r"$\sigma_1$", f"{sigma1:.3f}"),
+        (r"$\sigma_2$", f"{sigma2:.3f}"),
+        (r"$\tau_{max}$", f"{tau_max:.3f}"),
+        (r"$\theta_p$", f"{theta_p:.2f}° ccw"),
+        (r"$\theta_s$", f"{theta_s:.2f}° ccw"),
+    ]
     if result.get('source_strains'):
         src = result['source_strains']
         rows.extend([(r"$\varepsilon_x$", f"{src['exx']:.6f}"), (r"$\varepsilon_y$", f"{src['eyy']:.6f}"), (r"$\varepsilon_z$", f"{src['ezz']:.6f}")])
@@ -634,13 +668,20 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
     s_suffix = str(disp["shear_suffix"])
     s2_suffix = str(disp["gamma_over_2_suffix"])
 
-    exx = float(strain_tensor[0, 0]); eyy = float(strain_tensor[1, 1]); gxy_over_2 = float(strain_tensor[0, 1]); gxy = 2.0 * gxy_over_2
-    epsilon_avg = plane["epsilon_avg"]; radius = plane["radius"]; epsilon1 = plane["epsilon1"]; epsilon2 = plane["epsilon2"]
-    theta_p = plane["theta_p_deg_ccw"]; theta_s = plane["theta_s_deg_ccw"]; gamma_max = plane["gamma_max_in_plane"]
+    exx = float(strain_tensor[0, 0])
+    eyy = float(strain_tensor[1, 1])
+    gxy_over_2 = float(strain_tensor[0, 1])
+    gxy = 2.0 * gxy_over_2
+    epsilon_avg = plane["epsilon_avg"]
+    radius = plane["radius"]
+    epsilon1 = plane["epsilon1"]
+    epsilon2 = plane["epsilon2"]
+    theta_p = plane["theta_p_deg_ccw"]
+    theta_s = plane["theta_s_deg_ccw"]
+    gamma_max = plane["gamma_max_in_plane"]
     gamma_abs_max_3d = plane.get("gamma_abs_max_3d", result.get("max_engineering_shear_strain_3d", gamma_max))
     theta_e2_ccw = plane.get("theta_epsilon2_deg_ccw", theta_p + 90.0)
-    theta_e1_cw = plane.get("theta_epsilon1_deg_cw", abs(theta_p))
-    theta_e2_cw = plane.get("theta_epsilon2_deg_cw", abs(theta_p + 90.0))
+    theta_e1_ccw = plane.get("theta_epsilon1_deg_ccw", theta_p)
     abs_eq_in_plane = bool(plane.get("abs_max_equals_in_plane", False))
 
     A = (plane["point_x"][0] * sc, plane["point_x"][1] * sc)
@@ -668,13 +709,13 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix
     )
 
-    textbook_angle_cw = plane.get("theta_epsilon2_deg_cw", theta_e2_cw) if abs(epsilon1) < abs(epsilon2) else theta_e1_cw
+    textbook_angle_cw = _cw_equivalent_for_line(theta_e1_ccw) if abs(epsilon1) >= abs(epsilon2) else _cw_equivalent_for_line(theta_e2_ccw)
 
     draw_state_element_generic(
         ax_principal, title="Principal strain deformation", family="strain", angle_deg=theta_p,
         x_value=epsilon1, y_value=epsilon2, shear_value=0.0,
         subtitle_lines=[
-            rf"$\theta_p = {textbook_angle_cw:.2f}^\circ$ cw",
+            f"preferred direction = {_format_preferred_line_direction(theta_e1_ccw)}",
             "outward arrows = elongation",
             "inward arrows = contraction",
         ],
@@ -684,21 +725,8 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         square_edgecolor="0.15",
         square_alpha=0.95,
     )
-    add_principal_deformation_overlay(
-        ax_principal,
-        angle_deg=theta_p,
-        e1_value=epsilon1,
-        e2_value=epsilon2,
-    )
-    add_principal_deformation_arrows(
-        ax_principal,
-        angle_deg=theta_p,
-        e1_value=epsilon1,
-        e2_value=epsilon2,
-        scale=sc,
-        precision=prec,
-        suffix=n_suffix,
-    )
+    add_principal_deformation_overlay(ax_principal, angle_deg=theta_p, e1_value=epsilon1, e2_value=epsilon2)
+    add_principal_deformation_arrows(ax_principal, angle_deg=theta_p, e1_value=epsilon1, e2_value=epsilon2, scale=sc, precision=prec, suffix=n_suffix)
 
     draw_state_element_generic(
         ax_shear, title="Maximum in-plane shear distortion", family="strain", angle_deg=theta_s,
@@ -710,19 +738,9 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
             "diamond shows midpoint distortion",
         ],
         value_scale=sc, value_precision=prec, x_suffix=n_suffix, y_suffix=n_suffix, shear_suffix=s_suffix,
-        show_component_labels=False,
-        square_linewidth=1.2, square_edgecolor="0.30", square_alpha=0.75
+        show_component_labels=False, square_linewidth=1.2, square_edgecolor="0.30", square_alpha=0.75
     )
-    add_max_shear_diamond(
-        ax_shear,
-        angle_deg=theta_s,
-        gamma_value=gamma_max,
-        epsilon_avg=epsilon_avg,
-        scale=sc,
-        precision=prec,
-        strain_suffix=n_suffix,
-        shear_suffix=s_suffix,
-    )
+    add_max_shear_diamond(ax_shear, angle_deg=theta_s, gamma_value=gamma_max, epsilon_avg=epsilon_avg, scale=sc, precision=prec, strain_suffix=n_suffix, shear_suffix=s_suffix)
 
     rosette_info = result.get("rosette") or {}
     recovered_stress = result.get("recovered_plane_stress") or {}
@@ -779,8 +797,8 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         (r"$\varepsilon_2$", _format_scaled(epsilon2, scale=sc, precision=prec, suffix=n_suffix)),
         (r"$\gamma_{max,\ in\text{-}plane}$", _format_scaled(gamma_max, scale=sc, precision=prec, suffix=s_suffix)),
         (r"$\gamma_{abs,\ 3D}$", _format_scaled(gamma_abs_max_3d, scale=sc, precision=prec, suffix=s_suffix)),
-        (r"$\varepsilon_1$ dir.", f"{plane.get('theta_epsilon1_deg_ccw', theta_p):.2f}° ccw / {plane.get('theta_epsilon1_deg_cw', textbook_angle_cw):.2f}° cw"),
-        (r"$\varepsilon_2$ dir.", f"{theta_e2_ccw:.2f}° ccw / {plane.get('theta_epsilon2_deg_cw', theta_e2_ccw):.2f}° cw"),
+        ("major principal dir.", _format_preferred_line_direction(theta_e1_ccw)),
+        (r"$\varepsilon_2$ dir.", _format_preferred_line_direction(theta_e2_ccw)),
         (r"$\theta_s$", f"{theta_s:.2f}° ccw"),
         ("3D note", "abs max = in-plane" if abs_eq_in_plane else "abs max differs from in-plane"),
     ]
@@ -815,43 +833,43 @@ def _render_plane_strain_dashboard(result: dict, outfile: Path, show_plot: bool)
         ])
     _write_summary_rows(ax_results, rows)
 
-    ax_mohr.set_title("In-plane strain Mohr circle", fontsize=12, pad=8, fontweight="bold")
-    _plot_plane_circle_base(ax_mohr, C, radius * sc, xlabel=str(disp["normal_axis"]), ylabel=str(disp["shear_axis_plane"]))
-    ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.2, color="tab:blue", linestyle="--", alpha=0.85)
-    ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linewidth=1.2, color="tab:orange", linestyle="--", alpha=0.85)
+    show_full_3d_strain_mohr = (abs(epsilon3) > 1e-12) and (not abs_eq_in_plane)
+    if show_full_3d_strain_mohr:
+        ax_mohr.set_title("3D strain Mohr circles", fontsize=12, pad=8, fontweight="bold")
+        _plot_full_3d_strain_mohr(ax_mohr, result, disp=disp)
+    else:
+        ax_mohr.set_title("In-plane strain Mohr circle", fontsize=12, pad=8, fontweight="bold")
+        _plot_plane_circle_base(ax_mohr, C, radius * sc, xlabel=str(disp["normal_axis"]), ylabel=str(disp["shear_axis_plane"]))
+        ax_mohr.plot([C[0], A[0]], [C[1], A[1]], linewidth=1.2, color="tab:blue", linestyle="--", alpha=0.85)
+        ax_mohr.plot([C[0], B[0]], [C[1], B[1]], linewidth=1.2, color="tab:orange", linestyle="--", alpha=0.85)
+        for point in [A, B, C, P1, P2, S_top, S_bot]:
+            ax_mohr.plot(point[0], point[1], marker="o", linestyle="None", markersize=5, color="black")
+        ax_mohr.annotate("x", xy=A, xytext=(5, 5), textcoords="offset points", fontsize=10)
+        ax_mohr.annotate("y", xy=B, xytext=(5, -14), textcoords="offset points", fontsize=10)
+        ax_mohr.annotate(r"$P_1$", xy=P1, xytext=(8, -16), textcoords="offset points", fontsize=10, color="tab:blue")
+        ax_mohr.annotate(r"$P_2$", xy=P2, xytext=(-16, -16), textcoords="offset points", fontsize=10, color="tab:blue")
+        ax_mohr.annotate(r"$S_2$", xy=S_top, xytext=(-12, 8), textcoords="offset points", fontsize=10, color="tab:red")
+        ax_mohr.annotate(r"$S_1$", xy=S_bot, xytext=(-12, -18), textcoords="offset points", fontsize=10, color="tab:red")
+        _label_box(ax_mohr, C[0], -0.16 * plot_scale, rf"$C = ({_format_number(C[0], prec)}, 0)$", ha="center")
+        _label_box(ax_mohr, A[0] + 0.08 * plot_scale, A[1] + 0.08 * plot_scale, rf"$x(\varepsilon_x,\,-\gamma_{{xy}}/2)$", fontsize=9)
+        _label_box(ax_mohr, B[0] - 0.10 * plot_scale, B[1] - 0.08 * plot_scale, rf"$y(\varepsilon_y,\,+\gamma_{{xy}}/2)$", fontsize=9, ha="right")
+        _label_box(ax_mohr, C[0] + 0.14 * plot_scale, 0.14 * plot_scale, rf"$R = {_format_number(radius * sc, prec)}$", fontsize=9)
+        angle_CA = math.degrees(math.atan2(A[1] - C[1], A[0] - C[0]))
+        annotate_angle_arc(ax_mohr, center=C, radius=max(radius * sc * 0.18, 0.10 * plot_scale), theta1_deg=0.0, theta2_deg=angle_CA, text=rf"$2\theta_p = {abs(angle_CA):.1f}^\circ$", color="tab:blue")
+        if rotated is not None:
+            Pphi = (rotated.point_x_prime[0] * sc, rotated.point_x_prime[1] * sc)
+            Qphi = (rotated.point_y_prime[0] * sc, rotated.point_y_prime[1] * sc)
+            ax_mohr.plot(Pphi[0], Pphi[1], marker="o", linestyle="None", markersize=6, color="tab:red")
+            ax_mohr.plot(Qphi[0], Qphi[1], marker="o", linestyle="None", markersize=6, color="tab:purple")
+            ax_mohr.annotate(r"$P_\phi$", xy=Pphi, xytext=(5, 7), textcoords="offset points", fontsize=10, color="tab:red")
+            ax_mohr.annotate(r"$Q_\phi$", xy=Qphi, xytext=(5, -15), textcoords="offset points", fontsize=10, color="tab:purple")
+            ax_mohr.plot([C[0], Pphi[0]], [C[1], Pphi[1]], linestyle="--", linewidth=1.2, color="tab:red", alpha=0.9)
+            angle_CP = math.degrees(math.atan2(Pphi[1] - C[1], Pphi[0] - C[0]))
+            annotate_angle_arc(ax_mohr, center=C, radius=max(radius * sc * 0.30, 0.14 * plot_scale), theta1_deg=angle_CA, theta2_deg=angle_CP, text=rf"$2\phi = {2.0 * rotated.phi_deg_ccw:.2f}^\circ$", color="tab:red", linestyle="--", text_radius_scale=1.18)
+        _set_plane_circle_limits(ax_mohr, radius * sc, [P1[0], P2[0], A[0], B[0], C[0]])
 
-    for point in [A, B, C, P1, P2, S_top, S_bot]:
-        ax_mohr.plot(point[0], point[1], marker="o", linestyle="None", markersize=5, color="black")
-
-    ax_mohr.annotate("x", xy=A, xytext=(5, 5), textcoords="offset points", fontsize=10)
-    ax_mohr.annotate("y", xy=B, xytext=(5, -14), textcoords="offset points", fontsize=10)
-    ax_mohr.annotate(r"$P_1$", xy=P1, xytext=(8, -16), textcoords="offset points", fontsize=10, color="tab:blue")
-    ax_mohr.annotate(r"$P_2$", xy=P2, xytext=(-16, -16), textcoords="offset points", fontsize=10, color="tab:blue")
-    ax_mohr.annotate(r"$S_2$", xy=S_top, xytext=(-12, 8), textcoords="offset points", fontsize=10, color="tab:red")
-    ax_mohr.annotate(r"$S_1$", xy=S_bot, xytext=(-12, -18), textcoords="offset points", fontsize=10, color="tab:red")
-    _label_box(ax_mohr, C[0], -0.16 * plot_scale, rf"$C = ({_format_number(C[0], prec)}, 0)$", ha="center")
-    _label_box(ax_mohr, A[0] + 0.08 * plot_scale, A[1] + 0.08 * plot_scale, rf"$x(\varepsilon_x,\,-\gamma_{{xy}}/2)$", fontsize=9)
-    _label_box(ax_mohr, B[0] - 0.10 * plot_scale, B[1] - 0.08 * plot_scale, rf"$y(\varepsilon_y,\,+\gamma_{{xy}}/2)$", fontsize=9, ha="right")
-    _label_box(ax_mohr, C[0] + 0.14 * plot_scale, 0.14 * plot_scale, rf"$R = {_format_number(radius * sc, prec)}$", fontsize=9)
-
-    angle_CA = math.degrees(math.atan2(A[1] - C[1], A[0] - C[0]))
-    annotate_angle_arc(ax_mohr, center=C, radius=max(radius * sc * 0.18, 0.10 * plot_scale), theta1_deg=0.0, theta2_deg=angle_CA, text=rf"$2\theta_p = {abs(angle_CA):.1f}^\circ$", color="tab:blue")
-
-    if rotated is not None:
-        Pphi = (rotated.point_x_prime[0] * sc, rotated.point_x_prime[1] * sc)
-        Qphi = (rotated.point_y_prime[0] * sc, rotated.point_y_prime[1] * sc)
-        ax_mohr.plot(Pphi[0], Pphi[1], marker="o", linestyle="None", markersize=6, color="tab:red")
-        ax_mohr.plot(Qphi[0], Qphi[1], marker="o", linestyle="None", markersize=6, color="tab:purple")
-        ax_mohr.annotate(r"$P_\phi$", xy=Pphi, xytext=(5, 7), textcoords="offset points", fontsize=10, color="tab:red")
-        ax_mohr.annotate(r"$Q_\phi$", xy=Qphi, xytext=(5, -15), textcoords="offset points", fontsize=10, color="tab:purple")
-        ax_mohr.plot([C[0], Pphi[0]], [C[1], Pphi[1]], linestyle="--", linewidth=1.2, color="tab:red", alpha=0.9)
-        angle_CP = math.degrees(math.atan2(Pphi[1] - C[1], Pphi[0] - C[0]))
-        annotate_angle_arc(ax_mohr, center=C, radius=max(radius * sc * 0.30, 0.14 * plot_scale), theta1_deg=angle_CA, theta2_deg=angle_CP, text=rf"$2\phi = {2.0 * rotated.phi_deg_ccw:.2f}^\circ$", color="tab:red", linestyle="--", text_radius_scale=1.18)
-
-    _set_plane_circle_limits(ax_mohr, radius * sc, [P1[0], P2[0], A[0], B[0], C[0]])
     fig.suptitle(result.get("title") or "Mohr circle dashboard", fontsize=20, fontweight="bold")
     _save_or_show(fig, outfile, show_plot)
-
 
 
 def _plot_mohr_3d_on_ax(ax: plt.Axes, result: dict, *, family: str) -> None:
@@ -904,6 +922,67 @@ def _plot_mohr_3d_on_ax(ax: plt.Axes, result: dict, *, family: str) -> None:
     ax.set_ylim(-max_radius - pad_y, max_radius + pad_y)
 
 
+def _plot_full_3d_strain_mohr(ax: plt.Axes, result: dict, *, disp: dict[str, object]) -> None:
+    plane = result["plane_strain"]
+    sc = float(disp["scale"])
+    prec = int(disp["precision"])
+    xlabel = str(disp["normal_axis"])
+    ylabel = str(disp["shear_axis_plane"])
+
+    principal = np.array(result.get("principal_strains", []), dtype=float) * sc
+    e1, e2, e3 = principal
+    circles = [
+        {"center": 0.5 * (e1 + e2), "radius": 0.5 * abs(e1 - e2), "color": "#0f766e"},
+        {"center": 0.5 * (e2 + e3), "radius": 0.5 * abs(e2 - e3), "color": "#0ea5e9"},
+        {"center": 0.5 * (e1 + e3), "radius": 0.5 * abs(e1 - e3), "color": "#db2777"},
+    ]
+
+    ax.set_aspect("equal", adjustable="box")
+    theta = np.linspace(0.0, 2.0 * np.pi, 800)
+    for circle in circles:
+        c = circle["center"]
+        r = circle["radius"]
+        x = c + r * np.cos(theta)
+        y = r * np.sin(theta)
+        ax.plot(x, y, linewidth=2.0, color=circle["color"])
+
+    ax.axhline(0.0, linewidth=1.0, color="black")
+    ax.axvline(0.0, linewidth=1.0, color="black")
+    ax.grid(True, alpha=0.28)
+    ax.set_xlabel(xlabel, fontsize=11)
+    ax.set_ylabel(ylabel, fontsize=11)
+
+    A = (plane["point_x"][0] * sc, plane["point_x"][1] * sc)
+    B = (plane["point_y"][0] * sc, plane["point_y"][1] * sc)
+    Cxy = (plane["epsilon_avg"] * sc, 0.0)
+    P1 = (e1, 0.0)
+    P2 = (e2, 0.0)
+    P3 = (e3, 0.0)
+
+    ax.plot([A[0], B[0]], [A[1], B[1]], linewidth=1.5, color="0.15")
+    ax.plot([Cxy[0], A[0]], [Cxy[1], A[1]], linewidth=1.2, color="tab:blue", linestyle="--", alpha=0.9)
+    ax.plot([Cxy[0], B[0]], [Cxy[1], B[1]], linewidth=1.2, color="tab:orange", linestyle="--", alpha=0.9)
+
+    for point in [A, B, Cxy, P1, P2, P3]:
+        ax.plot(point[0], point[1], marker="o", linestyle="None", markersize=5, color="black")
+
+    ax.annotate("x", xy=A, xytext=(5, 5), textcoords="offset points", fontsize=10)
+    ax.annotate("y", xy=B, xytext=(5, -14), textcoords="offset points", fontsize=10)
+    ax.annotate(r"$P_1$", xy=P1, xytext=(8, -16), textcoords="offset points", fontsize=10, color="#1d4ed8")
+    ax.annotate(r"$P_2$", xy=P2, xytext=(-16, -16), textcoords="offset points", fontsize=10, color="#1d4ed8")
+    ax.annotate(r"$P_3$", xy=P3, xytext=(-18, -16), textcoords="offset points", fontsize=10, color="#1d4ed8")
+
+    max_radius = max(circle["radius"] for circle in circles)
+    plot_scale = _data_scale([e1, e2, e3, A[0], B[0]], max_radius)
+    _label_box(ax, Cxy[0], -0.16 * plot_scale, rf"$C = ({_format_number(Cxy[0], prec)}, 0)$", ha="center")
+    _label_box(ax, P3[0] - 0.10 * plot_scale, 0.08 * plot_scale, rf"$P_3 = ({_format_number(P3[0], prec)}, 0)$", ha="right", fontsize=9)
+
+    pad_x = max(0.16 * plot_scale, 1e-12)
+    pad_y = max(0.16 * max_radius, 0.10 * plot_scale)
+    ax.set_xlim(min(e1, e2, e3, A[0], B[0]) - pad_x, max(e1, e2, e3, A[0], B[0]) + pad_x)
+    ax.set_ylim(-max_radius - pad_y, max_radius + pad_y)
+
+
 def _render_hooke_3d_from_strain_dashboard(result: dict, outfile: Path, show_plot: bool) -> None:
     principal = np.array(result.get('principal_stresses', []), dtype=float)
     stress_unit = (result.get('inputs', {}).get('stress_unit') or '').strip()
@@ -934,22 +1013,23 @@ def _render_hooke_3d_from_strain_dashboard(result: dict, outfile: Path, show_plo
     ]
     _write_summary_rows(ax_in, lines)
 
-    ax_sum.set_title('Recovered stresses', fontsize=12, pad=8, fontweight='bold')
+    ax_sum.set_title('Recovered component stresses', fontsize=12, pad=8, fontweight='bold')
     suffix_stress = f' {stress_unit}' if stress_unit else ''
+    tensor = np.array(result.get('tensor', []), dtype=float)
     rows = [
-        (r'$\sigma_1$', f"{result['principal_stresses'][0]:.3f}{suffix_stress}"),
-        (r'$\sigma_2$', f"{result['principal_stresses'][1]:.3f}{suffix_stress}"),
-        (r'$\sigma_3$', f"{result['principal_stresses'][2]:.3f}{suffix_stress}"),
+        (r'$\sigma_x$', f"{tensor[0,0]:.3f}{suffix_stress}"),
+        (r'$\sigma_y$', f"{tensor[1,1]:.3f}{suffix_stress}"),
+        (r'$\sigma_z$', f"{tensor[2,2]:.3f}{suffix_stress}"),
+        (r'$\tau_{xy}$', f"{tensor[0,1]:.3f}{suffix_stress}"),
+        (r'$\tau_{yz}$', f"{tensor[1,2]:.3f}{suffix_stress}"),
+        (r'$\tau_{xz}$', f"{tensor[0,2]:.3f}{suffix_stress}"),
+        (r'$\sigma_{max}$', f"{result['principal_stresses'][0]:.3f}{suffix_stress}"),
+        (r'$\sigma_{mid}$', f"{result['principal_stresses'][1]:.3f}{suffix_stress}"),
+        (r'$\sigma_{min}$', f"{result['principal_stresses'][2]:.3f}{suffix_stress}"),
         (r'$\sigma_{avg}$', f"{result['mean_stress']:.3f}{suffix_stress}"),
         (r'$\tau_{max}$', f"{result['max_shear_tresca']:.3f}{suffix_stress}"),
         (r'$\sigma_{VM}$', f"{result['von_mises']:.3f}{suffix_stress}"),
     ]
-    tensor = np.array(result.get('tensor', []), dtype=float)
-    rows.extend([
-        (r'$\sigma_x$', f"{tensor[0,0]:.3f}{suffix_stress}"),
-        (r'$\sigma_y$', f"{tensor[1,1]:.3f}{suffix_stress}"),
-        (r'$\sigma_z$', f"{tensor[2,2]:.3f}{suffix_stress}"),
-    ])
     _write_summary_rows(ax_sum, rows)
 
     ax_note.set_title('Hooke-law notes', fontsize=12, pad=8, fontweight='bold')
