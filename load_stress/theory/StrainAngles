@@ -175,3 +175,62 @@ A clean reporting style would be:
 That removes the ambiguity completely.
 
 ---
+
+Example 13.9
+
+Yes.
+
+For this dashboard, the **( \varepsilon_1 ) direction is the physical angle in the material**, measured from the **positive (x)-axis to the ( \varepsilon_1 ) axis**.
+
+So in Example 13.9:
+
+* preferred direction to ( \varepsilon_2 ) = **18.5° ccw**
+* therefore the ( \varepsilon_1 ) direction is perpendicular to that:
+  **18.5° + 90° = 108.5° ccw**
+* the same line can also be described as
+  **71.5° cw**
+
+So yes: when you look at the sketch, the way to interpret it is essentially
+
+* **from (x) to the (P_1) physical direction** = **71.5° cw**
+* equivalently = **108.5° ccw**
+
+That is the **physical principal-strain direction**.
+
+What is causing the confusion is that there are **two different angles** in play:
+
+1. **Physical angle in the material**
+
+   * this is the angle from the (x)-axis to the principal direction
+   * for ( \varepsilon_1 ): **71.5° cw** or **108.5° ccw**
+   * for ( \varepsilon_2 ): **18.5° ccw**
+
+2. **Mohr-circle angle**
+
+   * this is **double** the physical angle
+   * so if the physical direction is **71.5°**, the Mohr angle is **143.0°**
+   * if the physical direction is **18.5°**, the Mohr angle is **37.0°**
+
+Using your Example 13.9 numbers:
+
+* textbook gives
+  ( \theta_p = 18.5^\circ ) to the **( \varepsilon_2 )** direction
+* then the perpendicular direction is
+  ( 18.5^\circ + 90^\circ = 108.5^\circ ) ccw
+* same axis, written clockwise, is
+  ( 180^\circ - 108.5^\circ = 71.5^\circ ) cw
+
+So the relation is:
+
+* **( \varepsilon_2 ) dir = 18.5^\circ ) ccw**
+* **( \varepsilon_1 ) dir = 108.5^\circ ) ccw = 71.5^\circ cw**
+
+And on Mohr’s circle:
+
+* for ( \varepsilon_2 ): (2\theta = 37.0^\circ)
+* for ( \varepsilon_1 ): (2\theta = 143.0^\circ)
+
+So your intuition is right:
+the only way the **71.5°** makes visual sense is as the **physical angle from (x) to the ( \varepsilon_1 ) axis**, not as the textbook’s ( \theta_p ) itself.
+
+The textbook’s ( \theta_p ) here is tied to **( \varepsilon_2 )**, not ( \varepsilon_1 ).
