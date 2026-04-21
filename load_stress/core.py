@@ -445,6 +445,7 @@ class HookeMath:
             'sigma1': float(principal[0]), 'sigma2': float(principal[1]), 'sigma3': float(principal[2]),
             'tau_max_in_plane': float(plane.tau_max_in_plane),
             'tau_abs_max_3d': float(tau_abs),
+            'sigma_avg_on_max_shear_planes': float(plane.sigma_avg),
             'theta_p_deg_ccw': float(plane.theta_p_deg_ccw),
             'theta_s_deg_ccw': float(plane.theta_s_deg_ccw),
         }

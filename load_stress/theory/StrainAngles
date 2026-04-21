@@ -1,0 +1,177 @@
+Yes — for **Example 13.4**, your results are aligned with the textbook on the mechanics.
+
+The important matches are:
+
+* reconstructed strains: ( \varepsilon_x=-600~\mu\varepsilon ), ( \varepsilon_y=400~\mu\varepsilon ), ( \gamma_{xy}=1600~\mu\text{rad} )
+* principal strains: ( \varepsilon_1 \approx 843~\mu\varepsilon ), ( \varepsilon_2 \approx -1043~\mu\varepsilon )
+* maximum in-plane shear strain: ( \gamma_{\max} \approx 1887~\mu\text{rad} )
+* out-of-plane strain for plane stress: ( \varepsilon_3=\varepsilon_z \approx 85.7~\mu\varepsilon )
+* absolute maximum shear strain equals the in-plane one for this case
+
+So the **solver math is right**.
+
+What improved:
+
+* the dashboard now says **preferred direction = 29.00° cw**, which is much closer to the textbook wording
+* the angle is now explicitly tied to the **minor principal direction**
+* the confusing duplicate cw/ccw phrasing is much better than before
+* the panel no longer feels as semantically wrong as the earlier version
+
+What still needs polish:
+
+* the summary still says **major principal dir. = 61.00° ccw** first, while the book’s logic for this example is built around the **(\varepsilon_2)** direction, (29^\circ) cw
+* the principal-deformation panel still makes it feel like only one angle is “the” angle, when really both principal directions exist
+* the recovered stress block is still extra for this example. Not wrong, just beyond what the textbook asked
+
+Now to your angle question — this is the key point.
+
+For this example, because ( \varepsilon_x-\varepsilon_y<0 ), the textbook’s ( \theta_p ) is the angle from the (x)-direction to the **(\varepsilon_2)** direction, not to (\varepsilon_1).
+
+So here:
+
+* (\theta_{\varepsilon_2} = 29^\circ) clockwise
+* (\theta_{\varepsilon_1} = 61^\circ) counterclockwise
+
+Those are the same principal axes, just the two perpendicular directions.
+
+On Mohr’s circle:
+
+* the physical rotation angle is doubled
+* so if the physical angle is ( \theta ), the Mohr-circle angle is ( 2\theta )
+
+For this case:
+
+* ( \theta_{\varepsilon_2} \approx 29^\circ) cw
+* so the corresponding Mohr-circle sweep is about (58^\circ)
+
+That is exactly why the textbook writes (2\theta_p=-58^\circ).
+
+Why are you not seeing a separate theta for (\varepsilon_1)?
+Because it is not independent. Once you know one principal direction, the other is just:
+
+[
+\theta_{\varepsilon_1}=\theta_{\varepsilon_2}+90^\circ
+]
+
+So mathematically, nothing is missing. It is just a presentation choice.
+
+What is happening in your app right now is:
+
+* it is showing the **book-facing angle** for (\varepsilon_2) in the deformation panel
+* and it is also showing the **major principal direction** in the summary
+
+That is why it feels like “where is the angle for (\varepsilon_1)?”
+It is there indirectly, but not being emphasized as its own explicit paired statement.
+
+The cleanest presentation for this example would be:
+
+* **minor principal direction:** (29.00^\circ) cw from (x)
+* **major principal direction:** (61.00^\circ) ccw from (x)
+* **Mohr-circle angle:** (2\theta = 58.00^\circ)
+
+That would remove almost all of the confusion.
+
+---
+
+Yes. Here is exactly what that means in numbers.
+
+Take your Example 13.4 result:
+
+* (\varepsilon_1 = 843\ \mu\varepsilon)
+* (\varepsilon_2 = -1043\ \mu\varepsilon)
+
+Your app was reporting one principal direction as about:
+
+* (61.0^\circ) ccw from (x)
+
+and the other as:
+
+* (151.0^\circ) ccw from (x)
+
+Those two differ by (90^\circ):
+
+[
+151.0^\circ - 61.0^\circ = 90.0^\circ
+]
+
+That is the “(\theta + 90^\circ)” relation.
+
+Why?
+
+Because principal directions are perpendicular to each other.
+
+So if one principal axis is at angle (\theta), the other one must be at:
+
+[
+\theta + 90^\circ
+]
+
+or equivalently
+
+[
+\theta - 90^\circ
+]
+
+depending on how you want to express it.
+
+For Example 13.4, the textbook says:
+
+* angle to the (\varepsilon_2) direction is (29^\circ) clockwise from (x)
+
+Convert that to ccw from (x):
+
+[
+-29^\circ \equiv 331^\circ \text{ ccw}
+]
+
+or, if you prefer the equivalent perpendicular direction,
+
+[
+-29^\circ + 90^\circ = 61^\circ
+]
+
+That (61^\circ) is the direction of the other principal axis, the one tied to (\varepsilon_1).
+
+So the same physical pair of principal directions can be written as:
+
+* (\varepsilon_2) direction: (29^\circ) cw from (x)
+* (\varepsilon_1) direction: (61^\circ) ccw from (x)
+
+and those are perpendicular, because:
+
+[
+61^\circ - (-29^\circ) = 90^\circ
+]
+
+Another quick example from Example 13.9:
+
+Textbook says:
+
+* (\theta_p = 18.5^\circ) to the (\varepsilon_2) direction
+
+Then the (\varepsilon_1) direction is:
+
+[
+18.5^\circ + 90^\circ = 108.5^\circ
+]
+
+So the two principal directions are:
+
+* (\varepsilon_2): (18.5^\circ)
+* (\varepsilon_1): (108.5^\circ)
+
+Again, separated by (90^\circ).
+
+That is all I meant.
+
+The important point is:
+the app may report one axis, while the textbook reports the perpendicular one. Both can be correct if they are tied to different principal strains.
+
+A clean reporting style would be:
+
+* (\theta_{\varepsilon_2} = 29.0^\circ) cw from (x)
+* (\theta_{\varepsilon_1} = 61.0^\circ) ccw from (x)
+
+That removes the ambiguity completely.
+
+---
