@@ -209,7 +209,7 @@ python -m cli \
   --show-speeds
 ```
 
-### Solves a transmission spec - 8th gear - shows speeds
+### Solves a transmission spec - 6th gear - shows speeds
 
 ```bash
 python -m cli \
@@ -265,7 +265,7 @@ python -m cli \
   --show-speeds
 ```
 
-### Solves a transmission spec - 8th gear - shows speeds
+### Solves a transmission spec - 7th gear - shows speeds
 
 ```bash
 python -m cli \

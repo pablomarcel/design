@@ -92,6 +92,29 @@ class TransmissionSpec:
     meta: dict[str, Any] = field(default_factory=dict)
 
     @staticmethod
+    def _raw_clutch_items(spec_dict: Mapping[str, Any]) -> tuple[list[Any], str]:
+        """Return clutch-like items with backward-compatible schema support.
+
+        Preferred modern key:
+            clutches_brakes_flywheels
+
+        Legacy key still supported:
+            clutches
+        """
+        if spec_dict.get("clutches_brakes_flywheels") is not None:
+            return (
+                ensure_list(
+                    spec_dict.get("clutches_brakes_flywheels"),
+                    context="spec.clutches_brakes_flywheels",
+                ),
+                "spec.clutches_brakes_flywheels",
+            )
+        return (
+            ensure_list(spec_dict.get("clutches"), context="spec.clutches"),
+            "spec.clutches",
+        )
+
+    @staticmethod
     def from_dict(data: Mapping[str, Any]) -> "TransmissionSpec":
         d = ensure_dict(data, context="transmission spec")
 
@@ -146,14 +169,15 @@ class TransmissionSpec:
         if not gearsets:
             raise TransmissionAppError("spec.gearsets must contain at least one planetary gearset.")
 
+        raw_clutch_items, clutch_context = TransmissionSpec._raw_clutch_items(d)
         clutches: list[ClutchSpec] = []
-        for idx, item in enumerate(ensure_list(d.get("clutches_brakes_flywheels"), context="spec.clutches_brakes_flywheels")):
-            c = ensure_dict(item, context=f"spec.clutches_brakes_flywheels[{idx}]")
+        for idx, item in enumerate(raw_clutch_items):
+            c = ensure_dict(item, context=f"{clutch_context}[{idx}]")
             clutches.append(
                 ClutchSpec(
-                    name=ensure_str(c.get("name"), context=f"spec.clutches_brakes_flywheels[{idx}].name"),
-                    a=ensure_str(c.get("a"), context=f"spec.clutches_brakes_flywheels[{idx}].a"),
-                    b=ensure_str(c.get("b"), context=f"spec.clutches_brakes_flywheels[{idx}].b"),
+                    name=ensure_str(c.get("name"), context=f"{clutch_context}[{idx}].name"),
+                    a=ensure_str(c.get("a"), context=f"{clutch_context}[{idx}].a"),
+                    b=ensure_str(c.get("b"), context=f"{clutch_context}[{idx}].b"),
                 )
             )
 
@@ -246,8 +270,6 @@ class ShiftSchedule:
         for raw_state, raw_spec in raw_states.items():
             state_name = normalize_state_name(str(raw_state), aliases)
 
-            # Legacy simple form:
-            # "1st": ["A", "B", "C"]
             if isinstance(raw_spec, list):
                 elems = ensure_list(raw_spec, context=f"schedule.states.{raw_state}")
                 active = tuple(
@@ -263,13 +285,6 @@ class ShiftSchedule:
                 )
                 continue
 
-            # Rich form:
-            # "N": {
-            #   "active_constraints": ["C3","B1"],
-            #   "display_elements": ["C3","B1"],
-            #   "manual_neutral": true,
-            #   "notes": "..."
-            # }
             spec_obj = ensure_dict(raw_spec, context=f"schedule.states.{raw_state}")
 
             active_raw = ensure_list(
@@ -391,7 +406,6 @@ class GenericTransmission:
                 locked_when_engaged=s.locked_when_engaged,
                 name=s.name,
             )
-            # Core solver already accepts sprags through the brake path.
             solver.add_brake(obj)  # type: ignore[arg-type]
             sprag_map[s.name] = obj
 
@@ -419,6 +433,7 @@ class GenericTransmission:
                 for g in self.spec.gearsets
             ],
             "clutches_brakes_flywheels": [{"name": c.name, "a": c.a, "b": c.b} for c in self.spec.clutches],
+            "clutches": [{"name": c.name, "a": c.a, "b": c.b} for c in self.spec.clutches],
             "brakes": [{"name": b.name, "member": b.member} for b in self.spec.brakes],
             "sprags": [
                 {
