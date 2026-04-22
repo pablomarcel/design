@@ -112,6 +112,23 @@ class AppState:
 UiTask = Callable[[], None]
 
 
+def _file_dialog_extension_tag(dialog_kind: str, ext_kind: str) -> str:
+    return t("tr", f"fdext_{dialog_kind}_{ext_kind}")
+
+
+def _apply_file_dialog_extension_colors(text_rgb: tuple[int, int, int]) -> None:
+    color = tuple(text_rgb) + (255,)
+    for dialog_kind in ("spec", "schedule"):
+        for ext_kind in ("json", "all"):
+            tag = _file_dialog_extension_tag(dialog_kind, ext_kind)
+            if not dpg.does_item_exist(tag):
+                continue
+            try:
+                dpg.configure_item(tag, color=color)
+            except Exception:
+                pass
+
+
 def enqueue_task(q: SimpleQueue[UiTask], fn: UiTask) -> None:
     q.put(fn)
 
@@ -307,7 +324,40 @@ class ThemeSpec:
     label: str
     key: str
     theme_id: int
+    dialog_theme_id: int | None
     font_id: int | None
+
+
+def _make_file_dialog_theme(*, text_rgb: tuple[int, int, int], selected_text_rgb: tuple[int, int, int] | None = None) -> int:
+    """Create a file-dialog-specific theme.
+
+    Dear PyGui file dialogs can render file-list entries with button/selectable
+    text colors that do not inherit well from the main light themes. We bind an
+    item theme directly to the file dialog so file names remain readable in
+    Light/macOS/LabVIEW modes while leaving Dark mode untouched.
+    """
+    selected = selected_text_rgb or text_rgb
+    with dpg.theme() as theme:
+        for component in (getattr(dpg, "mvButton", None), getattr(dpg, "mvSelectable", None)):
+            if component is None:
+                continue
+            with dpg.theme_component(component):
+                dpg.add_theme_color(dpg.mvThemeCol_Text, text_rgb + (255,))
+                try:
+                    dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, text_rgb + (190,))
+                except Exception:
+                    pass
+                try:
+                    dpg.add_theme_color(dpg.mvThemeCol_HeaderActive, selected + (255,))
+                except Exception:
+                    pass
+        with dpg.theme_component(dpg.mvAll):
+            dpg.add_theme_color(dpg.mvThemeCol_Text, text_rgb + (255,))
+            try:
+                dpg.add_theme_color(dpg.mvThemeCol_TextDisabled, text_rgb + (190,))
+            except Exception:
+                pass
+    return theme
 
 
 def _norm_theme_key(s: str) -> str:
@@ -428,6 +478,22 @@ def _apply_theme(mode: str, themes: dict[str, ThemeSpec]) -> None:
         dpg.bind_theme(spec.theme_id)
     except Exception:
         pass
+    for tag in (t("tr", "fd_spec"), t("tr", "fd_schedule")):
+        if dpg.does_item_exist(tag):
+            try:
+                if spec.dialog_theme_id is not None:
+                    dpg.bind_item_theme(tag, spec.dialog_theme_id)
+                else:
+                    dpg.bind_item_theme(tag, 0)
+            except Exception:
+                pass
+    ext_text_rgb_by_theme = {
+        "light": (17, 24, 39),
+        "macos": (28, 28, 30),
+        "labview": (30, 31, 34),
+        "dark": (233, 236, 239),
+    }
+    _apply_file_dialog_extension_colors(ext_text_rgb_by_theme.get(spec.key, (17, 24, 39)))
     if spec.font_id is not None:
         try:
             dpg.bind_font(spec.font_id)
@@ -557,8 +623,8 @@ def _build_file_dialogs(state: AppState, log: LogPanel) -> None:
         width=780,
         height=500,
     ):
-        dpg.add_file_extension(".json")
-        dpg.add_file_extension(".*")
+        dpg.add_file_extension(".json", color=(17, 24, 39, 255), tag=_file_dialog_extension_tag("spec", "json"))
+        dpg.add_file_extension(".*", color=(17, 24, 39, 255), tag=_file_dialog_extension_tag("spec", "all"))
     with dpg.file_dialog(
         directory_selector=False,
         show=False,
@@ -568,8 +634,8 @@ def _build_file_dialogs(state: AppState, log: LogPanel) -> None:
         width=780,
         height=500,
     ):
-        dpg.add_file_extension(".json")
-        dpg.add_file_extension(".*")
+        dpg.add_file_extension(".json", color=(17, 24, 39, 255), tag=_file_dialog_extension_tag("schedule", "json"))
+        dpg.add_file_extension(".*", color=(17, 24, 39, 255), tag=_file_dialog_extension_tag("schedule", "all"))
 
 
 # ------------------------------ builders/helpers ------------------------------
@@ -1081,11 +1147,15 @@ def main() -> int:
     theme_dark = _make_theme_dark()
     theme_macos = _make_theme_macos()
     theme_labview = _make_theme_labview()
+    fd_theme_light = _make_file_dialog_theme(text_rgb=(17, 24, 39))
+    fd_theme_dark = _make_file_dialog_theme(text_rgb=(233, 236, 239))
+    fd_theme_macos = _make_file_dialog_theme(text_rgb=(28, 28, 30))
+    fd_theme_labview = _make_file_dialog_theme(text_rgb=(30, 31, 34))
     themes: dict[str, ThemeSpec] = {
-        "light": ThemeSpec("Light", "light", theme_light, state.ui_font_default),
-        "dark": ThemeSpec("Dark", "dark", theme_dark, state.ui_font_default),
-        "macos": ThemeSpec("macOS", "macos", theme_macos, state.ui_font_macos),
-        "labview": ThemeSpec("LabVIEW", "labview", theme_labview, state.ui_font_labview),
+        "light": ThemeSpec("Light", "light", theme_light, fd_theme_light, state.ui_font_default),
+        "dark": ThemeSpec("Dark", "dark", theme_dark, fd_theme_dark, state.ui_font_default),
+        "macos": ThemeSpec("macOS", "macos", theme_macos, fd_theme_macos, state.ui_font_macos),
+        "labview": ThemeSpec("LabVIEW", "labview", theme_labview, fd_theme_labview, state.ui_font_labview),
     }
     _apply_theme("Light", themes)
     _set_ui_scale(DEFAULT_UI_SCALE)
