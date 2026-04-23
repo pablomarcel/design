@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = geometric_dimensioning
-
-[html]
-directory = geometric_dimensioning/out/htmlcov
-
-[report]
-show_missing = True

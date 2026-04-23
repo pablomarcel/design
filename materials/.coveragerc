@@ -1,9 +1,0 @@
-[run]
-branch = True
-source = materials
-
-[html]
-directory = materials/out/htmlcov
-
-[report]
-show_missing = True

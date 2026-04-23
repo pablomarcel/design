@@ -1,5 +1,0 @@
-pytest materials/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=materials/.coveragerc \
-  --cov-report=term-missing

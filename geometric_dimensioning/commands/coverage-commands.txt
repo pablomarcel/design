@@ -1,5 +1,0 @@
-pytest geometric_dimensioning/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=geometric_dimensioning/.coveragerc \
-  --cov-report=term-missing

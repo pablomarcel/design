@@ -1,5 +1,0 @@
-pytest finite_element_analysis/tests \
-  --override-ini addopts= \
-  --cov \
-  --cov-config=finite_element_analysis/.coveragerc \
-  --cov-report=term-missing
